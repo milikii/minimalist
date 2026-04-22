@@ -82,6 +82,12 @@ test_render_empty() {
   grep -q '^proxies: \[\]' "${TMPDIR_CASE}/proxy_providers/manual.txt"
   grep -q '^  - 192.168.2.0/24' "${TMPDIR_CASE}/config.yaml"
   grep -q '^  - 127.0.0.0/8' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^  cache-algorithm: arc' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^  fake-ip-filter-mode: blacklist' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^  default-nameserver:' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^  direct-nameserver:' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^  direct-nameserver-follow-policy: true' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^    - https://cloudflare-dns.com/dns-query#RULES' "${TMPDIR_CASE}/config.yaml"
   grep -q '^  - MATCH,PROXY' "${TMPDIR_CASE}/config.yaml"
 }
 

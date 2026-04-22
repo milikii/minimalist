@@ -34,3 +34,10 @@
 - `7893`: TProxy
 - `1053`: DNS
 - `19090`: Controller / WebUI（默认仅宿主机）
+
+## DNS 设计
+- `default-nameserver` 只负责解析上游 DNS 自己的域名，减少 bootstrap 继续走宿主机系统 DNS。
+- `fallback` 走 `cloudflare-dns.com` / `dns.google`，并显式加 `#RULES`，让海外加密 DNS 的链路更贴近旁路由规则。
+- `direct-nameserver` 固定为国内 DoH，确保 DIRECT 直连域名解析更稳定。
+- `fake-ip-filter` 保留 NAS/局域网常见兼容项，避免 captive portal、局域网域名和 STUN 被 fake-ip 破坏。
+- 当前没有把 `geosite` / `nameserver-policy` 强行写进默认模板，因为这台内核在 `mihomo-core -t` 验证阶段会被它们拖挂；这条能力应单开验证主线处理。

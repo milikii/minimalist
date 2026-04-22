@@ -123,31 +123,44 @@ dns:
   ipv6: false
   use-hosts: true
   use-system-hosts: true
+  cache-algorithm: arc
   respect-rules: false
   prefer-h3: false
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
+  fake-ip-filter-mode: blacklist
   fake-ip-filter:
     - "*.lan"
     - "*.local"
+    - "+.arpa"
     - "+.stun.*.*"
     - "localhost.ptlogin2.qq.com"
+    - "+.msftconnecttest.com"
+    - "+.msftncsi.com"
+    - "captive.apple.com"
+    - "connectivitycheck.gstatic.com"
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
   nameserver:
-    - https://doh.pub/dns-query
     - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
   fallback:
-    - https://1.1.1.1/dns-query
-    - https://8.8.8.8/dns-query
-  proxy-server-nameserver:
-    - https://doh.pub/dns-query
+    - https://cloudflare-dns.com/dns-query#RULES
+    - https://dns.google/dns-query#RULES
+  direct-nameserver:
     - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+  direct-nameserver-follow-policy: true
+  proxy-server-nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
   fallback-filter:
     geoip: true
     geoip-code: CN
     ipcidr:
       - 240.0.0.0/4
       - 0.0.0.0/32
-
 proxies: []
 EOF
 
