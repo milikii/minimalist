@@ -889,7 +889,7 @@ runtime_audit() {
   local trigger_update="disabled"
   local trigger_restart="disabled"
   local controller_scope controller_host proxy_probe="failed" controller_probe="failed"
-  local tproxy_packets dns_hijack_packets
+  local tproxy_packets dns_hijack_packets lan_activity_summary
 
   controller_scope_summary
   active_state="$(systemctl_show_value mihomo ActiveState)"
@@ -919,6 +919,11 @@ runtime_audit() {
   fi
   tproxy_packets="$(iptables_counter_sum mangle MIHOMO_PRE_HANDLE TPROXY)"
   dns_hijack_packets="$(iptables_counter_sum nat MIHOMO_DNS_HANDLE REDIRECT)"
+  if [[ "$tproxy_packets" -gt 0 || "$dns_hijack_packets" -gt 0 ]]; then
+    lan_activity_summary="近期已观测到局域网旁路由流量"
+  else
+    lan_activity_summary="当前未观测到局域网旁路由命中包；若你刚切好网关/DNS，可再从局域网设备发起一次请求"
+  fi
 
   echo "== 运行审计 =="
   echo "服务状态: ${active_state:-unknown}"
@@ -933,11 +938,14 @@ runtime_audit() {
   echo "端口监听: mixed=${MIXED_PORT} tproxy=${TPROXY_PORT} dns=${DNS_PORT} controller=${CONTROLLER_PORT}"
   echo "控制面范围: ${CONTROLLER_SCOPE}"
   echo "局域网旁路由入口: ${PROXY_INGRESS_INTERFACES:-未配置}"
+  echo "局域网网段: ${LAN_CIDRS:-未设置}"
+  echo "DNS 劫持入口: $([[ "${DNS_HIJACK_ENABLED}" == "1" ]] && echo "${DNS_HIJACK_INTERFACES:-未配置}" || echo '关闭')"
   echo "宿主机流量模式: $([[ "${PROXY_HOST_OUTPUT}" == "1" ]] && echo '透明接管(高风险)' || echo '默认直连 + localhost 显式代理')"
   echo "localhost 显式代理探测: ${proxy_probe}"
   echo "本机 WebUI 探测: ${controller_probe}"
   echo "局域网透明代理命中包数: ${tproxy_packets}"
   echo "DNS 劫持命中包数: ${dns_hijack_packets}"
+  echo "旁路由流量摘要: ${lan_activity_summary}"
   echo "节点统计: 启用=$(readonly_node_counts | cut -f1) 总计=$(readonly_node_counts | cut -f2)"
   echo "过去 24 小时 warning 数: ${warn_count:-0}"
   echo "过去 24 小时 error 数: ${err_count:-0}"

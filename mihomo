@@ -322,6 +322,8 @@ show_status() {
   echo "控制面密钥: 已隐藏；如需查看执行: mihomo show-secret"
   echo "Mixed/TProxy/DNS: ${MIXED_PORT}/${TPROXY_PORT}/${DNS_PORT}"
   echo "局域网旁路由入口: ${PROXY_INGRESS_INTERFACES}"
+  echo "局域网网段: ${LAN_CIDRS:-未设置}"
+  echo "DNS 劫持入口: $([[ "${DNS_HIJACK_ENABLED}" == "1" ]] && echo "${DNS_HIJACK_INTERFACES}" || echo '关闭')"
   echo "宿主机流量: $([[ "$PROXY_HOST_OUTPUT" == "1" ]] && echo '透明接管(高风险)' || echo "默认直连；按需显式代理 http://127.0.0.1:${MIXED_PORT}")"
   echo "容器直连名单: ${BYPASS_CONTAINER_NAMES:-无}"
   if [[ "$enabled_nodes" == "0" ]]; then

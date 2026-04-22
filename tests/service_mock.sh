@@ -203,9 +203,12 @@ test_runtime_audit_outputs() {
   grep -q '过去 24 小时 warning 数: 1' <<<"$output"
   grep -q '下次 Alpha 自动更新: Tue 2026-04-21 00:00:00 CST' <<<"$output"
   grep -q '控制面范围: 仅宿主机' <<<"$output"
+  grep -q '局域网网段: 192.168.2.0/24' <<<"$output"
+  grep -q 'DNS 劫持入口: bridge1' <<<"$output"
   grep -q 'localhost 显式代理探测: ok' <<<"$output"
   grep -q '局域网透明代理命中包数: 66' <<<"$output"
   grep -q 'DNS 劫持命中包数: 18' <<<"$output"
+  grep -q '旁路由流量摘要: 近期已观测到局域网旁路由流量' <<<"$output"
 }
 
 test_healthcheck_uses_localhost_proxy_probe() {

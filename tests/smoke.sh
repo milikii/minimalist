@@ -125,6 +125,8 @@ test_status_readonly() {
   [[ ! -e "${TMPDIR_CASE}/state/nodes.json" ]]
   assert_contains "$output" '节点: 启用 0 / 总计 0'
   assert_contains "$output" '宿主机流量: 默认直连；按需显式代理 http://127.0.0.1:7890'
+  assert_contains "$output" '局域网网段: 192.168.2.0/24'
+  assert_contains "$output" 'DNS 劫持入口: bridge1'
   assert_contains "$output" '控制面范围: 仅宿主机'
   assert_contains "$output" '控制面密钥: 已隐藏；如需查看执行: mihomo show-secret'
 }
