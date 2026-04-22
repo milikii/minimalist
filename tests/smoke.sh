@@ -125,6 +125,8 @@ test_status_readonly() {
   [[ ! -e "${TMPDIR_CASE}/state/nodes.json" ]]
   assert_contains "$output" '节点: 启用 0 / 总计 0'
   assert_contains "$output" '宿主机流量: 默认直连；按需显式代理 http://127.0.0.1:7890'
+  assert_contains "$output" '控制面范围: 仅宿主机'
+  assert_contains "$output" '控制面密钥: 已隐藏；如需查看执行: mihomo show-secret'
 }
 
 test_status_warns_on_host_output_proxy() {
@@ -175,6 +177,7 @@ test_usage_groups_core_and_advanced_commands() {
   assert_contains "$output" '核心命令:'
   assert_contains "$output" '进阶配置:'
   assert_contains "$output" '维护与内部命令:'
+  assert_contains "$output" 'show-secret'
   assert_contains "$output" 'router-wizard'
   assert_contains "$output" 'update-alpha [--quiet]'
 }
@@ -182,6 +185,12 @@ test_usage_groups_core_and_advanced_commands() {
 test_menu_contains_advanced_bucket() {
   grep -q 'echo "8) 高级维护（少用）"' "${ROOT}/mihomo"
   ! grep -q 'echo "4) 自定义规则"' "${ROOT}/mihomo"
+}
+
+test_render_uses_local_controller_bind_by_default() {
+  setup_case
+  run_manager render-config >/dev/null
+  grep -q '^external-controller: 127.0.0.1:19090' "${TMPDIR_CASE}/config.yaml"
 }
 
 main() {
@@ -198,6 +207,7 @@ main() {
   test_safe_host_output_default_present
   test_usage_groups_core_and_advanced_commands
   test_menu_contains_advanced_bucket
+  test_render_uses_local_controller_bind_by_default
   echo "smoke: ok"
 }
 

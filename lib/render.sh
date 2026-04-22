@@ -109,7 +109,7 @@ geox-url:
   geoip: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
   geosite: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
 
-external-controller: 0.0.0.0:${CONTROLLER_PORT}
+external-controller: ${CONTROLLER_BIND_ADDRESS}:${CONTROLLER_PORT}
 secret: "${secret}"
 external-ui: ${UI_DIR}
 

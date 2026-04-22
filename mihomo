@@ -256,6 +256,15 @@ router_wizard() {
   ok "旁路由参数已更新"
 }
 
+show_secret_command() {
+  require_root
+  local secret
+  secret="$(current_secret)"
+  [[ -n "$secret" ]] || die "当前没有可用的控制面密钥"
+  printf '%s
+' "$secret"
+}
+
 show_status() {
   require_root
   load_settings_readonly
@@ -263,7 +272,7 @@ show_status() {
   local version="未安装"
   local service_state="inactive"
   local service_enable="disabled"
-  local enabled_nodes total_nodes secret controller_url counts next_step
+  local enabled_nodes total_nodes controller_url counts next_step controller_scope controller_host
   [[ -x "$MIHOMO_BIN" ]] && version="$("$MIHOMO_BIN" -v 2>/dev/null | head -n 1 || echo "$MIHOMO_BIN")"
   service_is_active && service_state="active"
   service_is_enabled && service_enable="enabled"
@@ -271,7 +280,13 @@ show_status() {
   enabled_nodes="${counts%%$'\t'*}"
   total_nodes="${counts##*$'\t'}"
   secret="$(current_secret)"
-  controller_url="http://$(detect_iface_ip "${PROXY_INGRESS_INTERFACES%% *}" 2>/dev/null || echo 127.0.0.1):${CONTROLLER_PORT}/ui/"
+  controller_host="${CONTROLLER_BIND_ADDRESS:-127.0.0.1}"
+  controller_scope="仅宿主机"
+  if [[ "$controller_host" == "0.0.0.0" || "$controller_host" == "*" ]]; then
+    controller_host="$(detect_iface_ip "${PROXY_INGRESS_INTERFACES%% *}" 2>/dev/null || echo 127.0.0.1)"
+    controller_scope="局域网可访问(高风险)"
+  fi
+  controller_url="http://${controller_host}:${CONTROLLER_PORT}/ui/"
   echo
   echo "Mihomo 管理器 v${SCRIPT_VERSION}"
   echo "核心版本: ${version}"
@@ -280,7 +295,8 @@ show_status() {
   echo "当前模式: $(current_mode || echo rule)"
   echo "节点: 启用 ${enabled_nodes} / 总计 ${total_nodes}"
   echo "WebUI: ${controller_url}"
-  echo "密钥: ${secret}"
+  echo "控制面范围: ${controller_scope}"
+  echo "控制面密钥: 已隐藏；如需查看执行: mihomo show-secret"
   echo "Mixed/TProxy/DNS: ${MIXED_PORT}/${TPROXY_PORT}/${DNS_PORT}"
   echo "局域网旁路由入口: ${PROXY_INGRESS_INTERFACES}"
   echo "宿主机流量: $([[ "$PROXY_HOST_OUTPUT" == "1" ]] && echo '透明接管(高风险)' || echo "默认直连；按需显式代理 http://127.0.0.1:${MIXED_PORT}")"
@@ -295,6 +311,10 @@ show_status() {
     next_step="宿主机默认直连；局域网设备把网关和 DNS 指向 NAS 后即可走旁路由"
   fi
   echo "推荐下一步: ${next_step}"
+  if [[ "$controller_scope" != "仅宿主机" ]]; then
+    warn "控制面当前已开放到局域网；这不符合宿主机旁路由的默认安全边界。"
+    warn "更推荐把 CONTROLLER_BIND_ADDRESS 保持为 127.0.0.1，只在宿主机本地访问 WebUI。"
+  fi
   if [[ "$PROXY_HOST_OUTPUT" == "1" ]]; then
     warn "当前已接管宿主机外连；这可能影响 tailscaled、cloudflared、SSH 反向隧道等守护进程。"
     warn "更推荐保持 0，并让宿主机按需显式走 127.0.0.1:${MIXED_PORT}。"
@@ -585,6 +605,7 @@ mihomo v${SCRIPT_VERSION}
   $0 menu
   $0 setup
   $0 status
+  $0 show-secret
   $0 start | restart | stop
   $0 enable-start | enable
   $0 import-links
@@ -695,6 +716,7 @@ main() {
     apply-rules) apply_rules ;;
     clear-rules) clear_rules ;;
     status) show_status ;;
+    show-secret|controller-secret) show_secret_command ;;
     -h|--help|help) usage ;;
     *) die "未知命令: $1" ;;
   esac
