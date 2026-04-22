@@ -13,13 +13,13 @@ trap cleanup EXIT
 setup_case() {
   TMPDIR_CASE="$(mktemp -d)"
   mkdir -p "${TMPDIR_CASE}/bin"
-  cat > "${TMPDIR_CASE}/router.env" <<'EOF'
+  cat > "${TMPDIR_CASE}/router.env" <<'EOENV'
 LAN_INTERFACES="bridge1"
 LAN_CIDRS="192.168.2.0/24"
 PROXY_INGRESS_INTERFACES="bridge1"
 DNS_HIJACK_ENABLED="1"
 DNS_HIJACK_INTERFACES="bridge1"
-PROXY_HOST_OUTPUT="1"
+PROXY_HOST_OUTPUT="0"
 BYPASS_CONTAINER_NAMES=""
 BYPASS_SRC_CIDRS=""
 BYPASS_DST_CIDRS=""
@@ -32,9 +32,9 @@ ROUTE_MARK="0x2333"
 ROUTE_MASK="0xffffffff"
 ROUTE_TABLE="233"
 ROUTE_PRIORITY="100"
-EOF
+EOENV
 
-  cat > "${TMPDIR_CASE}/bin/systemctl" <<'EOF'
+  cat > "${TMPDIR_CASE}/bin/systemctl" <<'EOSYS'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "${SYSTEMCTL_LOG:?}"
 case "$1" in
@@ -56,7 +56,11 @@ case "$1" in
     exit 0
     ;;
   is-active|is-enabled)
-    case "$2" in
+    unit="$2"
+    if [[ "$unit" == "--quiet" ]]; then
+      unit="$3"
+    fi
+    case "$unit" in
       mihomo) exit 0 ;;
       mihomo-alpha-update.timer) exit 0 ;;
       mihomo-restart.timer) exit 1 ;;
@@ -67,10 +71,10 @@ case "$1" in
     exit 0
     ;;
 esac
-EOF
+EOSYS
   chmod +x "${TMPDIR_CASE}/bin/systemctl"
 
-  cat > "${TMPDIR_CASE}/bin/journalctl" <<'EOF'
+  cat > "${TMPDIR_CASE}/bin/journalctl" <<'EOJ'
 #!/usr/bin/env bash
 if printf '%s\n' "$*" | grep -q -- "--since 24 hours ago"; then
   case "$*" in
@@ -79,10 +83,10 @@ if printf '%s\n' "$*" | grep -q -- "--since 24 hours ago"; then
   esac
 fi
 printf 'journal output\n'
-EOF
+EOJ
   chmod +x "${TMPDIR_CASE}/bin/journalctl"
 
-  cat > "${TMPDIR_CASE}/bin/ss" <<'EOF'
+  cat > "${TMPDIR_CASE}/bin/ss" <<'EOSS'
 #!/usr/bin/env bash
 cat <<OUT
 tcp LISTEN 0 4096 *:7890 *:* users:(("mihomo-core",pid=12345,fd=10))
@@ -90,16 +94,17 @@ tcp LISTEN 0 4096 *:7893 *:* users:(("mihomo-core",pid=12345,fd=7))
 tcp LISTEN 0 4096 *:1053 *:* users:(("mihomo-core",pid=12345,fd=11))
 tcp LISTEN 0 4096 *:19090 *:* users:(("mihomo-core",pid=12345,fd=6))
 OUT
-EOF
+EOSS
   chmod +x "${TMPDIR_CASE}/bin/ss"
 
-  cat > "${TMPDIR_CASE}/bin/curl" <<'EOF'
+  cat > "${TMPDIR_CASE}/bin/curl" <<'EOCURL'
 #!/usr/bin/env bash
+printf '%s\n' "$*" >> "${CURL_LOG:?}"
 printf '<!doctype html>\n'
-EOF
+EOCURL
   chmod +x "${TMPDIR_CASE}/bin/curl"
 
-  cat > "${TMPDIR_CASE}/bin/git" <<'EOF'
+  cat > "${TMPDIR_CASE}/bin/git" <<'EOGIT'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "${GIT_LOG:?}"
 case "$1" in
@@ -121,12 +126,12 @@ case "$1" in
     exit 0
     ;;
 esac
-EOF
+EOGIT
   chmod +x "${TMPDIR_CASE}/bin/git"
 }
 
 env_prefix() {
-  printf 'APP_ROOT=%q MIHOMO_DIR=%q SETTINGS_ENV=%q ROUTER_ENV=%q CONFIG_FILE=%q RULES_DIR=%q PROVIDER_DIR=%q UI_DIR=%q STATE_DIR=%q NODES_STATE_FILE=%q RULES_STATE_FILE=%q PROVIDER_FILE=%q RENDERED_RULES_FILE=%q MIHOMO_USER=%q MANAGER_BIN=%q MIHOMO_BIN=%q SYSTEMCTL_BIN=%q JOURNALCTL_BIN=%q SS_BIN=%q CURL_BIN=%q GIT_BIN=%q RULES_REPO_DIR=%q SYSTEMCTL_LOG=%q GIT_LOG=%q SYSTEMD_UNIT=%q RESTART_SERVICE_UNIT=%q RESTART_TIMER_UNIT=%q UPDATE_SERVICE_UNIT=%q UPDATE_TIMER_UNIT=%q' \
+  printf 'APP_ROOT=%q MIHOMO_DIR=%q SETTINGS_ENV=%q ROUTER_ENV=%q CONFIG_FILE=%q RULES_DIR=%q PROVIDER_DIR=%q UI_DIR=%q STATE_DIR=%q NODES_STATE_FILE=%q RULES_STATE_FILE=%q PROVIDER_FILE=%q RENDERED_RULES_FILE=%q MIHOMO_USER=%q MANAGER_BIN=%q MIHOMO_BIN=%q SYSTEMCTL_BIN=%q JOURNALCTL_BIN=%q SS_BIN=%q CURL_BIN=%q GIT_BIN=%q RULES_REPO_DIR=%q SYSTEMCTL_LOG=%q GIT_LOG=%q CURL_LOG=%q SYSTEMD_UNIT=%q RESTART_SERVICE_UNIT=%q RESTART_TIMER_UNIT=%q UPDATE_SERVICE_UNIT=%q UPDATE_TIMER_UNIT=%q' \
     "$ROOT" \
     "$TMPDIR_CASE" \
     "$TMPDIR_CASE/settings.env" \
@@ -151,6 +156,7 @@ env_prefix() {
     "$TMPDIR_CASE/repo" \
     "$TMPDIR_CASE/systemctl.log" \
     "$TMPDIR_CASE/git.log" \
+    "$TMPDIR_CASE/curl.log" \
     "$TMPDIR_CASE/mihomo.service" \
     "$TMPDIR_CASE/mihomo-restart.service" \
     "$TMPDIR_CASE/mihomo-restart.timer" \
@@ -203,6 +209,16 @@ test_runtime_audit_outputs() {
   grep -q '下次 Alpha 自动更新: Tue 2026-04-21 00:00:00 CST' <<<"$output"
 }
 
+test_healthcheck_uses_localhost_proxy_probe() {
+  setup_case
+  touch "${TMPDIR_CASE}/Country.mmdb"
+  run_manager render-config >/dev/null
+  run_manager healthcheck >/dev/null
+  grep -Fq 'http://127.0.0.1:19090/ui/' "${TMPDIR_CASE}/curl.log"
+  grep -Fq 'http://127.0.0.1:7890' "${TMPDIR_CASE}/curl.log"
+  grep -Fq 'https://cp.cloudflare.com/generate_204' "${TMPDIR_CASE}/curl.log"
+}
+
 test_sync_rules_repo_command() {
   setup_case
   mkdir -p "${TMPDIR_CASE}/repo/.git"
@@ -218,6 +234,7 @@ main() {
   test_configure_restart_enables_timer
   test_disable_alpha_update_disables_timer
   test_runtime_audit_outputs
+  test_healthcheck_uses_localhost_proxy_probe
   test_sync_rules_repo_command
   echo "service-mock: ok"
 }

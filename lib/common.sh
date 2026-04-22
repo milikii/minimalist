@@ -204,7 +204,7 @@ LAN_CIDRS="${lan_cidr:-192.168.2.0/24}"
 PROXY_INGRESS_INTERFACES="${lan_iface:-bridge1}"
 DNS_HIJACK_ENABLED="1"
 DNS_HIJACK_INTERFACES="${lan_iface:-bridge1}"
-PROXY_HOST_OUTPUT="1"
+PROXY_HOST_OUTPUT="0"
 BYPASS_CONTAINER_NAMES="tr-bt TR1 Tr-music TR-plex"
 BYPASS_SRC_CIDRS=""
 BYPASS_DST_CIDRS=""
@@ -257,7 +257,7 @@ load_router_env() {
   ROUTE_MASK="${ROUTE_MASK:-0xffffffff}"
   ROUTE_TABLE="${ROUTE_TABLE:-233}"
   ROUTE_PRIORITY="${ROUTE_PRIORITY:-100}"
-  PROXY_HOST_OUTPUT="${PROXY_HOST_OUTPUT:-1}"
+  PROXY_HOST_OUTPUT="${PROXY_HOST_OUTPUT:-0}"
   DNS_HIJACK_ENABLED="${DNS_HIJACK_ENABLED:-1}"
   LAN_INTERFACES="${LAN_INTERFACES:-}"
   LAN_CIDRS="${LAN_CIDRS:-}"
@@ -299,7 +299,7 @@ load_router_env_readonly() {
   ROUTE_MASK="0xffffffff"
   ROUTE_TABLE="233"
   ROUTE_PRIORITY="100"
-  PROXY_HOST_OUTPUT="1"
+  PROXY_HOST_OUTPUT="0"
   DNS_HIJACK_ENABLED="1"
   LAN_INTERFACES=""
   LAN_CIDRS=""
@@ -390,6 +390,47 @@ ensure_enabled_nodes() {
   local enabled_count
   enabled_count="$(node_enabled_count)"
   [[ "$enabled_count" -gt 0 ]] || die "当前没有启用中的节点。先执行 'mihomo import-links' 导入节点，或用 'mihomo toggle-node' 启用已有节点，再启动/接管 mihomo"
+}
+
+host_output_proxy_enabled() {
+  [[ "${PROXY_HOST_OUTPUT:-0}" == "1" ]]
+}
+
+print_host_output_proxy_warning() {
+  host_output_proxy_enabled || return 0
+  warn "宿主机透明接管已开启：宿主机 root 进程和系统守护进程也会被透明代理。"
+  warn "这会影响 tailscaled、cloudflared、反向隧道、备份/同步任务等依赖稳定直连的服务。"
+  warn "更安全的默认值是 PROXY_HOST_OUTPUT=0；宿主机应用如需代理，请显式使用 127.0.0.1:${MIXED_PORT}。"
+}
+
+unit_is_active() {
+  local unit="$1"
+  systemctl_cmd is-active --quiet "$unit" >/dev/null 2>&1
+}
+
+process_is_active() {
+  local name="$1"
+  if have pgrep; then
+    pgrep -x "$name" >/dev/null 2>&1 && return 0
+  fi
+  ps -eo comm= 2>/dev/null | grep -Fxq "$name"
+}
+
+unit_or_process_is_active() {
+  local unit="$1"
+  local process_name="$2"
+  unit_is_active "$unit" || process_is_active "$process_name"
+}
+
+guard_host_output_proxy_conflicts() {
+  host_output_proxy_enabled || return 0
+  local conflicts=()
+  unit_or_process_is_active tailscaled.service tailscaled && conflicts+=("tailscaled")
+  unit_or_process_is_active cloudflared.service cloudflared && conflicts+=("cloudflared")
+  [[ ${#conflicts[@]} -eq 0 ]] && return 0
+  warn "检测到以下宿主机关键服务正在运行: ${conflicts[*]}"
+  warn "这些服务依赖宿主机稳定直连，不能和 PROXY_HOST_OUTPUT=1 混用。"
+  die "修复: 保持 PROXY_HOST_OUTPUT=0；宿主机应用如需代理，请显式使用 127.0.0.1:${MIXED_PORT}；若你明确知道风险，先停掉 ${conflicts[*]} 再重试。"
 }
 
 service_is_active() {

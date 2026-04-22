@@ -73,12 +73,16 @@ render_config() {
   local enabled_count
   local lan_cidrs
   local config_mode
+  local allowed_cidr
+  local -a lan_allowed_cidrs_arr=()
 
   secret="$(current_secret)"
   [[ -n "$secret" ]] || secret="$(random_secret)"
   enabled_count="$(node_enabled_count)"
   config_mode="${CONFIG_MODE:-rule}"
   lan_cidrs="${LAN_CIDRS:-192.168.2.0/24}"
+  read -r -a lan_allowed_cidrs_arr <<< "${lan_cidrs}"
+  lan_allowed_cidrs_arr+=("127.0.0.0/8")
 
   cat >"$CONFIG_FILE" <<EOF
 mixed-port: ${MIXED_PORT}
@@ -86,7 +90,11 @@ tproxy-port: ${TPROXY_PORT}
 allow-lan: true
 bind-address: "*"
 lan-allowed-ips:
-  - ${lan_cidrs}
+EOF
+  for allowed_cidr in "${lan_allowed_cidrs_arr[@]}"; do
+    printf '  - %s\n' "$allowed_cidr" >>"$CONFIG_FILE"
+  done
+  cat >>"$CONFIG_FILE" <<EOF
 mode: ${config_mode}
 log-level: info
 ipv6: false
@@ -535,6 +543,7 @@ clear_rules() {
   delete_jump mangle PREROUTING -j MIHOMO_PRE
   delete_jump mangle OUTPUT -j MIHOMO_OUT
   delete_jump nat PREROUTING -j MIHOMO_DNS
+  delete_jump nat OUTPUT -j MIHOMO_DNS_OUT
   ipt -t mangle -F MIHOMO_PRE 2>/dev/null || true
   ipt -t mangle -X MIHOMO_PRE 2>/dev/null || true
   ipt -t mangle -F MIHOMO_PRE_HANDLE 2>/dev/null || true
@@ -545,6 +554,8 @@ clear_rules() {
   ipt -t nat -X MIHOMO_DNS 2>/dev/null || true
   ipt -t nat -F MIHOMO_DNS_HANDLE 2>/dev/null || true
   ipt -t nat -X MIHOMO_DNS_HANDLE 2>/dev/null || true
+  ipt -t nat -F MIHOMO_DNS_OUT 2>/dev/null || true
+  ipt -t nat -X MIHOMO_DNS_OUT 2>/dev/null || true
   ip_rule_del
   ip -4 route flush table "$ROUTE_TABLE" 2>/dev/null || true
 }
@@ -598,6 +609,10 @@ apply_rules() {
   local mihomo_uid
   mihomo_uid="$(id -u "$MIHOMO_USER")"
   ipt -t mangle -A MIHOMO_OUT -m owner --uid-owner "$mihomo_uid" -j RETURN
+  # Do not intercept reply-direction packets for inbound connections.
+  # This keeps locally hosted services like SSH from having their response
+  # packets transparently proxied on the way back to external clients.
+  ipt -t mangle -A MIHOMO_OUT -m conntrack --ctdir REPLY -j RETURN
   for cidr in "${BYPASS_UIDS_ARR[@]}"; do
     [[ -n "$cidr" ]] || continue
     ipt -t mangle -A MIHOMO_OUT -m owner --uid-owner "$cidr" -j RETURN
@@ -619,6 +634,8 @@ apply_rules() {
     ipt -t mangle -A PREROUTING -j MIHOMO_PRE
   fi
   if [[ "$PROXY_HOST_OUTPUT" == "1" ]]; then
+    guard_host_output_proxy_conflicts
+    print_host_output_proxy_warning
     if ! ipt -t mangle -C OUTPUT -j MIHOMO_OUT >/dev/null 2>&1; then
       ipt -t mangle -A OUTPUT -j MIHOMO_OUT
     fi
@@ -698,6 +715,10 @@ healthcheck() {
   ss_cmd -lntup 2>/dev/null | grep -qE "[:.]${CONTROLLER_PORT}[[:space:]]" || { echo "port: controller ${CONTROLLER_PORT} not listening"; failed=1; }
   curl_cmd --noproxy '*' -fsS --max-time 10 "http://127.0.0.1:${CONTROLLER_PORT}/ui/" >/tmp/mihomo-health-ui.html 2>/dev/null || {
     echo "webui: unavailable"
+    failed=1
+  }
+  curl_cmd --noproxy '*' -fsS --max-time 10 -x "http://127.0.0.1:${MIXED_PORT}" https://cp.cloudflare.com/generate_204 >/tmp/mihomo-health-proxy.out 2>/dev/null || {
+    echo "proxy: localhost mixed ${MIXED_PORT} unavailable"
     failed=1
   }
   if [[ "$failed" -eq 0 ]]; then

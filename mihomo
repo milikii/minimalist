@@ -241,7 +241,7 @@ router_wizard() {
   upsert_env_var "$ROUTER_ENV" "PROXY_INGRESS_INTERFACES" "${input:-$PROXY_INGRESS_INTERFACES}"
   read -rp "DNS 劫持接口 [${DNS_HIJACK_INTERFACES}]: " input
   upsert_env_var "$ROUTER_ENV" "DNS_HIJACK_INTERFACES" "${input:-$DNS_HIJACK_INTERFACES}"
-  read -rp "宿主机本机流量是否接管 1/0 [${PROXY_HOST_OUTPUT}]: " input
+  read -rp "宿主机本机流量是否接管 1/0（建议 0，仅让 LAN 走透明代理） [${PROXY_HOST_OUTPUT}]: " input
   upsert_env_var "$ROUTER_ENV" "PROXY_HOST_OUTPUT" "${input:-$PROXY_HOST_OUTPUT}"
   read -rp "PT 等容器直连，空格分隔 [${BYPASS_CONTAINER_NAMES}]: " input
   upsert_env_var "$ROUTER_ENV" "BYPASS_CONTAINER_NAMES" "${input:-$BYPASS_CONTAINER_NAMES}"
@@ -283,7 +283,12 @@ show_status() {
   echo "密钥: ${secret}"
   echo "Mixed/TProxy/DNS: ${MIXED_PORT}/${TPROXY_PORT}/${DNS_PORT}"
   echo "旁路由接口: ${PROXY_INGRESS_INTERFACES}"
+  echo "宿主机流量接管: $([[ "$PROXY_HOST_OUTPUT" == "1" ]] && echo '开启(高风险)' || echo '关闭(推荐)')"
   echo "容器直连: ${BYPASS_CONTAINER_NAMES:-无}"
+  if [[ "$PROXY_HOST_OUTPUT" == "1" ]]; then
+    warn "当前已接管宿主机外连；这可能影响 tailscaled、cloudflared、SSH 反向隧道等守护进程。"
+    warn "更推荐保持 0，并让宿主机按需显式走 127.0.0.1:${MIXED_PORT}。"
+  fi
   echo "定时重启: ${RESTART_INTERVAL_HOURS:-0}h"
   echo "Alpha 自动更新: $([[ "${ALPHA_AUTO_UPDATE:-0}" == "1" ]] && echo "${ALPHA_UPDATE_ONCALENDAR}" || echo '关闭')"
 }
