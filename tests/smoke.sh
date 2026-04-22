@@ -207,6 +207,11 @@ test_router_wizard_mentions_host_router_model() {
   grep -q 'LAN_CIDRS' "${ROOT}/mihomo"
 }
 
+test_audit_mentions_geosite_probe() {
+  grep -q 'geosite_probe_ready' "${ROOT}/lib/render.sh"
+  grep -q 'GeoSite.dat 当前不可用于 geosite 规则' "${ROOT}/lib/render.sh"
+}
+
 main() {
   test_syntax
   test_render_empty
@@ -223,6 +228,7 @@ main() {
   test_menu_contains_advanced_bucket
   test_render_uses_local_controller_bind_by_default
   test_router_wizard_mentions_host_router_model
+  test_audit_mentions_geosite_probe
   echo "smoke: ok"
 }
 

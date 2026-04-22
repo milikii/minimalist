@@ -778,6 +778,44 @@ diagnose() {
   journalctl_cmd -u mihomo -n 60 --no-pager || true
 }
 
+geosite_probe_ready() {
+  [[ -x "$MIHOMO_BIN" ]] || return 1
+  [[ -f "${MIHOMO_DIR}/GeoSite.dat" ]] || return 1
+
+  local tmpdir
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "$tmpdir"' RETURN
+
+  cp -a "${MIHOMO_DIR}/GeoSite.dat" "${tmpdir}/GeoSite.dat"
+  cat > "${tmpdir}/config.yaml" <<'EOF'
+mode: rule
+log-level: info
+geodata-mode: false
+geo-auto-update: false
+dns:
+  enable: true
+  listen: 127.0.0.1:1053
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  nameserver-policy:
+    "geosite:cn":
+      - 223.5.5.5
+  nameserver:
+    - 223.5.5.5
+proxies: []
+proxy-groups:
+  - name: "PROXY"
+    type: select
+    proxies:
+      - DIRECT
+rules:
+  - MATCH,DIRECT
+EOF
+
+  timeout 8 "$MIHOMO_BIN" -t -d "$tmpdir" >/tmp/mihomo-geosite-probe.out 2>/tmp/mihomo-geosite-probe.err
+}
+
 audit_installation() {
   require_root
   load_settings_readonly
@@ -831,6 +869,18 @@ audit_installation() {
       echo "drift: restart interval configured but restart timer not enabled"
       status=1
     fi
+  fi
+
+  if [[ -f "${MIHOMO_DIR}/GeoSite.dat" ]]; then
+    if geosite_probe_ready; then
+      echo "ok: GeoSite.dat 可用于 geosite 规则"
+    else
+      echo "warn: GeoSite.dat 当前不可用于 geosite 规则；默认 DNS 模板已避免依赖它"
+      sed -n '1,20p' /tmp/mihomo-geosite-probe.out 2>/dev/null || true
+      sed -n '1,20p' /tmp/mihomo-geosite-probe.err 2>/dev/null || true
+    fi
+  else
+    echo "info: 未发现 GeoSite.dat；当前默认模板不依赖 geosite 规则"
   fi
 
   if [[ "$status" -eq 0 ]]; then

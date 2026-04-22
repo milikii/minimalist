@@ -41,3 +41,7 @@
 - `direct-nameserver` 固定为国内 DoH，确保 DIRECT 直连域名解析更稳定。
 - `fake-ip-filter` 保留 NAS/局域网常见兼容项，避免 captive portal、局域网域名和 STUN 被 fake-ip 破坏。
 - 当前没有把 `geosite` / `nameserver-policy` 强行写进默认模板，因为这台内核在 `mihomo-core -t` 验证阶段会被它们拖挂；这条能力应单开验证主线处理。
+
+## geosite 现状
+- 更强的 `geosite` / `nameserver-policy` DNS 模板已经验证过方向，但当前这台 NAS 上的 `GeoSite.dat` 资产并不稳定。
+- 默认模板目前不依赖 geosite 规则；如需继续追更强 DNS，可先执行 `mihomo audit-installation` 看 `GeoSite.dat` 是否真的 ready。
