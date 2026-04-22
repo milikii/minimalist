@@ -124,8 +124,27 @@ EOIPT
 
   cat > "${TMPDIR_CASE}/bin/curl" <<'EOCURL'
 #!/usr/bin/env bash
-printf '%s\n' "$*" >> "${CURL_LOG:?}"
-printf '<!doctype html>\n'
+printf '%s
+' "$*" >> "${CURL_LOG:?}"
+out=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -o)
+      out="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+if [[ -n "$out" ]]; then
+  printf 'mock-geosite-data
+' > "$out"
+else
+  printf '<!doctype html>
+'
+fi
 EOCURL
   chmod +x "${TMPDIR_CASE}/bin/curl"
 
@@ -221,6 +240,13 @@ test_healthcheck_uses_localhost_proxy_probe() {
   grep -Fq 'https://cp.cloudflare.com/generate_204' "${TMPDIR_CASE}/curl.log"
 }
 
+test_install_geosite_downloads_official_asset() {
+  setup_case
+  run_manager install-geosite >/dev/null
+  grep -Fq 'https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat' "${TMPDIR_CASE}/curl.log"
+  [[ -f "${TMPDIR_CASE}/GeoSite.dat" ]]
+}
+
 test_sync_rules_repo_command() {
   setup_case
   mkdir -p "${TMPDIR_CASE}/repo/.git"
@@ -237,6 +263,7 @@ main() {
   test_disable_alpha_update_disables_timer
   test_runtime_audit_outputs
   test_healthcheck_uses_localhost_proxy_probe
+  test_install_geosite_downloads_official_asset
   test_sync_rules_repo_command
   echo "service-mock: ok"
 }

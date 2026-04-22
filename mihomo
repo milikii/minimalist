@@ -514,16 +514,17 @@ advanced_menu() {
     echo "1) 切换模式 rule/global/direct"
     echo "2) 自定义规则（高级）"
     echo "3) 端口设置"
-    echo "4) 安装/更新 WebUI"
-    echo "5) 更新 Alpha 内核"
-    echo "6) 更新 Stable 内核"
-    echo "7) 回滚到上一版内核"
-    echo "8) 定时器管理"
-    echo "9) 安装审计"
-    echo "10) 同步自定义规则到规则仓库"
-    echo "11) 配置规则仓库同步"
+    echo "4) 更新 GeoSite 资产"
+    echo "5) 安装/更新 WebUI"
+    echo "6) 更新 Alpha 内核"
+    echo "7) 更新 Stable 内核"
+    echo "8) 回滚到上一版内核"
+    echo "9) 定时器管理"
+    echo "10) 安装审计"
+    echo "11) 同步自定义规则到规则仓库"
+    echo "12) 配置规则仓库同步"
     echo "0) 返回"
-    read -rp "选择 [0-11]: " action
+    read -rp "选择 [0-12]: " action
     case "$action" in
       1)
         echo "1) rule"
@@ -540,14 +541,15 @@ advanced_menu() {
         ;;
       2) rules_menu; press_enter ;;
       3) configure_ports; press_enter ;;
-      4) install_webui zashboard; restart_service_if_active; press_enter ;;
-      5) install_binary alpha; upsert_env_var "$SETTINGS_ENV" "CORE_CHANNEL" "alpha"; restart_service_if_active; press_enter ;;
-      6) install_binary stable; upsert_env_var "$SETTINGS_ENV" "CORE_CHANNEL" "stable"; restart_service_if_active; press_enter ;;
-      7) rollback_core; press_enter ;;
-      8) timers_menu; press_enter ;;
-      9) audit_installation; press_enter ;;
-      10) sync_rules_repo; press_enter ;;
-      11) configure_rules_sync_menu; press_enter ;;
+      4) install_geosite_dat; press_enter ;;
+      5) install_webui zashboard; restart_service_if_active; press_enter ;;
+      6) install_binary alpha; upsert_env_var "$SETTINGS_ENV" "CORE_CHANNEL" "alpha"; restart_service_if_active; press_enter ;;
+      7) install_binary stable; upsert_env_var "$SETTINGS_ENV" "CORE_CHANNEL" "stable"; restart_service_if_active; press_enter ;;
+      8) rollback_core; press_enter ;;
+      9) timers_menu; press_enter ;;
+      10) audit_installation; press_enter ;;
+      11) sync_rules_repo; press_enter ;;
+      12) configure_rules_sync_menu; press_enter ;;
       0) break ;;
       *) warn "无效选择"; press_enter ;;
     esac
@@ -649,6 +651,7 @@ mihomo v${SCRIPT_VERSION}
   $0 remove-rule
   $0 set-mode [rule|global|direct]
   $0 set-ports
+  $0 install-geosite
   $0 test-config
   $0 audit-installation
 
@@ -690,6 +693,7 @@ main() {
     set-mode) set_mode "${2:-rule}" ;;
     router-wizard) router_wizard ;;
     set-ports) configure_ports ;;
+    install-geosite|update-geosite) install_geosite_dat ;;
     update-alpha)
       install_binary alpha "${2:-}"
       upsert_env_var "$SETTINGS_ENV" "CORE_CHANNEL" "alpha"

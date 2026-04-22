@@ -45,3 +45,8 @@
 ## geosite 现状
 - 更强的 `geosite` / `nameserver-policy` DNS 模板已经验证过方向，但当前这台 NAS 上的 `GeoSite.dat` 资产并不稳定。
 - 默认模板目前不依赖 geosite 规则；如需继续追更强 DNS，可先执行 `mihomo audit-installation` 看 `GeoSite.dat` 是否真的 ready。
+
+## GeoSite 资产治理
+- 可显式执行 `mihomo install-geosite` 下载并验证 `GeoSite.dat`。
+- 脚本会先下载到临时文件，再用最小 geosite 配置做探针；只有验证通过才会覆盖运行目录。
+- `mihomo audit-installation` 会继续报告当前 `GeoSite.dat` 是否真的 ready。

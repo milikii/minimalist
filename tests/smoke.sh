@@ -186,6 +186,7 @@ test_usage_groups_core_and_advanced_commands() {
   assert_contains "$output" '进阶配置:'
   assert_contains "$output" '维护与内部命令:'
   assert_contains "$output" 'show-secret'
+  assert_contains "$output" 'install-geosite'
   assert_contains "$output" 'router-wizard'
   assert_contains "$output" 'update-alpha [--quiet]'
 }
@@ -193,6 +194,7 @@ test_usage_groups_core_and_advanced_commands() {
 test_menu_contains_advanced_bucket() {
   grep -q 'echo "8) 高级维护（少用）"' "${ROOT}/mihomo"
   ! grep -q 'echo "4) 自定义规则"' "${ROOT}/mihomo"
+  grep -q 'echo "4) 更新 GeoSite 资产"' "${ROOT}/mihomo"
 }
 
 test_render_uses_local_controller_bind_by_default() {
@@ -212,6 +214,11 @@ test_audit_mentions_geosite_probe() {
   grep -q 'GeoSite.dat 当前不可用于 geosite 规则' "${ROOT}/lib/render.sh"
 }
 
+test_install_geosite_command_exists() {
+  grep -q 'install-geosite|update-geosite' "${ROOT}/mihomo"
+  grep -q 'install_geosite_dat' "${ROOT}/lib/render.sh"
+}
+
 main() {
   test_syntax
   test_render_empty
@@ -229,6 +236,7 @@ main() {
   test_render_uses_local_controller_bind_by_default
   test_router_wizard_mentions_host_router_model
   test_audit_mentions_geosite_probe
+  test_install_geosite_command_exists
   echo "smoke: ok"
 }
 

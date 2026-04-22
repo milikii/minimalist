@@ -462,6 +462,72 @@ install_country_mmdb() {
   chmod 644 "$COUNTRY_MMDB"
 }
 
+geosite_probe_file() {
+  local geosite_file="$1"
+  [[ -x "$MIHOMO_BIN" ]] || return 1
+  [[ -f "$geosite_file" ]] || return 1
+
+  local tmpdir
+  tmpdir="$(mktemp -d)"
+  trap "rm -rf '$tmpdir'" RETURN
+
+  cp -a "$geosite_file" "${tmpdir}/GeoSite.dat"
+  cat > "${tmpdir}/config.yaml" <<'EOF'
+mode: rule
+log-level: info
+geodata-mode: false
+geo-auto-update: false
+dns:
+  enable: true
+  listen: 127.0.0.1:1053
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  nameserver-policy:
+    "geosite:cn":
+      - 223.5.5.5
+  nameserver:
+    - 223.5.5.5
+proxies: []
+proxy-groups:
+  - name: "PROXY"
+    type: select
+    proxies:
+      - DIRECT
+rules:
+  - MATCH,DIRECT
+EOF
+
+  timeout 8 "$MIHOMO_BIN" -t -d "$tmpdir" >/tmp/mihomo-geosite-probe.out 2>/tmp/mihomo-geosite-probe.err
+}
+
+install_geosite_dat() {
+  require_root
+  local geosite_url="https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
+  local tmp_geosite
+  tmp_geosite="$(mktemp)"
+  rm -f "$tmp_geosite"
+
+  info "下载 GeoSite.dat: ${geosite_url}"
+  curl_cmd -fL --progress-bar --retry 3 --retry-delay 2 --connect-timeout 10 --max-time 300 -o "$tmp_geosite" "$geosite_url" || {
+    rm -f "$tmp_geosite"
+    die "GeoSite.dat 下载失败；请检查当前网络或稍后重试"
+  }
+
+  geosite_probe_file "$tmp_geosite" || {
+    rm -f "$tmp_geosite"
+    warn "GeoSite.dat 验证失败:"
+    sed -n '1,40p' /tmp/mihomo-geosite-probe.out 2>/dev/null || true
+    sed -n '1,40p' /tmp/mihomo-geosite-probe.err 2>/dev/null || true
+    die "GeoSite.dat 未通过验证；已停止安装，避免把坏资产写进运行目录"
+  }
+
+  install -m 0644 "$tmp_geosite" "${MIHOMO_DIR}/GeoSite.dat"
+  chown "${MIHOMO_USER}:${MIHOMO_USER}" "${MIHOMO_DIR}/GeoSite.dat"
+  rm -f "$tmp_geosite"
+  ok "GeoSite.dat 已更新并通过验证"
+}
+
 install_webui() {
   require_root
   local ui_name="${1:-zashboard}"
@@ -779,41 +845,7 @@ diagnose() {
 }
 
 geosite_probe_ready() {
-  [[ -x "$MIHOMO_BIN" ]] || return 1
-  [[ -f "${MIHOMO_DIR}/GeoSite.dat" ]] || return 1
-
-  local tmpdir
-  tmpdir="$(mktemp -d)"
-  trap 'rm -rf "$tmpdir"' RETURN
-
-  cp -a "${MIHOMO_DIR}/GeoSite.dat" "${tmpdir}/GeoSite.dat"
-  cat > "${tmpdir}/config.yaml" <<'EOF'
-mode: rule
-log-level: info
-geodata-mode: false
-geo-auto-update: false
-dns:
-  enable: true
-  listen: 127.0.0.1:1053
-  ipv6: false
-  enhanced-mode: fake-ip
-  fake-ip-range: 198.18.0.1/16
-  nameserver-policy:
-    "geosite:cn":
-      - 223.5.5.5
-  nameserver:
-    - 223.5.5.5
-proxies: []
-proxy-groups:
-  - name: "PROXY"
-    type: select
-    proxies:
-      - DIRECT
-rules:
-  - MATCH,DIRECT
-EOF
-
-  timeout 8 "$MIHOMO_BIN" -t -d "$tmpdir" >/tmp/mihomo-geosite-probe.out 2>/tmp/mihomo-geosite-probe.err
+  geosite_probe_file "${MIHOMO_DIR}/GeoSite.dat"
 }
 
 audit_installation() {
