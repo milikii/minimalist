@@ -703,6 +703,21 @@ config_test() {
   rm -f "$log_file"
 }
 
+iptables_counter_sum() {
+  local table="$1"
+  local chain="$2"
+  local target="$3"
+  iptables_cmd -t "$table" -L "$chain" -v -n -x 2>/dev/null | awk -v target="$target" '$3 == target {sum += $1} END {print sum + 0}'
+}
+
+localhost_proxy_probe() {
+  curl_cmd --noproxy '*' -fsS --max-time 10 -x "http://127.0.0.1:${MIXED_PORT}" https://cp.cloudflare.com/generate_204 >/tmp/mihomo-health-proxy.out 2>/dev/null
+}
+
+local_controller_probe() {
+  curl_cmd --noproxy '*' -fsS --max-time 10 "http://127.0.0.1:${CONTROLLER_PORT}/ui/" >/tmp/mihomo-health-ui.html 2>/dev/null
+}
+
 healthcheck() {
   require_root
   load_router_env
@@ -713,11 +728,11 @@ healthcheck() {
   ss_cmd -lntup 2>/dev/null | grep -qE "[:.]${TPROXY_PORT}[[:space:]]" || { echo "port: tproxy ${TPROXY_PORT} not listening"; failed=1; }
   ss_cmd -lntup 2>/dev/null | grep -qE "[:.]${DNS_PORT}[[:space:]]" || { echo "port: dns ${DNS_PORT} not listening"; failed=1; }
   ss_cmd -lntup 2>/dev/null | grep -qE "[:.]${CONTROLLER_PORT}[[:space:]]" || { echo "port: controller ${CONTROLLER_PORT} not listening"; failed=1; }
-  curl_cmd --noproxy '*' -fsS --max-time 10 "http://127.0.0.1:${CONTROLLER_PORT}/ui/" >/tmp/mihomo-health-ui.html 2>/dev/null || {
+  local_controller_probe || {
     echo "webui: unavailable"
     failed=1
   }
-  curl_cmd --noproxy '*' -fsS --max-time 10 -x "http://127.0.0.1:${MIXED_PORT}" https://cp.cloudflare.com/generate_204 >/tmp/mihomo-health-proxy.out 2>/dev/null || {
+  localhost_proxy_probe || {
     echo "proxy: localhost mixed ${MIXED_PORT} unavailable"
     failed=1
   }
@@ -873,7 +888,10 @@ runtime_audit() {
   local warn_count err_count
   local trigger_update="disabled"
   local trigger_restart="disabled"
+  local controller_scope controller_host proxy_probe="failed" controller_probe="failed"
+  local tproxy_packets dns_hijack_packets
 
+  controller_scope_summary
   active_state="$(systemctl_show_value mihomo ActiveState)"
   enabled_state="$(systemctl_cmd is-enabled mihomo 2>/dev/null || true)"
   sub_state="$(systemctl_show_value mihomo SubState)"
@@ -893,6 +911,14 @@ runtime_audit() {
 
   warn_count="$(journalctl_cmd -u mihomo --since '24 hours ago' -p warning --no-pager 2>/dev/null | grep -c '^' || true)"
   err_count="$(journalctl_cmd -u mihomo --since '24 hours ago' -p err --no-pager 2>/dev/null | grep -c '^' || true)"
+  if localhost_proxy_probe; then
+    proxy_probe="ok"
+  fi
+  if local_controller_probe; then
+    controller_probe="ok"
+  fi
+  tproxy_packets="$(iptables_counter_sum mangle MIHOMO_PRE_HANDLE TPROXY)"
+  dns_hijack_packets="$(iptables_counter_sum nat MIHOMO_DNS_HANDLE REDIRECT)"
 
   echo "== 运行审计 =="
   echo "服务状态: ${active_state:-unknown}"
@@ -905,6 +931,13 @@ runtime_audit() {
   echo "历史峰值内存(字节): ${memory_peak:-0}"
   echo "累计 CPU 时间(ns): ${cpu_nsec:-0}"
   echo "端口监听: mixed=${MIXED_PORT} tproxy=${TPROXY_PORT} dns=${DNS_PORT} controller=${CONTROLLER_PORT}"
+  echo "控制面范围: ${CONTROLLER_SCOPE}"
+  echo "局域网旁路由入口: ${PROXY_INGRESS_INTERFACES:-未配置}"
+  echo "宿主机流量模式: $([[ "${PROXY_HOST_OUTPUT}" == "1" ]] && echo '透明接管(高风险)' || echo '默认直连 + localhost 显式代理')"
+  echo "localhost 显式代理探测: ${proxy_probe}"
+  echo "本机 WebUI 探测: ${controller_probe}"
+  echo "局域网透明代理命中包数: ${tproxy_packets}"
+  echo "DNS 劫持命中包数: ${dns_hijack_packets}"
   echo "节点统计: 启用=$(readonly_node_counts | cut -f1) 总计=$(readonly_node_counts | cut -f2)"
   echo "过去 24 小时 warning 数: ${warn_count:-0}"
   echo "过去 24 小时 error 数: ${err_count:-0}"

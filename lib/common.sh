@@ -110,8 +110,25 @@ ensure_state_files() {
   python3 "$STATECTL" ensure-rules-state "$RULES_STATE_FILE" "$RENDERED_RULES_FILE" >/dev/null
 }
 
+iptables_cmd() {
+  if [[ -n "${IPTABLES_BIN:-}" ]]; then
+    "$IPTABLES_BIN" "$@"
+  else
+    iptables "$@"
+  fi
+}
+
 ipt() {
-  iptables -w 5 "$@"
+  iptables_cmd -w 5 "$@"
+}
+
+controller_scope_summary() {
+  CONTROLLER_HOST="${CONTROLLER_BIND_ADDRESS:-127.0.0.1}"
+  CONTROLLER_SCOPE="仅宿主机"
+  if [[ "$CONTROLLER_HOST" == "0.0.0.0" || "$CONTROLLER_HOST" == "*" ]]; then
+    CONTROLLER_HOST="$(detect_iface_ip "${PROXY_INGRESS_INTERFACES%% *}" 2>/dev/null || echo 127.0.0.1)"
+    CONTROLLER_SCOPE="局域网可访问(高风险)"
+  fi
 }
 
 random_secret() {

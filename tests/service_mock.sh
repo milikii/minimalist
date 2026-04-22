@@ -98,6 +98,30 @@ OUT
 EOSS
   chmod +x "${TMPDIR_CASE}/bin/ss"
 
+  cat > "${TMPDIR_CASE}/bin/iptables" <<'EOIPT'
+#!/usr/bin/env bash
+if [[ "$1" == "-t" && "$2" == "mangle" && "$3" == "-L" && "$4" == "MIHOMO_PRE_HANDLE" ]]; then
+  cat <<OUT
+Chain MIHOMO_PRE_HANDLE (1 references)
+ pkts bytes target     prot opt in     out     source               destination
+   42  4200 TPROXY     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0
+   24  2400 TPROXY     udp  --  *      *       0.0.0.0/0            0.0.0.0/0
+OUT
+  exit 0
+fi
+if [[ "$1" == "-t" && "$2" == "nat" && "$3" == "-L" && "$4" == "MIHOMO_DNS_HANDLE" ]]; then
+  cat <<OUT
+Chain MIHOMO_DNS_HANDLE (1 references)
+ pkts bytes target     prot opt in     out     source               destination
+   12  1200 REDIRECT   udp  --  *      *       0.0.0.0/0            0.0.0.0/0
+    6   600 REDIRECT   tcp  --  *      *       0.0.0.0/0            0.0.0.0/0
+OUT
+  exit 0
+fi
+exit 0
+EOIPT
+  chmod +x "${TMPDIR_CASE}/bin/iptables"
+
   cat > "${TMPDIR_CASE}/bin/curl" <<'EOCURL'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "${CURL_LOG:?}"
@@ -132,37 +156,7 @@ EOGIT
 }
 
 env_prefix() {
-  printf 'APP_ROOT=%q MIHOMO_DIR=%q SETTINGS_ENV=%q ROUTER_ENV=%q CONFIG_FILE=%q RULES_DIR=%q PROVIDER_DIR=%q UI_DIR=%q STATE_DIR=%q NODES_STATE_FILE=%q RULES_STATE_FILE=%q PROVIDER_FILE=%q RENDERED_RULES_FILE=%q MIHOMO_USER=%q MANAGER_BIN=%q MIHOMO_BIN=%q SYSTEMCTL_BIN=%q JOURNALCTL_BIN=%q SS_BIN=%q CURL_BIN=%q GIT_BIN=%q RULES_REPO_DIR=%q SYSTEMCTL_LOG=%q GIT_LOG=%q CURL_LOG=%q SYSTEMD_UNIT=%q RESTART_SERVICE_UNIT=%q RESTART_TIMER_UNIT=%q UPDATE_SERVICE_UNIT=%q UPDATE_TIMER_UNIT=%q' \
-    "$ROOT" \
-    "$TMPDIR_CASE" \
-    "$TMPDIR_CASE/settings.env" \
-    "$TMPDIR_CASE/router.env" \
-    "$TMPDIR_CASE/config.yaml" \
-    "$TMPDIR_CASE/ruleset" \
-    "$TMPDIR_CASE/proxy_providers" \
-    "$TMPDIR_CASE/ui" \
-    "$TMPDIR_CASE/state" \
-    "$TMPDIR_CASE/state/nodes.json" \
-    "$TMPDIR_CASE/state/rules.json" \
-    "$TMPDIR_CASE/proxy_providers/manual.txt" \
-    "$TMPDIR_CASE/ruleset/custom.rules" \
-    root \
-    "$TMPDIR_CASE/mihomo" \
-    /bin/true \
-    "$TMPDIR_CASE/bin/systemctl" \
-    "$TMPDIR_CASE/bin/journalctl" \
-    "$TMPDIR_CASE/bin/ss" \
-    "$TMPDIR_CASE/bin/curl" \
-    "$TMPDIR_CASE/bin/git" \
-    "$TMPDIR_CASE/repo" \
-    "$TMPDIR_CASE/systemctl.log" \
-    "$TMPDIR_CASE/git.log" \
-    "$TMPDIR_CASE/curl.log" \
-    "$TMPDIR_CASE/mihomo.service" \
-    "$TMPDIR_CASE/mihomo-restart.service" \
-    "$TMPDIR_CASE/mihomo-restart.timer" \
-    "$TMPDIR_CASE/mihomo-alpha-update.service" \
-    "$TMPDIR_CASE/mihomo-alpha-update.timer"
+  printf 'APP_ROOT=%q MIHOMO_DIR=%q SETTINGS_ENV=%q ROUTER_ENV=%q CONFIG_FILE=%q RULES_DIR=%q PROVIDER_DIR=%q UI_DIR=%q STATE_DIR=%q NODES_STATE_FILE=%q RULES_STATE_FILE=%q PROVIDER_FILE=%q RENDERED_RULES_FILE=%q MIHOMO_USER=%q MANAGER_BIN=%q MIHOMO_BIN=%q SYSTEMCTL_BIN=%q JOURNALCTL_BIN=%q SS_BIN=%q CURL_BIN=%q IPTABLES_BIN=%q GIT_BIN=%q RULES_REPO_DIR=%q SYSTEMCTL_LOG=%q GIT_LOG=%q CURL_LOG=%q SYSTEMD_UNIT=%q RESTART_SERVICE_UNIT=%q RESTART_TIMER_UNIT=%q UPDATE_SERVICE_UNIT=%q UPDATE_TIMER_UNIT=%q'     "$ROOT"     "$TMPDIR_CASE"     "$TMPDIR_CASE/settings.env"     "$TMPDIR_CASE/router.env"     "$TMPDIR_CASE/config.yaml"     "$TMPDIR_CASE/ruleset"     "$TMPDIR_CASE/proxy_providers"     "$TMPDIR_CASE/ui"     "$TMPDIR_CASE/state"     "$TMPDIR_CASE/state/nodes.json"     "$TMPDIR_CASE/state/rules.json"     "$TMPDIR_CASE/proxy_providers/manual.txt"     "$TMPDIR_CASE/ruleset/custom.rules"     root     "$TMPDIR_CASE/mihomo"     /bin/true     "$TMPDIR_CASE/bin/systemctl"     "$TMPDIR_CASE/bin/journalctl"     "$TMPDIR_CASE/bin/ss"     "$TMPDIR_CASE/bin/curl"     "$TMPDIR_CASE/bin/iptables"     "$TMPDIR_CASE/bin/git"     "$TMPDIR_CASE/repo"     "$TMPDIR_CASE/systemctl.log"     "$TMPDIR_CASE/git.log"     "$TMPDIR_CASE/curl.log"     "$TMPDIR_CASE/mihomo.service"     "$TMPDIR_CASE/mihomo-restart.service"     "$TMPDIR_CASE/mihomo-restart.timer"     "$TMPDIR_CASE/mihomo-alpha-update.service"     "$TMPDIR_CASE/mihomo-alpha-update.timer"
 }
 
 run_manager() {
@@ -208,6 +202,10 @@ test_runtime_audit_outputs() {
   grep -q '服务状态: active' <<<"$output"
   grep -q '过去 24 小时 warning 数: 1' <<<"$output"
   grep -q '下次 Alpha 自动更新: Tue 2026-04-21 00:00:00 CST' <<<"$output"
+  grep -q '控制面范围: 仅宿主机' <<<"$output"
+  grep -q 'localhost 显式代理探测: ok' <<<"$output"
+  grep -q '局域网透明代理命中包数: 66' <<<"$output"
+  grep -q 'DNS 劫持命中包数: 18' <<<"$output"
 }
 
 test_healthcheck_uses_localhost_proxy_probe() {
