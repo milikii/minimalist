@@ -142,6 +142,13 @@ dns:
   default-nameserver:
     - 223.5.5.5
     - 119.29.29.29
+  nameserver-policy:
+    "geosite:private,cn":
+      - https://dns.alidns.com/dns-query
+      - https://doh.pub/dns-query
+    "+.arpa":
+      - https://dns.alidns.com/dns-query
+      - https://doh.pub/dns-query
   nameserver:
     - https://dns.alidns.com/dns-query
     - https://doh.pub/dns-query
@@ -158,6 +165,8 @@ dns:
   fallback-filter:
     geoip: true
     geoip-code: CN
+    geosite:
+      - gfw
     ipcidr:
       - 240.0.0.0/4
       - 0.0.0.0/32

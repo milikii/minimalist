@@ -40,11 +40,11 @@
 - `fallback` 走 `cloudflare-dns.com` / `dns.google`，并显式加 `#RULES`，让海外加密 DNS 的链路更贴近旁路由规则。
 - `direct-nameserver` 固定为国内 DoH，确保 DIRECT 直连域名解析更稳定。
 - `fake-ip-filter` 保留 NAS/局域网常见兼容项，避免 captive portal、局域网域名和 STUN 被 fake-ip 破坏。
-- 当前没有把 `geosite` / `nameserver-policy` 强行写进默认模板，因为这台内核在 `mihomo-core -t` 验证阶段会被它们拖挂；这条能力应单开验证主线处理。
+- 现在 `GeoSite.dat` 已通过探针验证，默认模板已重新启用 `nameserver-policy` 与 `fallback-filter.geosite: gfw` 这类更强 DNS 策略。
 
 ## geosite 现状
-- 更强的 `geosite` / `nameserver-policy` DNS 模板已经验证过方向，但当前这台 NAS 上的 `GeoSite.dat` 资产并不稳定。
-- 默认模板目前不依赖 geosite 规则；如需继续追更强 DNS，可先执行 `mihomo audit-installation` 看 `GeoSite.dat` 是否真的 ready。
+- `GeoSite.dat` 资产治理路径已经落地，可通过 `mihomo install-geosite` 下载并做最小探针验证。
+- 当前默认模板已经重新启用 geosite 型 DNS 增强规则；如需确认资产状态，可执行 `mihomo audit-installation`。
 
 ## GeoSite 资产治理
 - 可显式执行 `mihomo install-geosite` 下载并验证 `GeoSite.dat`。
