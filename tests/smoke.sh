@@ -221,6 +221,10 @@ test_audit_mentions_geosite_probe() {
   grep -q 'GeoSite.dat 当前不可用于 geosite 规则' "${ROOT}/lib/render.sh"
 }
 
+test_setup_path_auto_repairs_geosite() {
+  grep -q 'ensure_geosite_ready' "${ROOT}/mihomo"
+}
+
 test_install_geosite_command_exists() {
   grep -q 'install-geosite|update-geosite' "${ROOT}/mihomo"
   grep -q 'install_geosite_dat' "${ROOT}/lib/render.sh"
@@ -249,6 +253,7 @@ main() {
   test_render_uses_local_controller_bind_by_default
   test_router_wizard_mentions_host_router_model
   test_audit_mentions_geosite_probe
+  test_setup_path_auto_repairs_geosite
   test_install_geosite_command_exists
   test_geosite_download_has_multi_source_fallback
   echo "smoke: ok"

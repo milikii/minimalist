@@ -361,6 +361,7 @@ prepare_runtime_assets() {
   write_service
   write_sysctl
   [[ -f "$COUNTRY_MMDB" ]] || install_country_mmdb
+  ensure_geosite_ready
   config_test
 }
 
@@ -568,6 +569,7 @@ full_setup() {
   write_service
   write_sysctl
   [[ -f "$COUNTRY_MMDB" ]] || install_country_mmdb
+  ensure_geosite_ready
   install_webui zashboard
   configure_restart_timer "${RESTART_INTERVAL_HOURS:-0}"
   configure_alpha_update "${ALPHA_AUTO_UPDATE:-0}" "${ALPHA_UPDATE_ONCALENDAR:-daily}"

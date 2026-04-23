@@ -552,6 +552,14 @@ install_geosite_dat() {
   ok "GeoSite.dat 已更新并通过验证"
 }
 
+ensure_geosite_ready() {
+  if geosite_probe_ready; then
+    return 0
+  fi
+  warn "GeoSite.dat 缺失或不可用，开始自动修复"
+  install_geosite_dat
+}
+
 install_webui() {
   require_root
   local ui_name="${1:-zashboard}"
@@ -931,12 +939,14 @@ audit_installation() {
     if geosite_probe_ready; then
       echo "ok: GeoSite.dat 可用于 geosite 规则"
     else
-      echo "warn: GeoSite.dat 当前不可用于 geosite 规则；默认 DNS 模板已避免依赖它"
+      echo "invalid: GeoSite.dat 当前不可用于 geosite 规则"
       sed -n '1,20p' /tmp/mihomo-geosite-probe.out 2>/dev/null || true
       sed -n '1,20p' /tmp/mihomo-geosite-probe.err 2>/dev/null || true
+      status=1
     fi
   else
-    echo "info: 未发现 GeoSite.dat；当前默认模板不依赖 geosite 规则"
+    echo "missing: ${MIHOMO_DIR}/GeoSite.dat"
+    status=1
   fi
 
   if [[ "$status" -eq 0 ]]; then
