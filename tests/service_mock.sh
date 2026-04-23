@@ -279,6 +279,16 @@ test_setup_bootstraps_empty_installation() {
   grep -q '核心旁路由链已继续' /tmp/mh-setup-bootstrap.err
 }
 
+test_enable_start_after_cold_setup() {
+  setup_case
+  rm -f "${TMPDIR_CASE}/router.env" "${TMPDIR_CASE}/settings.env" "${TMPDIR_CASE}/Country.mmdb" "${TMPDIR_CASE}/GeoSite.dat"
+  rm -rf "${TMPDIR_CASE}/state" "${TMPDIR_CASE}/ruleset" "${TMPDIR_CASE}/proxy_providers" "${TMPDIR_CASE}/ui"
+  python3 "${ROOT}/scripts/statectl.py" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://uuid@example.com:443?encryption=none&security=reality&sni=www.microsoft.com&fp=chrome&pbk=PUBLIC_KEY&sid=abcd&type=tcp&flow=xtls-rprx-vision#cold-start-node' cold-start-node 1 >/dev/null
+  run_manager setup >/dev/null 2>/tmp/mh-cold-setup.err
+  run_manager enable-start >/dev/null
+  grep -Fq 'enable --now mihomo' "${TMPDIR_CASE}/systemctl.log"
+}
+
 test_sync_rules_repo_command() {
   setup_case
   mkdir -p "${TMPDIR_CASE}/repo/.git"
@@ -297,6 +307,7 @@ main() {
   test_healthcheck_uses_localhost_proxy_probe
   test_install_geosite_downloads_official_asset
   test_setup_bootstraps_empty_installation
+  test_enable_start_after_cold_setup
   test_sync_rules_repo_command
   echo "service-mock: ok"
 }
