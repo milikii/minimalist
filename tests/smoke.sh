@@ -106,7 +106,20 @@ test_rename_rule_sync() {
   python3 "${STATECTL}" rename-node "${TMPDIR_CASE}/state/nodes.json" 1 New-Name "${TMPDIR_CASE}/state/rules.json" >/dev/null
   run_manager render-config >/dev/null
   grep -q 'DOMAIN,foo.com,New-Name' "${TMPDIR_CASE}/ruleset/custom.rules"
-  grep -q '#New-Name' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'name: "New-Name"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+}
+
+test_split_xhttp_subscription_is_rendered_as_native_yaml() {
+  setup_case
+  run_manager render-config >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://c03420c7-6371-4a01-a5ab-ca147222a6d1@aop.744818.xyz:443?mode=auto&path=%2Fmedia%2Fcache&security=tls&alpn=h2&encryption=mlkem768x25519plus.native.0rtt.Ka-ijCtsmegStgWthet2ZwdAAsTWf1KuTCxs5y_6nmI&insecure=0&host=aop.744818.xyz&fp=chrome&fingerprint=chrome&type=xhttp&allowInsecure=0&sni=aop.744818.xyz&extra=%7B%22downloadSettings%22%3A%7B%22address%22%3A%22146.235.206.137%22%2C%22port%22%3A443%2C%22network%22%3A%22xhttp%22%2C%22security%22%3A%22reality%22%2C%22realitySettings%22%3A%7B%22show%22%3Afalse%2C%22serverName%22%3A%22www.harvard.edu%22%2C%22fingerprint%22%3A%22chrome%22%2C%22shortId%22%3A%2281297aec6acb8608%22%2C%22publicKey%22%3A%22HJJNTRPDA3VCbFKGd-EMxPiTejd3m_LSnnFl9dwmMi4%22%7D%2C%22xhttpSettings%22%3A%7B%22host%22%3A%22%22%2C%22path%22%3A%22%2Fmedia%2Fcache%22%2C%22mode%22%3A%22auto%22%7D%7D%7D#AOP-XHTTP-SPLIT-CDN-REALITY' AOP-XHTTP-SPLIT-CDN-REALITY 1 >/dev/null
+  run_manager render-config >/dev/null
+  grep -q '^proxies:$' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'name: "AOP-XHTTP-SPLIT-CDN-REALITY"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'download-settings:' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'server: "146.235.206.137"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'reality-opts:' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'public-key: "HJJNTRPDA3VCbFKGd-EMxPiTejd3m_LSnnFl9dwmMi4"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
 }
 
 test_auto_without_node_fails() {
@@ -245,6 +258,7 @@ main() {
   test_syntax
   test_render_empty
   test_rename_rule_sync
+  test_split_xhttp_subscription_is_rendered_as_native_yaml
   test_auto_without_node_fails
   test_disabled_legacy_migration
   test_status_readonly

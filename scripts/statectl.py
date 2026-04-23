@@ -181,13 +181,272 @@ def iter_enabled_names(nodes: list[dict]) -> list[str]:
     return [node["name"] for node in nodes if node.get("enabled")]
 
 
+def query_value(query: dict[str, list[str]], *names: str) -> str:
+    for name in names:
+        values = query.get(name)
+        if values:
+            return values[0]
+    return ""
+
+
+def has_query_key(query: dict[str, list[str]], *names: str) -> bool:
+    return any(name in query for name in names)
+
+
+def is_truthy(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def split_csv(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def object_value(mapping: dict | None, *names: str):
+    if not isinstance(mapping, dict):
+        return None
+    for name in names:
+        if name in mapping:
+            return mapping[name]
+    return None
+
+
+def string_value(mapping: dict | None, *names: str) -> str:
+    value = object_value(mapping, *names)
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
+def int_value(value) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def query_json_object(query: dict[str, list[str]], *names: str) -> dict:
+    raw = query_value(query, *names)
+    if not raw:
+        return {}
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def reality_opts_from_mapping(mapping: dict | None) -> dict:
+    result: dict[str, object] = {}
+    public_key = string_value(mapping, "publicKey", "public-key")
+    short_id = string_value(mapping, "shortId", "short-id")
+    spider_x = string_value(mapping, "spiderX", "spider-x")
+    if public_key:
+        result["public-key"] = public_key
+    if short_id:
+        result["short-id"] = short_id
+    if spider_x:
+        result["spider-x"] = spider_x
+    return result
+
+
+def reality_opts_from_query(query: dict[str, list[str]]) -> dict:
+    result: dict[str, object] = {}
+    public_key = query_value(query, "pbk", "publicKey", "public-key")
+    short_id = query_value(query, "sid", "shortId", "short-id")
+    spider_x = query_value(query, "spx", "spiderX", "spider-x")
+    if public_key:
+        result["public-key"] = public_key
+    if short_id:
+        result["short-id"] = short_id
+    if spider_x:
+        result["spider-x"] = spider_x
+    return result
+
+
+def xhttp_download_settings_from_mapping(mapping: dict | None) -> dict:
+    if not isinstance(mapping, dict):
+        return {}
+
+    result: dict[str, object] = {}
+    xhttp_settings = object_value(mapping, "xhttpSettings", "xhttp-settings")
+
+    path = string_value(xhttp_settings, "path")
+    host = string_value(xhttp_settings, "host")
+    mode = string_value(xhttp_settings, "mode")
+    server = string_value(mapping, "address", "server")
+    port = int_value(object_value(mapping, "port"))
+    security = string_value(mapping, "security").lower()
+
+    if path:
+        result["path"] = path
+    if host:
+        result["host"] = host
+    if mode:
+        result["mode"] = mode
+    if server:
+        result["server"] = server
+    if port is not None:
+        result["port"] = port
+    if security in {"tls", "reality"}:
+        result["tls"] = True
+
+    if security == "reality":
+        reality_settings = object_value(mapping, "realitySettings", "reality-opts")
+        server_name = string_value(reality_settings, "serverName", "servername", "server-name", "sni")
+        fingerprint = string_value(reality_settings, "fingerprint", "fp", "client-fingerprint")
+        reality_opts = reality_opts_from_mapping(reality_settings)
+        if server_name:
+            result["servername"] = server_name
+        if fingerprint:
+            result["client-fingerprint"] = fingerprint
+        if reality_opts:
+            result["reality-opts"] = reality_opts
+    else:
+        server_name = string_value(mapping, "serverName", "servername", "server-name", "sni")
+        fingerprint = string_value(mapping, "fingerprint", "fp", "client-fingerprint")
+        if server_name:
+            result["servername"] = server_name
+        if fingerprint:
+            result["client-fingerprint"] = fingerprint
+
+    return result
+
+
+def provider_item_from_uri(uri: str):
+    parsed = urllib.parse.urlsplit(normalize_uri(uri))
+    query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+    extra = query_json_object(query, "extra")
+    download_settings = object_value(extra, "downloadSettings", "download-settings")
+
+    if parsed.scheme.lower() != "vless":
+        return uri
+
+    server = parsed.hostname or ""
+    port = parsed.port
+    uuid_value = urllib.parse.unquote(parsed.username or "")
+    if not server or port is None or not uuid_value:
+        return uri
+
+    item: dict[str, object] = {
+        "name": guess_name(uri),
+        "type": "vless",
+        "server": server,
+        "port": port,
+        "uuid": uuid_value,
+        "udp": True,
+        "network": (query_value(query, "type") or "tcp").lower(),
+    }
+
+    flow = query_value(query, "flow")
+    packet_encoding = query_value(query, "packetEncoding", "packet-encoding")
+    security = query_value(query, "security").lower()
+    alpn = split_csv(query_value(query, "alpn"))
+    servername = query_value(query, "sni", "servername", "serverName")
+    fingerprint = query_value(query, "fp", "fingerprint", "client-fingerprint")
+    encryption = query_value(query, "encryption")
+
+    if flow:
+        item["flow"] = flow
+    if packet_encoding:
+        item["packet-encoding"] = packet_encoding
+    if security in {"tls", "reality"}:
+        item["tls"] = True
+    if alpn:
+        item["alpn"] = alpn
+    if servername:
+        item["servername"] = servername
+    if fingerprint:
+        item["client-fingerprint"] = fingerprint
+    if encryption:
+        item["encryption"] = encryption
+    if has_query_key(query, "insecure", "allowInsecure", "skip-cert-verify"):
+        insecure = query_value(query, "insecure", "allowInsecure", "skip-cert-verify")
+        item["skip-cert-verify"] = is_truthy(insecure)
+
+    if security == "reality":
+        reality_opts = reality_opts_from_query(query)
+        if reality_opts:
+            item["reality-opts"] = reality_opts
+
+    if item["network"] == "xhttp":
+        xhttp_opts: dict[str, object] = {}
+        path = query_value(query, "path")
+        host = query_value(query, "host")
+        mode = query_value(query, "mode")
+        if path:
+            xhttp_opts["path"] = path
+        if host:
+            xhttp_opts["host"] = host
+        if mode:
+            xhttp_opts["mode"] = mode
+
+        rendered_download_settings = xhttp_download_settings_from_mapping(download_settings)
+        if rendered_download_settings:
+            xhttp_opts["download-settings"] = rendered_download_settings
+        if xhttp_opts:
+            item["xhttp-opts"] = xhttp_opts
+
+    return item
+
+
+def yaml_scalar(value) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if value is None:
+        return "null"
+    return json.dumps(str(value), ensure_ascii=False)
+
+
+def append_yaml_lines(lines: list[str], value, indent: int) -> None:
+    prefix = " " * indent
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if isinstance(item, dict):
+                if item:
+                    lines.append(f"{prefix}{key}:")
+                    append_yaml_lines(lines, item, indent + 2)
+                else:
+                    lines.append(f"{prefix}{key}: {{}}")
+            elif isinstance(item, list):
+                if item:
+                    lines.append(f"{prefix}{key}:")
+                    append_yaml_lines(lines, item, indent + 2)
+                else:
+                    lines.append(f"{prefix}{key}: []")
+            else:
+                lines.append(f"{prefix}{key}: {yaml_scalar(item)}")
+        return
+
+    if isinstance(value, list):
+        for item in value:
+            if isinstance(item, dict):
+                lines.append(f"{prefix}-")
+                append_yaml_lines(lines, item, indent + 2)
+            elif isinstance(item, list):
+                lines.append(f"{prefix}-")
+                append_yaml_lines(lines, item, indent + 2)
+            else:
+                lines.append(f"{prefix}- {yaml_scalar(item)}")
+        return
+
+    lines.append(f"{prefix}{yaml_scalar(value)}")
+
+
 def render_provider(path: Path, nodes: list[dict]) -> None:
     ensure_parent(path)
-    enabled = [node["uri"] for node in nodes if node.get("enabled")]
+    enabled = [provider_item_from_uri(node["uri"]) for node in nodes if node.get("enabled")]
     if not enabled:
         path.write_text("proxies: []\n", encoding="utf-8")
         return
-    path.write_text("\n".join(enabled) + "\n", encoding="utf-8")
+    lines = ["proxies:"]
+    append_yaml_lines(lines, enabled, 2)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def render_rules(path: Path, rules: list[dict]) -> None:
