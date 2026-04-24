@@ -257,7 +257,6 @@ rename_node() {
   snapshot_before_change "rename-node"
   python3 "$STATECTL" rename-node "$NODES_STATE_FILE" "$idx" "$new_name" "$RULES_STATE_FILE" "$ACL_STATE_FILE"
   post_state_change
-  sync_rules_repo_if_enabled
   ok "节点已重命名"
 }
 
@@ -302,7 +301,6 @@ add_custom_rule() {
   snapshot_before_change "add-rule"
   add_rule_interactive "$RULES_STATE_FILE" "${1:-}" "${2:-}" "${3:-}"
   post_state_change
-  sync_rules_repo_if_enabled
   ok "自定义规则已添加"
 }
 
@@ -314,7 +312,6 @@ remove_custom_rule() {
   snapshot_before_change "remove-rule"
   python3 "$STATECTL" remove-rule "$RULES_STATE_FILE" "$idx"
   post_state_change
-  sync_rules_repo_if_enabled
   ok "自定义规则已删除"
 }
 
@@ -441,6 +438,123 @@ list_templates_command() {
   done
 }
 
+list_rule_presets_command() {
+  load_settings_readonly
+  local current="${RULESET_PRESET:-$(default_rule_preset)}"
+  printf '%s%s - %s\n' "$([[ "$current" == "default" ]] && printf '* ' || printf '  ')" "default" "$(rule_preset_summary default)"
+}
+
+show_rules_repo_command() {
+  load_settings_readonly
+  require_rulepresetctl
+  local preset_name="${RULESET_PRESET:-$(default_rule_preset)}"
+  local manifest_path
+  manifest_path="$(rule_preset_manifest_path "$preset_name" 2>/dev/null || true)"
+  [[ -n "$manifest_path" && -f "$manifest_path" ]] || die "未找到规则仓库清单: ${preset_name}"
+  python3 "$RULEPRESETCTL" describe "$manifest_path"
+}
+
+search_rules_repo_entries_command() {
+  load_settings_readonly
+  require_rulepresetctl
+  local keyword="${1:-}"
+  [[ -n "$keyword" ]] || die "用法: mihomo rules-repo-find [keyword]"
+  local manifest_path
+  manifest_path="$(rule_preset_manifest_path "${RULESET_PRESET:-$(default_rule_preset)}" 2>/dev/null || true)"
+  [[ -n "$manifest_path" && -f "$manifest_path" ]] || die "未找到规则仓库清单"
+  python3 "$RULEPRESETCTL" search-entries "$manifest_path" "$keyword"
+}
+
+print_ruleset_brief() {
+  load_settings_readonly
+  require_rulepresetctl
+  local ruleset_name="$1"
+  local manifest_path
+  manifest_path="$(rule_preset_manifest_path "${RULESET_PRESET:-$(default_rule_preset)}" 2>/dev/null || true)"
+  [[ -n "$manifest_path" && -f "$manifest_path" ]] || die "未找到规则仓库清单"
+  python3 "$RULEPRESETCTL" describe-ruleset "$manifest_path" "$ruleset_name"
+}
+
+list_rules_repo_entries_command() {
+  load_settings_readonly
+  require_rulepresetctl
+  local ruleset_name="${1:-}"
+  local keyword="${2:-}"
+  [[ -n "$ruleset_name" ]] || die "用法: mihomo rules-repo-entries [ruleset] [keyword]"
+  local manifest_path
+  manifest_path="$(rule_preset_manifest_path "${RULESET_PRESET:-$(default_rule_preset)}" 2>/dev/null || true)"
+  [[ -n "$manifest_path" && -f "$manifest_path" ]] || die "未找到规则仓库清单"
+  if [[ -n "$keyword" ]]; then
+    python3 "$RULEPRESETCTL" list-entries "$manifest_path" "$ruleset_name" "$keyword"
+  else
+    python3 "$RULEPRESETCTL" list-entries "$manifest_path" "$ruleset_name"
+  fi
+}
+
+add_rules_repo_entry_command() {
+  require_root
+  load_settings
+  load_router_env
+  local ruleset_name="${1:-}"
+  local value="${2:-}"
+  [[ -n "$ruleset_name" ]] || die "用法: mihomo add-repo-rule [ruleset] [value]"
+  if [[ -z "$value" ]]; then
+    print_ruleset_brief "$ruleset_name"
+    read -rp "规则内容: " value
+  fi
+  [[ -n "$value" ]] || die "规则内容不能为空"
+  local manifest_path
+  manifest_path="$(rule_preset_manifest_path "${RULESET_PRESET:-$(default_rule_preset)}" 2>/dev/null || true)"
+  [[ -n "$manifest_path" && -f "$manifest_path" ]] || die "未找到规则仓库清单"
+  snapshot_before_change "add-repo-rule"
+  python3 "$RULEPRESETCTL" append-entry "$manifest_path" "$ruleset_name" "$value"
+  post_state_change
+  ok "项目规则仓库已添加规则: ${ruleset_name} -> ${value}"
+}
+
+remove_rules_repo_entry_command() {
+  require_root
+  load_settings
+  load_router_env
+  local ruleset_name="${1:-}"
+  local value="${2:-}"
+  [[ -n "$ruleset_name" ]] || die "用法: mihomo remove-repo-rule [ruleset] [value]"
+  if [[ -z "$value" ]]; then
+    print_ruleset_brief "$ruleset_name"
+    read -rp "规则内容: " value
+  fi
+  [[ -n "$value" ]] || die "规则内容不能为空"
+  local manifest_path
+  manifest_path="$(rule_preset_manifest_path "${RULESET_PRESET:-$(default_rule_preset)}" 2>/dev/null || true)"
+  [[ -n "$manifest_path" && -f "$manifest_path" ]] || die "未找到规则仓库清单"
+  snapshot_before_change "remove-repo-rule"
+  python3 "$RULEPRESETCTL" remove-entry "$manifest_path" "$ruleset_name" "$value"
+  post_state_change
+  ok "项目规则仓库已删除规则: ${ruleset_name} -> ${value}"
+}
+
+remove_rules_repo_entry_by_index_command() {
+  require_root
+  load_settings
+  load_router_env
+  local ruleset_name="${1:-}"
+  local index="${2:-}"
+  [[ -n "$ruleset_name" ]] || die "用法: mihomo remove-repo-rule-index [ruleset] [index]"
+  if [[ -z "$index" ]]; then
+    print_ruleset_brief "$ruleset_name"
+    list_rules_repo_entries_command "$ruleset_name"
+    read -rp "要删除的序号: " index
+  fi
+  [[ "$index" =~ ^[0-9]+$ ]] || die "序号必须是正整数"
+  local manifest_path
+  manifest_path="$(rule_preset_manifest_path "${RULESET_PRESET:-$(default_rule_preset)}" 2>/dev/null || true)"
+  [[ -n "$manifest_path" && -f "$manifest_path" ]] || die "未找到规则仓库清单"
+  snapshot_before_change "remove-repo-rule-index"
+  python3 "$RULEPRESETCTL" remove-entry-index "$manifest_path" "$ruleset_name" "$index"
+  post_state_change
+  ok "项目规则仓库已按序号删除规则: ${ruleset_name} #${index}"
+}
+
 set_template_command() {
   require_root
   local template_name="${1:-}"
@@ -466,18 +580,36 @@ set_template_command() {
   ok "模板已切换为 ${template_name}"
 }
 
-configure_rules_sync_menu() {
+set_rule_preset_command() {
+  require_root
   load_settings
-  local enabled
-  local repo_dir
-  read -rp "启用规则仓库自动同步? 1/0 [${RULES_AUTO_SYNC:-1}]: " enabled
-  enabled="${enabled:-${RULES_AUTO_SYNC:-1}}"
-  read -rp "规则仓库目录 [${RULES_REPO_DIR:-/home/projects/mihomo-rules}]: " repo_dir
-  repo_dir="${repo_dir:-${RULES_REPO_DIR:-/home/projects/mihomo-rules}}"
-  snapshot_before_change "configure-rules-sync"
-  upsert_env_var "$SETTINGS_ENV" "RULES_AUTO_SYNC" "$enabled"
-  upsert_env_var "$SETTINGS_ENV" "RULES_REPO_DIR" "$repo_dir"
-  ok "规则仓库同步设置已更新"
+  local preset_name="${1:-}"
+  if [[ -z "$preset_name" ]]; then
+    echo "1) default"
+    read -rp "规则预设 [1]: " preset_name
+    case "$preset_name" in
+      1) preset_name="default" ;;
+      *) die "无效规则预设" ;;
+    esac
+  fi
+  rule_preset_exists "$preset_name" || die "未知规则预设: ${preset_name}"
+  snapshot_before_change "set-rule-preset"
+  upsert_env_var "$SETTINGS_ENV" "RULESET_PRESET" "$preset_name"
+  post_state_change
+  ok "规则预设已切换为 ${preset_name}"
+}
+
+apply_default_template_command() {
+  require_root
+  load_settings
+  load_router_env
+  snapshot_before_change "apply-default-template"
+  upsert_env_var "$SETTINGS_ENV" "CONFIG_MODE" "rule"
+  upsert_env_var "$SETTINGS_ENV" "RULESET_PRESET" "default"
+  upsert_env_var "$ROUTER_ENV" "CONTROLLER_BIND_ADDRESS" "127.0.0.1"
+  upsert_env_var "$ROUTER_ENV" "PROXY_HOST_OUTPUT" "0"
+  post_state_change
+  ok "已应用项目默认模板：保留当前网络形态，启用项目内置规则仓库，并保持宿主机默认直连"
 }
 
 set_mode() {
@@ -578,6 +710,7 @@ show_status() {
   echo "开机自启: ${service_enable}"
   echo "当前模式: $(current_mode || echo rule)"
   echo "模板: ${TEMPLATE_NAME:-$PROFILE_TEMPLATE} ($(template_summary "${TEMPLATE_NAME:-$PROFILE_TEMPLATE}"))"
+  echo "规则预设: ${RULESET_PRESET:-$(default_rule_preset)} ($(rule_preset_summary "${RULESET_PRESET:-$(default_rule_preset)}"))"
   echo "IPv6: $([[ "${ENABLE_IPV6:-0}" == "1" ]] && echo '启用' || echo '关闭')"
   echo "节点: 启用 ${enabled_nodes} / 总计 ${total_nodes}"
   echo "订阅: 启用 ${sub_counts%%$'\t'*} / 总计 ${sub_counts##*$'\t'}"
@@ -780,19 +913,46 @@ acl_menu() {
 }
 
 network_menu() {
+  local action
+  local ruleset_name
   while true; do
     echo
     echo "1) 查看模板"
     echo "2) 切换模板"
     echo "3) 旁路由入口向导"
     echo "4) 端口设置"
+    echo "5) 规则预设"
+    echo "6) 查看项目规则仓库"
+    echo "7) 查看规则集条目"
+    echo "8) 添加规则集条目"
+    echo "9) 按序号删除规则集条目"
+    echo "10) 应用默认模板"
     echo "0) 返回"
-    read -rp "选择 [0-4]: " action
+    read -rp "选择 [0-10]: " action
     case "$action" in
       1) list_templates_command ;;
       2) set_template_command ;;
       3) router_wizard ;;
       4) configure_ports ;;
+      5)
+        list_rule_presets_command
+        set_rule_preset_command
+        ;;
+      6) show_rules_repo_command ;;
+      7)
+        read -rp "规则集名称 [pt/fcm-site/fcm-ip]: " action
+        read -rp "关键字过滤(可留空): " ruleset_name
+        list_rules_repo_entries_command "$action" "$ruleset_name"
+        ;;
+      8)
+        read -rp "规则集名称 [pt/fcm-site/fcm-ip]: " ruleset_name
+        add_rules_repo_entry_command "$ruleset_name"
+        ;;
+      9)
+        read -rp "规则集名称 [pt/fcm-site/fcm-ip]: " ruleset_name
+        remove_rules_repo_entry_by_index_command "$ruleset_name"
+        ;;
+      10) apply_default_template_command ;;
       0) break ;;
       *) warn "无效选择" ;;
     esac
@@ -832,10 +992,8 @@ maintenance_menu() {
     echo "7) 配置定时重启"
     echo "8) 配置 Alpha 自动更新"
     echo "9) 安装审计"
-    echo "10) 同步规则仓库"
-    echo "11) 配置规则仓库同步"
     echo "0) 返回"
-    read -rp "选择 [0-11]: " action
+    read -rp "选择 [0-9]: " action
     case "$action" in
       1)
         echo "1) rule"
@@ -857,8 +1015,6 @@ maintenance_menu() {
       7) configure_restart_menu ;;
       8) configure_alpha_update_menu ;;
       9) audit_installation ;;
-      10) sync_rules_repo ;;
-      11) configure_rules_sync_menu ;;
       0) break ;;
       *) warn "无效选择" ;;
     esac
@@ -1000,6 +1156,15 @@ mihomo v${SCRIPT_VERSION}
   $0 update-subscriptions
   $0 templates
   $0 set-template [name]
+  $0 rule-presets
+  $0 set-rule-preset [name]
+  $0 rules-repo
+  $0 rules-repo-entries [ruleset] [keyword]
+  $0 rules-repo-find [keyword]
+  $0 add-repo-rule [ruleset] [value]
+  $0 remove-repo-rule [ruleset] [value]
+  $0 remove-repo-rule-index [ruleset] [index]
+  $0 apply-default-template
   $0 router-wizard
   $0 acl
   $0 add-acl [kind] [pattern] [target]
@@ -1027,8 +1192,6 @@ mihomo v${SCRIPT_VERSION}
   $0 set-ports
   $0 configure-restart [hours]
   $0 configure-alpha-update [0|1] [OnCalendar]
-  $0 sync-rules-repo
-  $0 configure-rules-sync [0|1] [repo_dir]
   $0 render-config
   $0 test-config
   $0 audit-installation
@@ -1058,6 +1221,15 @@ main() {
     update-subscriptions) update_subscriptions_command ;;
     templates) list_templates_command ;;
     set-template) set_template_command "${2:-}" ;;
+    rule-presets) list_rule_presets_command ;;
+    set-rule-preset) set_rule_preset_command "${2:-}" ;;
+    rules-repo) show_rules_repo_command ;;
+    rules-repo-entries) list_rules_repo_entries_command "${2:-}" "${3:-}" ;;
+    rules-repo-find) search_rules_repo_entries_command "${2:-}" ;;
+    add-repo-rule) add_rules_repo_entry_command "${2:-}" "${3:-}" ;;
+    remove-repo-rule) remove_rules_repo_entry_command "${2:-}" "${3:-}" ;;
+    remove-repo-rule-index) remove_rules_repo_entry_by_index_command "${2:-}" "${3:-}" ;;
+    apply-default-template|apply-self-use) apply_default_template_command ;;
     rename-node) rename_node ;;
     toggle-node) toggle_node ;;
     acl) list_acl_pretty ;;
@@ -1103,17 +1275,6 @@ main() {
         configure_alpha_update "$2" "${3:-daily}"
       else
         configure_alpha_update_menu
-      fi
-      ;;
-    sync-rules-repo) sync_rules_repo ;;
-    configure-rules-sync)
-      if [[ -n "${2:-}" ]]; then
-        snapshot_before_change "configure-rules-sync"
-        upsert_env_var "$SETTINGS_ENV" "RULES_AUTO_SYNC" "$2"
-        upsert_env_var "$SETTINGS_ENV" "RULES_REPO_DIR" "${3:-/home/projects/mihomo-rules}"
-        ok "规则仓库同步设置已更新"
-      else
-        configure_rules_sync_menu
       fi
       ;;
     render-config) render_config ;;

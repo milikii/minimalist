@@ -5,6 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 MANAGER="${ROOT}/mihomo"
 STATECTL="${ROOT}/scripts/statectl.py"
+RULEPRESETCTL="${ROOT}/scripts/rulepreset.py"
 
 cleanup() {
   [[ -n "${TMPDIR_CASE:-}" && -d "${TMPDIR_CASE:-}" ]] && rm -rf "$TMPDIR_CASE"
@@ -23,6 +24,7 @@ assert_contains() {
 setup_case() {
   TMPDIR_CASE="$(mktemp -d)"
   mkdir -p "${TMPDIR_CASE}/state" "${TMPDIR_CASE}/ruleset" "${TMPDIR_CASE}/proxy_providers" "${TMPDIR_CASE}/ui"
+  cp -a "${ROOT}/rules-repo" "${TMPDIR_CASE}/rules-repo"
   cat > "${TMPDIR_CASE}/router.env" <<'EOF'
 TEMPLATE_NAME="nas-single-lan-v4"
 ENABLE_IPV6="0"
@@ -49,8 +51,9 @@ EOF
 }
 
 env_prefix() {
-  printf 'APP_ROOT=%q MIHOMO_DIR=%q SETTINGS_ENV=%q ROUTER_ENV=%q CONFIG_FILE=%q RULES_DIR=%q PROVIDER_DIR=%q UI_DIR=%q STATE_DIR=%q NODES_STATE_FILE=%q RULES_STATE_FILE=%q ACL_STATE_FILE=%q SUBSCRIPTIONS_STATE_FILE=%q PROVIDER_FILE=%q RENDERED_RULES_FILE=%q ACL_RENDERED_RULES_FILE=%q MIHOMO_USER=%q MANAGER_BIN=%q MIHOMO_BIN=%q' \
+  printf 'APP_ROOT=%q RULE_REPO_ROOT=%q MIHOMO_DIR=%q SETTINGS_ENV=%q ROUTER_ENV=%q CONFIG_FILE=%q RULES_DIR=%q PROVIDER_DIR=%q UI_DIR=%q STATE_DIR=%q NODES_STATE_FILE=%q RULES_STATE_FILE=%q ACL_STATE_FILE=%q SUBSCRIPTIONS_STATE_FILE=%q PROVIDER_FILE=%q RENDERED_RULES_FILE=%q ACL_RENDERED_RULES_FILE=%q MIHOMO_USER=%q MANAGER_BIN=%q MIHOMO_BIN=%q' \
     "$ROOT" \
+    "${TMPDIR_CASE}/rules-repo" \
     "$TMPDIR_CASE" \
     "$TMPDIR_CASE/settings.env" \
     "$TMPDIR_CASE/router.env" \
@@ -81,16 +84,20 @@ run_manager() {
 test_syntax() {
   bash -n "${ROOT}/mihomo" "${ROOT}/lib/common.sh" "${ROOT}/lib/render.sh"
   python3 -m py_compile "${STATECTL}"
+  python3 -m py_compile "${RULEPRESETCTL}"
 }
 
 test_render_empty() {
   setup_case
   run_manager render-config >/dev/null
+  grep -q '^RULESET_PRESET="default"$' "${TMPDIR_CASE}/settings.env"
+  grep -q 'DOMAIN-SUFFIX,smzdm.com,DIRECT' "${TMPDIR_CASE}/ruleset/builtin.rules"
   grep -q '^proxies: \[\]' "${TMPDIR_CASE}/proxy_providers/manual.txt"
   grep -q '^ipv6: false' "${TMPDIR_CASE}/config.yaml"
   grep -q '^  ipv6: false' "${TMPDIR_CASE}/config.yaml"
   grep -q '^  - 192.168.2.0/24' "${TMPDIR_CASE}/config.yaml"
   grep -q '^  - 127.0.0.0/8' "${TMPDIR_CASE}/config.yaml"
+  grep -q 'DOMAIN-SUFFIX,smzdm.com,DIRECT' "${TMPDIR_CASE}/config.yaml"
   [[ -f "${TMPDIR_CASE}/state/acl.json" ]]
   [[ -f "${TMPDIR_CASE}/state/subscriptions.json" ]]
   [[ -f "${TMPDIR_CASE}/ruleset/acl.rules" ]]
@@ -141,6 +148,27 @@ test_scan_marks_unsupported_scheme() {
   assert_contains "$output" $'\t0\thy2\t'
 }
 
+test_scan_marks_invalid_vmess_payload() {
+  setup_case
+  printf '%s\n' 'vmess://not-base64!!!' > "${TMPDIR_CASE}/uris.txt"
+  output="$(python3 "${STATECTL}" scan-uris "${TMPDIR_CASE}/uris.txt")"
+  assert_contains "$output" $'\t0\tvmess\tinvalid vmess payload'
+}
+
+test_scan_marks_invalid_ss_payload() {
+  setup_case
+  printf '%s\n' 'ss://not-base64!!!' > "${TMPDIR_CASE}/uris.txt"
+  output="$(python3 "${STATECTL}" scan-uris "${TMPDIR_CASE}/uris.txt")"
+  assert_contains "$output" $'\t0\tss\tInvalid base64-encoded string'
+}
+
+test_scan_marks_invalid_vless_port() {
+  setup_case
+  printf '%s\n' 'vless://uuid@example.com:abc?type=tcp#bad-port' > "${TMPDIR_CASE}/uris.txt"
+  output="$(python3 "${STATECTL}" scan-uris "${TMPDIR_CASE}/uris.txt")"
+  assert_contains "$output" $'\t0\tvless\tPort could not be cast to integer value'
+}
+
 test_subscription_state_commands() {
   setup_case
   run_manager add-subscription "test-sub" "https://example.com/sub.txt" 1 >/dev/null
@@ -149,10 +177,181 @@ test_subscription_state_commands() {
   assert_contains "$output" 'https://example.com/sub.txt'
 }
 
+test_config_loader_treats_values_as_literals() {
+  setup_case
+  cat > "${TMPDIR_CASE}/settings.env" <<EOF
+PROFILE_TEMPLATE="nas-single-lan-v4"
+RULESET_PRESET="\$(touch ${TMPDIR_CASE}/settings-pwned)"
+EOF
+  cat > "${TMPDIR_CASE}/router.env" <<EOF
+TEMPLATE_NAME="nas-single-lan-v4"
+ENABLE_IPV6="0"
+LAN_INTERFACES="bridge1"
+LAN_CIDRS="\$(touch ${TMPDIR_CASE}/router-pwned)"
+PROXY_INGRESS_INTERFACES="bridge1"
+DNS_HIJACK_ENABLED="1"
+DNS_HIJACK_INTERFACES="bridge1"
+PROXY_HOST_OUTPUT="0"
+BYPASS_CONTAINER_NAMES=""
+BYPASS_SRC_CIDRS=""
+BYPASS_DST_CIDRS=""
+BYPASS_UIDS=""
+MIXED_PORT="7890"
+TPROXY_PORT="7893"
+DNS_PORT="1053"
+CONTROLLER_PORT="19090"
+CONTROLLER_BIND_ADDRESS="127.0.0.1"
+ROUTE_MARK="0x2333"
+ROUTE_MASK="0xffffffff"
+ROUTE_TABLE="233"
+ROUTE_PRIORITY="100"
+EOF
+  output="$(run_manager status)"
+  [[ ! -f "${TMPDIR_CASE}/settings-pwned" ]]
+  [[ ! -f "${TMPDIR_CASE}/router-pwned" ]]
+  assert_contains "$output" '规则预设: $(touch '
+  assert_contains "$output" '局域网网段: $(touch '
+}
+
+test_default_rule_preset_is_rendered() {
+  setup_case
+  run_manager set-rule-preset default >/dev/null
+  grep -q 'DOMAIN-SUFFIX,smzdm.com,DIRECT' "${TMPDIR_CASE}/ruleset/builtin.rules"
+  grep -q 'DOMAIN,mtalk.google.com,PROXY' "${TMPDIR_CASE}/ruleset/builtin.rules"
+  grep -q 'IP-CIDR,64.233.177.188/32,PROXY' "${TMPDIR_CASE}/ruleset/builtin.rules"
+  grep -q 'DOMAIN-SUFFIX,smzdm.com,DIRECT' "${TMPDIR_CASE}/config.yaml"
+  grep -q 'DOMAIN,mtalk.google.com,PROXY' "${TMPDIR_CASE}/config.yaml"
+}
+
+test_apply_default_template_command() {
+  setup_case
+  cat > "${TMPDIR_CASE}/settings.env" <<'EOF'
+CONFIG_MODE="global"
+RULESET_PRESET="unknown"
+PROFILE_TEMPLATE="nas-single-lan-v4"
+EOF
+  sed -i 's/PROXY_HOST_OUTPUT="0"/PROXY_HOST_OUTPUT="1"/' "${TMPDIR_CASE}/router.env"
+  run_manager apply-default-template >/dev/null
+  grep -q '^CONFIG_MODE="rule"$' "${TMPDIR_CASE}/settings.env"
+  grep -q '^RULESET_PRESET="default"$' "${TMPDIR_CASE}/settings.env"
+  grep -q '^PROXY_HOST_OUTPUT="0"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^CONTROLLER_BIND_ADDRESS="127.0.0.1"$' "${TMPDIR_CASE}/router.env"
+  grep -q 'DOMAIN-SUFFIX,smzdm.com,DIRECT' "${TMPDIR_CASE}/ruleset/builtin.rules"
+}
+
+test_rules_repo_command() {
+  setup_case
+  output="$(run_manager rules-repo)"
+  assert_contains "$output" '规则仓库: '
+  assert_contains "$output" 'rules-repo/default'
+  assert_contains "$output" '- pt: type=domain_suffix target=direct'
+  assert_contains "$output" '- fcm-site: type=domain target=proxy'
+  assert_contains "$output" '- fcm-ip: type=ip_cidr target=proxy'
+  assert_contains "$output" '总规则数: '
+}
+
+test_rules_repo_entries_command() {
+  setup_case
+  output="$(run_manager rules-repo-entries pt)"
+  assert_contains "$output" 'ruleset=pt'
+  assert_contains "$output" 'type=domain_suffix'
+  assert_contains "$output" $'1\tsmzdm.com'
+}
+
+test_rules_repo_entries_command_with_keyword() {
+  setup_case
+  output="$(run_manager rules-repo-entries pt hd)"
+  assert_contains "$output" 'ruleset=pt'
+  assert_contains "$output" 'matched='
+  assert_contains "$output" 'hdsky.me'
+  if [[ "$output" == *$'\tsmzdm.com'* ]]; then
+    echo "keyword filter should have excluded smzdm.com" >&2
+    exit 1
+  fi
+}
+
+test_rulepreset_describe_ruleset_command() {
+  setup_case
+  output="$(python3 "${RULEPRESETCTL}" describe-ruleset "${TMPDIR_CASE}/rules-repo/default/manifest.yaml" pt)"
+  assert_contains "$output" 'ruleset=pt'
+  assert_contains "$output" 'target=direct'
+  assert_contains "$output" 'source=rules/direct/pt.txt'
+}
+
+test_rulepreset_search_entries_command() {
+  setup_case
+  output="$(python3 "${RULEPRESETCTL}" search-entries "${TMPDIR_CASE}/rules-repo/default/manifest.yaml" google)"
+  assert_contains "$output" 'keyword=google'
+  assert_contains "$output" $'fcm-site\tdomain\tproxy'
+  assert_contains "$output" 'mtalk.google.com'
+  assert_contains "$output" 'matched='
+}
+
+test_add_and_remove_repo_rule_commands() {
+  setup_case
+  run_manager add-repo-rule pt example-rule.test >/dev/null
+  grep -q '^example-rule.test$' "${TMPDIR_CASE}/rules-repo/default/rules/direct/pt.txt"
+  grep -q 'DOMAIN-SUFFIX,example-rule.test,DIRECT' "${TMPDIR_CASE}/ruleset/builtin.rules"
+  grep -q 'DOMAIN-SUFFIX,example-rule.test,DIRECT' "${TMPDIR_CASE}/config.yaml"
+
+  output="$(run_manager rules-repo-entries pt)"
+  assert_contains "$output" $'example-rule.test'
+
+  run_manager remove-repo-rule pt example-rule.test >/dev/null
+  if grep -q '^example-rule.test$' "${TMPDIR_CASE}/rules-repo/default/rules/direct/pt.txt"; then
+    echo "repo rule should have been removed" >&2
+    exit 1
+  fi
+  if grep -q 'DOMAIN-SUFFIX,example-rule.test,DIRECT' "${TMPDIR_CASE}/ruleset/builtin.rules"; then
+    echo "builtin rules should have been rerendered after removal" >&2
+    exit 1
+  fi
+}
+
+test_add_repo_rule_rejects_invalid_value() {
+  setup_case
+  if run_manager add-repo-rule fcm-ip not-an-ip >/tmp/mh-invalid-repo-rule.out 2>/tmp/mh-invalid-repo-rule.err; then
+    echo "invalid repo rule should have failed" >&2
+    exit 1
+  fi
+  grep -q 'invalid ip_cidr entry' /tmp/mh-invalid-repo-rule.err
+  if grep -q '^not-an-ip$' "${TMPDIR_CASE}/rules-repo/default/rules/proxy/fcm-ip.txt"; then
+    echo "invalid repo rule should not have been written" >&2
+    exit 1
+  fi
+}
+
+test_remove_repo_rule_by_index_command() {
+  setup_case
+  run_manager add-repo-rule pt index-delete.test >/dev/null
+  output="$(run_manager rules-repo-entries pt)"
+  index="$(printf '%s\n' "$output" | awk -F'\t' '$2 == "index-delete.test" {print $1; exit}')"
+  [[ -n "$index" ]]
+
+  run_manager remove-repo-rule-index pt "$index" >/dev/null
+  if grep -q '^index-delete.test$' "${TMPDIR_CASE}/rules-repo/default/rules/direct/pt.txt"; then
+    echo "repo rule should have been removed by index" >&2
+    exit 1
+  fi
+  if grep -q 'DOMAIN-SUFFIX,index-delete.test,DIRECT' "${TMPDIR_CASE}/ruleset/builtin.rules"; then
+    echo "builtin rules should have been rerendered after index removal" >&2
+    exit 1
+  fi
+}
+
+test_rules_repo_find_command() {
+  setup_case
+  output="$(run_manager rules-repo-find google)"
+  assert_contains "$output" 'keyword=google'
+  assert_contains "$output" 'mtalk.google.com'
+  assert_contains "$output" 'matched='
+}
+
 test_status_readonly() {
   setup_case
   output="$(run_manager status)"
   assert_contains "$output" '模板: nas-single-lan-v4 (单 LAN IPv4 旁路由)'
+  assert_contains "$output" '规则预设: default (项目内置默认模板：PT 直连，FCM 域名/IP 强制代理)'
   assert_contains "$output" 'IPv6: 关闭'
   assert_contains "$output" '节点: 启用 0 / 总计 0'
   assert_contains "$output" '订阅: 启用 0 / 总计 0'
@@ -170,8 +369,17 @@ test_status_warns_on_host_output_proxy() {
 
 test_usage_mentions_new_commands() {
   output="$(run_manager help)"
+  assert_contains "$output" 'apply-default-template'
+  assert_contains "$output" 'rules-repo-entries'
+  assert_contains "$output" 'rules-repo-find'
+  assert_contains "$output" 'rules-repo-entries [ruleset] [keyword]'
+  assert_contains "$output" 'add-repo-rule'
+  assert_contains "$output" 'remove-repo-rule'
+  assert_contains "$output" 'remove-repo-rule-index'
   assert_contains "$output" 'repair'
   assert_contains "$output" 'templates'
+  assert_contains "$output" 'rules-repo'
+  assert_contains "$output" 'rule-presets'
   assert_contains "$output" 'update-subscriptions'
   assert_contains "$output" 'rollback-config'
   assert_contains "$output" '兼容命令:'
@@ -191,7 +399,22 @@ main() {
   test_acl_rules_are_rendered
   test_auto_without_node_fails
   test_scan_marks_unsupported_scheme
+  test_scan_marks_invalid_vmess_payload
+  test_scan_marks_invalid_ss_payload
+  test_scan_marks_invalid_vless_port
   test_subscription_state_commands
+  test_config_loader_treats_values_as_literals
+  test_default_rule_preset_is_rendered
+  test_apply_default_template_command
+  test_rules_repo_command
+  test_rules_repo_entries_command
+  test_rules_repo_entries_command_with_keyword
+  test_rulepreset_describe_ruleset_command
+  test_rulepreset_search_entries_command
+  test_add_and_remove_repo_rule_commands
+  test_add_repo_rule_rejects_invalid_value
+  test_remove_repo_rule_by_index_command
+  test_rules_repo_find_command
   test_status_readonly
   test_status_warns_on_host_output_proxy
   test_usage_mentions_new_commands

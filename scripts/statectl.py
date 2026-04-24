@@ -342,8 +342,11 @@ def parse_json_from_uri_payload(uri: str) -> dict:
         payload = payload.split("#", 1)[0]
     if "?" in payload:
         payload = payload.split("?", 1)[0]
-    raw = b64decode_padded(payload).decode("utf-8", errors="ignore")
-    value = json.loads(raw)
+    try:
+        raw = b64decode_padded(payload).decode("utf-8", errors="ignore")
+        value = json.loads(raw)
+    except Exception:
+        fail("invalid vmess payload")
     if not isinstance(value, dict):
         fail("invalid vmess payload")
     return value
@@ -549,7 +552,7 @@ def guess_name(uri: str) -> str:
             host = string_value(data, "add", "server", "address") or "node"
             network = string_value(data, "net", "network").lower() or "tcp"
             return f"{network}-{host}"
-        except Exception:
+        except (Exception, SystemExit):
             return "vmess-node"
     parsed = urllib.parse.urlsplit(raw)
     if parsed.fragment:
@@ -560,6 +563,29 @@ def guess_name(uri: str) -> str:
     query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
     network = (query.get("type", ["tcp"])[0] or "tcp").lower()
     return f"{network}-{host}"
+
+
+def safe_split_port(parsed: urllib.parse.SplitResult) -> str:
+    try:
+        port = parsed.port
+    except ValueError:
+        return ""
+    return str(port or "")
+
+
+def unsupported_uri_info(raw: str, scheme: str, reason: str) -> dict:
+    parsed = urllib.parse.urlsplit(raw)
+    query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+    return {
+        "name": guess_name(raw),
+        "server": parsed.hostname or "",
+        "port": safe_split_port(parsed),
+        "network": (query.get("type", ["tcp"])[0] or "tcp").lower(),
+        "security": (query.get("security", [""])[0] or scheme).lower(),
+        "scheme": scheme,
+        "supported": "0",
+        "reason": reason,
+    }
 
 
 def uri_info(uri: str) -> dict:
@@ -578,18 +604,9 @@ def uri_info(uri: str) -> dict:
             "reason": "",
         }
     except SystemExit as exc:
-        parsed = urllib.parse.urlsplit(raw)
-        query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
-        return {
-            "name": guess_name(raw),
-            "server": parsed.hostname or "",
-            "port": str(parsed.port or ""),
-            "network": (query.get("type", ["tcp"])[0] or "tcp").lower(),
-            "security": (query.get("security", [""])[0] or scheme).lower(),
-            "scheme": scheme,
-            "supported": "0",
-            "reason": str(exc) or f"unsupported scheme: {scheme}",
-        }
+        return unsupported_uri_info(raw, scheme, str(exc) or f"unsupported scheme: {scheme}")
+    except Exception as exc:
+        return unsupported_uri_info(raw, scheme, str(exc) or f"invalid {scheme or 'unknown'} uri")
 
 
 def reality_opts_from_mapping(mapping: dict | None) -> dict:

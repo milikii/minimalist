@@ -1,0 +1,312 @@
+**目标**
+对当前项目做严格、可验证的工程评估，不改代码，只给结论和证据。
+
+**结论**
+当前项目不适合按“稳定可交付”评价。我的判断是：`功能方向对、文档基本清楚、基础测试有一定覆盖`，但 `安全性和发布可靠性` 还没过线，至少有 1 个严重问题和 3 个实锤的中高风险问题。
+
+**主要问题**
+1. 严重：配置文件存在 root 级命令注入风险。[lib/common.sh](/home/projects/mihomo-manager/lib/common.sh:197) 只转义了反斜杠和双引号，[lib/common.sh](/home/projects/mihomo-manager/lib/common.sh:218) 会把值写成 `KEY="..."`，而 [lib/common.sh](/home/projects/mihomo-manager/lib/common.sh:413) 和 [lib/common.sh](/home/projects/mihomo-manager/lib/common.sh:443) 直接 `source` 配置文件。`$()` / 反引号不会被转义，后续任何加载配置的命令都会执行其中的 shell 表达式。我已本地复现：通过 `upsert_env_var` 写入 `$(touch .../poc.executed)`，再次 `source` 后文件被实际创建。这不是理论风险。
+
+2. 高：`setup/repair/start/restart` 会因为系统里任意无关的 sysctl 问题而失败。[lib/render.sh](/home/projects/mihomo-manager/lib/render.sh:262) 写完自己的配置后直接跑 `sysctl --system`，而 [mihomo](/home/projects/mihomo-manager/mihomo:886) 的 `full_setup`、后续修复/启动链路都会走到这里。这会把全系统 `/etc/sysctl*` 都重新应用一遍，只要别处有告警或兼容性问题，当前项目就会中断。我已复现当前仓库自带的 `service_mock.sh` 失败点，实际 stderr 是 `sysctl: setting key "net.ipv4.ping_group_range": Invalid argument`。这说明“冷启动 setup 可成功”目前不成立。
+
+3. 中高：坏的 `vmess` 行会把整次导入/订阅更新直接打崩，而不是被当成坏数据跳过。[scripts/statectl.py](/home/projects/mihomo-manager/scripts/statectl.py:339) 的 `parse_json_from_uri_payload()` 会直接抛 `binascii.Error` / `JSONDecodeError`，但 [scripts/statectl.py](/home/projects/mihomo-manager/scripts/statectl.py:565) 的 `uri_info()` 只捕获 `SystemExit`。我用 `vmess://not-base64!!!` 复现后，`python3 scripts/statectl.py scan-uris ...` 直接 traceback 退出。只要订阅里混进一条坏 `vmess`，整次更新都可能失败。
+
+4. 中：规则仓库自动同步会把仓库里“本来就已暂存”的无关改动一起提交并推送。[lib/render.sh](/home/projects/mihomo-manager/lib/render.sh:1059) 只 `git add manager/custom-rules`，但 [lib/render.sh](/home/projects/mihomo-manager/lib/render.sh:1065) 的 `git commit` 没有限定 path。我用最小 git 复现确认：如果 repo 里先暂存了 `unrelated.txt`，再执行同样的 add/commit 序列，最终提交同时包含 `manager/custom-rules/...` 和 `unrelated.txt`。这会把自动同步变成“顺手发布别的内容”。
+
+**验证结果**
+- `bash tests/smoke.sh`：通过。
+- `bash tests/service_mock.sh`：失败，定位到 `write_sysctl -> sysctl --system`。
+- 配置注入：已本地 PoC 成功。
+- 坏 `vmess` 导入：已本地复现 traceback。
+- git 自动同步带出无关暂存：已本地最小复现成功。
+
+**整体评价**
+- 安全性：不达标，当前最大 blocker 是配置注入。
+- 可靠性：中低，安装/修复链路对宿主机环境过于脆弱。
+- 可维护性：中等偏低。核心逻辑分散在 [mihomo](/home/projects/mihomo-manager/mihomo:1)、[lib/common.sh](/home/projects/mihomo-manager/lib/common.sh:1)、[lib/render.sh](/home/projects/mihomo-manager/lib/render.sh:1) 这 3 个大 Bash 文件里，变更回归风险偏高。
+- 文档一致性：README 与主命令大体一致，这一点是好的。
+- 测试现状：有基础回归脚本，但已经存在“测试明确失败 yet 未修”的情况，说明发布门禁还不够硬。
+
+**建议优先级**
+1. 先修配置注入，再谈任何功能迭代。
+2. 把 `sysctl --system` 改成只应用本项目文件，修复 cold setup 回归。
+3. 让 URI 扫描对坏输入降级为“标记 unsupported”，不要炸整个批次。
+4. 限制规则仓库提交范围，避免提交/推送无关 staged 变更。
+
+**完成结果**
+本次仅评估，未修改代码。
+
+**文档是否更新**
+否。
+
+**commit hash / blocker**
+未产生 commit。当前 blocker 是上述 1、2 两项，它们足以阻止我把项目评为“可稳定交付”。如果你要，我下一步可以直接按这四项给出最小修复补丁。
+
+---
+
+**后续进展**
+
+1. 已修复配置注入
+- `settings.env` / `router.env` 不再通过 `source` 执行。
+- 现在改为字面量安全读取，`$()` / 反引号等内容只会被当作字符串，不会执行。
+- 相关实现位于 [lib/common.sh](/home/projects/mihomo-manager/lib/common.sh:1)。
+
+2. 已把 `mihomo-rules` 的长期规则源并入当前项目
+- 新增内置规则预设目录：
+  - [rule-presets/self-use/manifest.yaml](/home/projects/mihomo-manager/rule-presets/self-use/manifest.yaml:1)
+  - [rule-presets/self-use/rules/direct/pt.txt](/home/projects/mihomo-manager/rule-presets/self-use/rules/direct/pt.txt:1)
+  - [rule-presets/self-use/rules/proxy/fcm-site.txt](/home/projects/mihomo-manager/rule-presets/self-use/rules/proxy/fcm-site.txt:1)
+  - [rule-presets/self-use/rules/proxy/fcm-ip.txt](/home/projects/mihomo-manager/rule-presets/self-use/rules/proxy/fcm-ip.txt:1)
+- 新增 [scripts/rulepreset.py](/home/projects/mihomo-manager/scripts/rulepreset.py:1) 负责渲染内置规则。
+
+3. 已新增内置自用规则预设与一键命令
+- 新增 `self-use` 规则预设：
+  - `PT` 域名走 `DIRECT`
+  - `FCM` 域名走 `PROXY`
+  - `FCM` IP 走 `PROXY`
+- 新增 `mihomo apply-self-use`：
+  - 设置 `CONFIG_MODE=rule`
+  - 设置 `RULESET_PRESET=self-use`
+  - 设置 `CONTROLLER_BIND_ADDRESS=127.0.0.1`
+  - 设置 `PROXY_HOST_OUTPUT=0`
+- 相关实现位于 [mihomo](/home/projects/mihomo-manager/mihomo:1) 和 [lib/render.sh](/home/projects/mihomo-manager/lib/render.sh:1)。
+
+4. 已修复坏 `vmess` 行导致整次扫描崩溃的问题
+- `vmess://not-base64!!!` 这类坏输入现在会被标记为 unsupported。
+- 不再出现 traceback，不会把整次 `scan-uris` / 订阅扫描直接打崩。
+- 相关实现位于 [scripts/statectl.py](/home/projects/mihomo-manager/scripts/statectl.py:1)。
+
+5. 额外收口
+- `write_sysctl` 已改为只加载本项目自己的 sysctl 文件，不再调用 `sysctl --system`。
+- `sync_rules_repo` 已限制提交范围，不再顺带提交 repo 中其他已暂存改动。
+
+6. 当前验证结果
+- `bash tests/smoke.sh`：通过
+- `bash tests/service_mock.sh`：通过
+- `service_mock.sh` 里仍会看到两行 `Cannot open netlink socket: Operation not permitted`，这是测试环境权限限制，不是当前改动回归。
+
+7. 当前状态
+- 未执行 `commit`
+- 未执行 `push`
+- 当前代码状态已经明显优于最初评估时的高风险版本
+
+8. 新增：URI 扫描容错已继续补强
+- 不仅坏 `vmess`，现在坏 `ss` base64、坏 `vless` 端口这类输入也不会再把整次扫描打崩。
+- `scan-uris` / 订阅扫描现在会把这类坏输入统一降级为 unsupported 行，并带上原因。
+- 已验证样例：
+  - `vmess://not-base64!!!`
+  - `ss://not-base64!!!`
+  - `vless://uuid@example.com:abc?type=tcp#bad-port`
+- 相关实现位于 [scripts/statectl.py](/home/projects/mihomo-manager/scripts/statectl.py:1)。
+
+9. 最新验证结果
+- `bash tests/smoke.sh`：通过
+- `bash tests/service_mock.sh`：通过
+
+10. 新增：旧 `mihomo-rules` 外部同步已降级为可选导出
+- 新安装默认：
+  - `RULES_AUTO_SYNC=0`
+  - `RULES_REPO_DIR=""`
+- 也就是说，当前项目不再把外部 `mihomo-rules` 仓库当作默认依赖路径。
+- 兼容能力仍保留：
+  - 显式执行 `mihomo sync-rules-repo` 仍可导出
+  - `mihomo configure-rules-sync 1 /path/to/repo` 仍可重新启用自动导出
+- 菜单和文档描述已改成“外部规则导出”，避免继续把它表述成主规则仓库。
+
+11. 本轮验证结果
+- `bash tests/smoke.sh`：通过
+- `bash tests/service_mock.sh`：通过
+
+12. 新增：已彻底去掉外部 `mihomo-rules` 规则仓库路径
+- 当前项目不再保留：
+  - `RULES_AUTO_SYNC`
+  - `RULES_REPO_DIR`
+  - `mihomo sync-rules-repo`
+  - `mihomo configure-rules-sync`
+- 旧的外部仓库导出/同步心智已从代码、菜单、README、测试中移除。
+
+13. 当前唯一规则仓库
+- 当前项目内自带本地规则仓库：
+  - [rules-repo/default/manifest.yaml](/home/projects/mihomo-manager/rules-repo/default/manifest.yaml:1)
+  - [rules-repo/default/rules/direct/pt.txt](/home/projects/mihomo-manager/rules-repo/default/rules/direct/pt.txt:1)
+  - [rules-repo/default/rules/proxy/fcm-site.txt](/home/projects/mihomo-manager/rules-repo/default/rules/proxy/fcm-site.txt:1)
+  - [rules-repo/default/rules/proxy/fcm-ip.txt](/home/projects/mihomo-manager/rules-repo/default/rules/proxy/fcm-ip.txt:1)
+- 旧的 `rule-presets/self-use` 已删除，避免项目内出现两套规则来源。
+
+14. 当前默认模板
+- 当前默认规则模板就是 `default`。
+- 它直接来自项目内置规则仓库，不再通过 “empty default + self-use” 的绕路实现。
+- 一键命令已调整为：
+  - `mihomo apply-default-template`
+- 兼容别名仍保留：
+  - `mihomo apply-self-use`
+
+15. 最新验证结果
+- `bash tests/smoke.sh`：通过
+- `bash tests/service_mock.sh`：通过
+
+16. 新增：已补项目内置规则仓库查看入口
+- 新增命令：
+  - `mihomo rules-repo`
+- 作用：
+  - 直接打印当前项目内置规则仓库摘要
+  - 显示每个规则集的类型、目标、条目数和源文件路径
+- 当前输出会覆盖：
+  - `pt`
+  - `fcm-site`
+  - `fcm-ip`
+- 相关实现位于：
+  - [scripts/rulepreset.py](/home/projects/mihomo-manager/scripts/rulepreset.py:1)
+  - [mihomo](/home/projects/mihomo-manager/mihomo:1)
+
+17. 最新验证结果
+- `bash tests/smoke.sh`：通过
+- `bash tests/service_mock.sh`：通过
+
+18. 新增：项目内置规则仓库现在可直接维护
+- 新增命令：
+  - `mihomo rules-repo-entries [ruleset]`
+  - `mihomo add-repo-rule [ruleset] [value]`
+  - `mihomo remove-repo-rule [ruleset] [value]`
+- 当前可直接维护的规则集：
+  - `pt`
+  - `fcm-site`
+  - `fcm-ip`
+- 添加/删除后会自动：
+  - 重渲染 `builtin.rules`
+  - 重渲染最终 `config.yaml`
+  - 如服务已运行，沿用现有流程触发后续生效
+- 相关实现位于：
+  - [scripts/rulepreset.py](/home/projects/mihomo-manager/scripts/rulepreset.py:1)
+  - [mihomo](/home/projects/mihomo-manager/mihomo:1)
+
+19. 最新验证结果
+- `bash tests/smoke.sh`：通过
+- `bash tests/service_mock.sh`：通过
+
+20. 新增：项目规则仓库写入现在带类型校验
+- `add-repo-rule` 现在会按规则集类型做最小校验：
+  - `pt` / `fcm-site` 这类域名规则会拒绝明显非法字符
+  - `fcm-ip` 这类 `ip_cidr` 规则会校验 CIDR 格式
+- 错误输入会直接失败，不会把坏值写进规则仓库文件。
+- 相关实现位于：
+  - [scripts/rulepreset.py](/home/projects/mihomo-manager/scripts/rulepreset.py:1)
+  - [tests/smoke.sh](/home/projects/mihomo-manager/tests/smoke.sh:1)
+
+21. 最新验证结果
+- `bash tests/smoke.sh`：通过
+- `bash tests/service_mock.sh`：通过
+
+22. 新增：项目规则仓库已支持按序号删除
+- 新增命令：
+  - `mihomo remove-repo-rule-index [ruleset] [index]`
+- 目的：
+  - 删除长条目时不必完整输入整条内容
+- 规则集菜单里的删除入口也已切换为“按序号删除规则集条目”。
+- 相关实现位于：
+  - [scripts/rulepreset.py](/home/projects/mihomo-manager/scripts/rulepreset.py:1)
+  - [mihomo](/home/projects/mihomo-manager/mihomo:1)
+
+23. 最新验证结果
+- `bash tests/smoke.sh`：通过
+- `bash tests/service_mock.sh`：通过
+
+24. 新增：交互式增删规则前会先显示规则集摘要
+- 当以下命令需要你补输入时，现在会先显示目标规则集摘要：
+  - `mihomo add-repo-rule`
+  - `mihomo remove-repo-rule`
+  - `mihomo remove-repo-rule-index`
+- 摘要内容包括：
+  - `ruleset`
+  - `type`
+  - `target`
+  - `entries`
+  - `source`
+- 这样在交互式维护规则仓库时，不必先手动再查一遍规则集信息。
+- 相关实现位于：
+  - [scripts/rulepreset.py](/home/projects/mihomo-manager/scripts/rulepreset.py:1)
+  - [mihomo](/home/projects/mihomo-manager/mihomo:1)
+
+25. 最新验证结果
+- `bash tests/smoke.sh`：通过
+- `bash tests/service_mock.sh`：通过
+
+26. 新增：交互式增删规则前会先显示规则集摘要
+- 当以下命令需要用户补输入时，现在会先显示目标规则集摘要：
+  - `mihomo add-repo-rule`
+  - `mihomo remove-repo-rule`
+  - `mihomo remove-repo-rule-index`
+- 规则集摘要包括：
+  - `ruleset`
+  - `type`
+  - `target`
+  - `entries`
+  - `source`
+- 这样在交互式维护项目规则仓库时，不需要先手动再执行一次 `rules-repo-entries` 才能确认上下文。
+- 相关实现位于：
+  - [scripts/rulepreset.py](/home/projects/mihomo-manager/scripts/rulepreset.py:1)
+  - [mihomo](/home/projects/mihomo-manager/mihomo:1)
+
+27. 最新验证结果
+- `bash tests/smoke.sh`：通过
+- `bash tests/service_mock.sh`：通过
+
+28. 新增：`rules-repo-entries` 已支持关键字过滤
+- 现在可直接执行：
+  - `mihomo rules-repo-entries pt hd`
+- 作用：
+  - 只显示包含关键字的规则项
+  - 方便在大规则集里快速定位条目
+- 过滤仅影响显示，不会修改规则仓库内容。
+- 相关实现位于：
+  - [scripts/rulepreset.py](/home/projects/mihomo-manager/scripts/rulepreset.py:1)
+  - [mihomo](/home/projects/mihomo-manager/mihomo:1)
+
+29. 最新验证结果
+- `bash tests/smoke.sh`：通过
+- `bash tests/service_mock.sh`：通过
+
+30. 新增：`rules-repo-entries` 已支持关键字过滤
+- 现在可直接执行：
+  - `mihomo rules-repo-entries pt hd`
+- 效果：
+  - 仅显示匹配关键字的条目
+  - 输出末尾附带 `matched=` 计数
+- 过滤只影响显示，不会修改规则仓库内容。
+- 相关实现位于：
+  - [scripts/rulepreset.py](/home/projects/mihomo-manager/scripts/rulepreset.py:1)
+  - [mihomo](/home/projects/mihomo-manager/mihomo:1)
+
+31. 当前最终可用状态（覆盖前面历史过程）
+- 当前项目已经不再依赖外部 `mihomo-rules`。
+- 当前唯一规则仓库是：
+  - [rules-repo/default/manifest.yaml](/home/projects/mihomo-manager/rules-repo/default/manifest.yaml:1)
+- 当前默认规则模板是：
+  - `default`
+- 当前可直接使用的核心命令：
+  - `mihomo apply-default-template`
+  - `mihomo rules-repo`
+  - `mihomo rules-repo-entries pt`
+  - `mihomo rules-repo-entries pt hd`
+  - `mihomo add-repo-rule pt example.com`
+  - `mihomo remove-repo-rule pt example.com`
+  - `mihomo remove-repo-rule-index pt 12`
+- 当前验证状态：
+  - `bash tests/smoke.sh`：通过
+  - `bash tests/service_mock.sh`：通过
+
+32. 新增：已支持跨规则集搜索
+- 新增命令：
+  - `mihomo rules-repo-find [keyword]`
+- 作用：
+  - 跨 `pt / fcm-site / fcm-ip` 搜索规则项
+  - 当你不知道某条规则属于哪个规则集时，可直接搜索
+- 例如：
+  - `mihomo rules-repo-find google`
+- 相关实现位于：
+  - [scripts/rulepreset.py](/home/projects/mihomo-manager/scripts/rulepreset.py:1)
+  - [mihomo](/home/projects/mihomo-manager/mihomo:1)
+
+33. 最新验证结果
+- `bash tests/smoke.sh`：通过
+- `bash tests/service_mock.sh`：通过

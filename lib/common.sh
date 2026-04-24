@@ -6,6 +6,7 @@ SCRIPT_VERSION="${SCRIPT_VERSION:-0.5.0}"
 
 APP_ROOT="${APP_ROOT:-/usr/local/lib/mihomo-manager}"
 STATECTL="${STATECTL:-${APP_ROOT}/scripts/statectl.py}"
+RULEPRESETCTL="${RULEPRESETCTL:-${APP_ROOT}/scripts/rulepreset.py}"
 
 MIHOMO_DIR="${MIHOMO_DIR:-/etc/mihomo}"
 MIHOMO_BIN="${MIHOMO_BIN:-/usr/local/bin/mihomo-core}"
@@ -28,7 +29,9 @@ SUBSCRIPTIONS_STATE_FILE="${SUBSCRIPTIONS_STATE_FILE:-${STATE_DIR}/subscriptions
 PROVIDER_FILE="${PROVIDER_FILE:-${PROVIDER_DIR}/manual.txt}"
 RENDERED_RULES_FILE="${RENDERED_RULES_FILE:-${RULES_DIR}/custom.rules}"
 ACL_RENDERED_RULES_FILE="${ACL_RENDERED_RULES_FILE:-${RULES_DIR}/acl.rules}"
+RULESET_PRESET_RENDERED_FILE="${RULESET_PRESET_RENDERED_FILE:-${RULES_DIR}/builtin.rules}"
 SNAPSHOT_DIR="${SNAPSHOT_DIR:-${STATE_DIR}/snapshots}"
+RULE_REPO_ROOT="${RULE_REPO_ROOT:-${APP_ROOT}/rules-repo}"
 
 ROUTER_SYSCTL="${ROUTER_SYSCTL:-/etc/sysctl.d/99-mihomo-router.conf}"
 SYSTEMD_UNIT="${SYSTEMD_UNIT:-/etc/systemd/system/mihomo.service}"
@@ -36,6 +39,9 @@ RESTART_SERVICE_UNIT="${RESTART_SERVICE_UNIT:-/etc/systemd/system/mihomo-restart
 RESTART_TIMER_UNIT="${RESTART_TIMER_UNIT:-/etc/systemd/system/mihomo-restart.timer}"
 UPDATE_SERVICE_UNIT="${UPDATE_SERVICE_UNIT:-/etc/systemd/system/mihomo-alpha-update.service}"
 UPDATE_TIMER_UNIT="${UPDATE_TIMER_UNIT:-/etc/systemd/system/mihomo-alpha-update.timer}"
+
+OVERRIDE_PROFILE_TEMPLATE="${PROFILE_TEMPLATE:-}"
+OVERRIDE_RULESET_PRESET="${RULESET_PRESET:-}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -106,6 +112,10 @@ require_root() {
 
 require_statectl() {
   [[ -x "$STATECTL" ]] || die "未找到状态工具: $STATECTL"
+}
+
+require_rulepresetctl() {
+  [[ -x "$RULEPRESETCTL" ]] || die "未找到规则预设工具: $RULEPRESETCTL"
 }
 
 ensure_state_files() {
@@ -198,6 +208,30 @@ escape_env_value() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
+unescape_env_value() {
+  local input="$1"
+  local output=""
+  local idx=0
+  local char
+  local next
+
+  while (( idx < ${#input} )); do
+    char="${input:idx:1}"
+    if [[ "$char" == "\\" ]] && (( idx + 1 < ${#input} )); then
+      next="${input:idx+1:1}"
+      if [[ "$next" == "\\" || "$next" == "\"" ]]; then
+        output+="$next"
+        idx=$((idx + 2))
+        continue
+      fi
+    fi
+    output+="$char"
+    idx=$((idx + 1))
+  done
+
+  printf '%s' "$output"
+}
+
 upsert_env_var() {
   local file="$1"
   local key="$2"
@@ -223,15 +257,15 @@ read_env_var() {
   local file="$1"
   local key="$2"
   local fallback="${3:-}"
+  local value
   if [[ ! -f "$file" ]]; then
     printf '%s\n' "$fallback"
     return 0
   fi
-  awk -F= -v key="$key" -v fallback="$fallback" '
+  value="$(
+    awk -F= -v key="$key" -v fallback="$fallback" '
     $1 == key {
       value = substr($0, index($0, "=") + 1)
-      gsub(/^"/, "", value)
-      gsub(/"$/, "", value)
       print value
       found = 1
       exit
@@ -242,6 +276,12 @@ read_env_var() {
       }
     }
   ' "$file"
+  )"
+  if [[ "$value" == '"'*'"' && ${#value} -ge 2 ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+  unescape_env_value "$value"
+  printf '\n'
 }
 
 have_global_ipv6() {
@@ -270,6 +310,31 @@ template_summary() {
     nas-multi-bridge) printf '%s\n' "多 bridge/VLAN 旁路由" ;;
     nas-explicit-proxy-only) printf '%s\n' "仅显式代理，不接管 LAN" ;;
     *) printf '%s\n' "未知模板" ;;
+  esac
+}
+
+default_rule_preset() {
+  printf '%s\n' "default"
+}
+
+rule_preset_manifest_path() {
+  case "$1" in
+    default) printf '%s\n' "${RULE_REPO_ROOT}/default/manifest.yaml" ;;
+    *) return 1 ;;
+  esac
+}
+
+rule_preset_exists() {
+  case "$1" in
+    default) [[ -f "$(rule_preset_manifest_path "$1")" ]] ;;
+    *) return 1 ;;
+  esac
+}
+
+rule_preset_summary() {
+  case "$1" in
+    default) printf '%s\n' "项目内置默认模板：PT 直连，FCM 域名/IP 强制代理" ;;
+    *) printf '%s\n' "未知规则预设" ;;
   esac
 }
 
@@ -386,13 +451,17 @@ CORE_CHANNEL="alpha"
 ALPHA_AUTO_UPDATE="0"
 ALPHA_UPDATE_ONCALENDAR="daily"
 RESTART_INTERVAL_HOURS="0"
-RULES_AUTO_SYNC="1"
-RULES_REPO_DIR="/home/projects/mihomo-rules"
+RULESET_PRESET="default"
 EOF
   local template_name
+  local rule_preset_name
   template_name="$(read_env_var "$SETTINGS_ENV" "PROFILE_TEMPLATE" "")"
   if ! template_exists "$template_name"; then
     upsert_env_var "$SETTINGS_ENV" "PROFILE_TEMPLATE" "$(default_profile_template)"
+  fi
+  rule_preset_name="$(read_env_var "$SETTINGS_ENV" "RULESET_PRESET" "")"
+  if ! rule_preset_exists "$rule_preset_name"; then
+    upsert_env_var "$SETTINGS_ENV" "RULESET_PRESET" "$(default_rule_preset)"
   fi
   chmod 640 "$SETTINGS_ENV"
 }
@@ -406,63 +475,48 @@ ensure_router_env() {
 
 load_settings() {
   ensure_settings
-  local env_rules_auto_sync="${RULES_AUTO_SYNC:-}"
-  local env_rules_repo_dir="${RULES_REPO_DIR:-}"
-  local env_profile_template="${PROFILE_TEMPLATE:-}"
-  # shellcheck disable=SC1090
-  source "$SETTINGS_ENV"
-  RULES_AUTO_SYNC="${env_rules_auto_sync:-${RULES_AUTO_SYNC:-1}}"
-  RULES_REPO_DIR="${env_rules_repo_dir:-${RULES_REPO_DIR:-/home/projects/mihomo-rules}}"
-  PROFILE_TEMPLATE="${env_profile_template:-${PROFILE_TEMPLATE:-$(default_profile_template)}}"
+  CONFIG_MODE="$(read_env_var "$SETTINGS_ENV" "CONFIG_MODE" "rule")"
+  CORE_CHANNEL="$(read_env_var "$SETTINGS_ENV" "CORE_CHANNEL" "alpha")"
+  ALPHA_AUTO_UPDATE="$(read_env_var "$SETTINGS_ENV" "ALPHA_AUTO_UPDATE" "0")"
+  ALPHA_UPDATE_ONCALENDAR="$(read_env_var "$SETTINGS_ENV" "ALPHA_UPDATE_ONCALENDAR" "daily")"
+  RESTART_INTERVAL_HOURS="$(read_env_var "$SETTINGS_ENV" "RESTART_INTERVAL_HOURS" "0")"
+  PROFILE_TEMPLATE="${OVERRIDE_PROFILE_TEMPLATE:-$(read_env_var "$SETTINGS_ENV" "PROFILE_TEMPLATE" "$(default_profile_template)")}"
+  RULESET_PRESET="${OVERRIDE_RULESET_PRESET:-$(read_env_var "$SETTINGS_ENV" "RULESET_PRESET" "$(default_rule_preset)")}"
 }
 
 load_settings_readonly() {
-  local env_rules_auto_sync="${RULES_AUTO_SYNC:-}"
-  local env_rules_repo_dir="${RULES_REPO_DIR:-}"
-  local env_profile_template="${PROFILE_TEMPLATE:-}"
-  CONFIG_MODE="rule"
-  CORE_CHANNEL="alpha"
-  ALPHA_AUTO_UPDATE="0"
-  ALPHA_UPDATE_ONCALENDAR="daily"
-  RESTART_INTERVAL_HOURS="0"
-  RULES_AUTO_SYNC="1"
-  RULES_REPO_DIR="/home/projects/mihomo-rules"
-  PROFILE_TEMPLATE="$(default_profile_template)"
-  if [[ -f "$SETTINGS_ENV" ]]; then
-    # shellcheck disable=SC1090
-    source "$SETTINGS_ENV"
-  fi
-  RULES_AUTO_SYNC="${env_rules_auto_sync:-${RULES_AUTO_SYNC:-1}}"
-  RULES_REPO_DIR="${env_rules_repo_dir:-${RULES_REPO_DIR:-/home/projects/mihomo-rules}}"
-  PROFILE_TEMPLATE="${env_profile_template:-${PROFILE_TEMPLATE:-$(default_profile_template)}}"
+  CONFIG_MODE="$(read_env_var "$SETTINGS_ENV" "CONFIG_MODE" "rule")"
+  CORE_CHANNEL="$(read_env_var "$SETTINGS_ENV" "CORE_CHANNEL" "alpha")"
+  ALPHA_AUTO_UPDATE="$(read_env_var "$SETTINGS_ENV" "ALPHA_AUTO_UPDATE" "0")"
+  ALPHA_UPDATE_ONCALENDAR="$(read_env_var "$SETTINGS_ENV" "ALPHA_UPDATE_ONCALENDAR" "daily")"
+  RESTART_INTERVAL_HOURS="$(read_env_var "$SETTINGS_ENV" "RESTART_INTERVAL_HOURS" "0")"
+  PROFILE_TEMPLATE="${OVERRIDE_PROFILE_TEMPLATE:-$(read_env_var "$SETTINGS_ENV" "PROFILE_TEMPLATE" "$(default_profile_template)")}"
+  RULESET_PRESET="${OVERRIDE_RULESET_PRESET:-$(read_env_var "$SETTINGS_ENV" "RULESET_PRESET" "$(default_rule_preset)")}"
 }
 
 load_router_env() {
   ensure_router_env
-  # shellcheck disable=SC1090
-  source "$ROUTER_ENV"
-
-  MIXED_PORT="${MIXED_PORT:-7890}"
-  TPROXY_PORT="${TPROXY_PORT:-7893}"
-  DNS_PORT="${DNS_PORT:-1053}"
-  CONTROLLER_PORT="${CONTROLLER_PORT:-19090}"
-  CONTROLLER_BIND_ADDRESS="${CONTROLLER_BIND_ADDRESS:-127.0.0.1}"
-  TEMPLATE_NAME="${TEMPLATE_NAME:-$(current_profile_template)}"
-  ENABLE_IPV6="${ENABLE_IPV6:-0}"
-  ROUTE_MARK="${ROUTE_MARK:-0x2333}"
-  ROUTE_MASK="${ROUTE_MASK:-0xffffffff}"
-  ROUTE_TABLE="${ROUTE_TABLE:-233}"
-  ROUTE_PRIORITY="${ROUTE_PRIORITY:-100}"
-  PROXY_HOST_OUTPUT="${PROXY_HOST_OUTPUT:-0}"
-  DNS_HIJACK_ENABLED="${DNS_HIJACK_ENABLED:-1}"
-  LAN_INTERFACES="${LAN_INTERFACES:-}"
-  LAN_CIDRS="${LAN_CIDRS:-}"
-  PROXY_INGRESS_INTERFACES="${PROXY_INGRESS_INTERFACES:-$LAN_INTERFACES}"
-  DNS_HIJACK_INTERFACES="${DNS_HIJACK_INTERFACES:-$LAN_INTERFACES}"
-  BYPASS_CONTAINER_NAMES="${BYPASS_CONTAINER_NAMES:-}"
-  BYPASS_SRC_CIDRS="${BYPASS_SRC_CIDRS:-}"
-  BYPASS_DST_CIDRS="${BYPASS_DST_CIDRS:-}"
-  BYPASS_UIDS="${BYPASS_UIDS:-}"
+  MIXED_PORT="$(read_env_var "$ROUTER_ENV" "MIXED_PORT" "7890")"
+  TPROXY_PORT="$(read_env_var "$ROUTER_ENV" "TPROXY_PORT" "7893")"
+  DNS_PORT="$(read_env_var "$ROUTER_ENV" "DNS_PORT" "1053")"
+  CONTROLLER_PORT="$(read_env_var "$ROUTER_ENV" "CONTROLLER_PORT" "19090")"
+  CONTROLLER_BIND_ADDRESS="$(read_env_var "$ROUTER_ENV" "CONTROLLER_BIND_ADDRESS" "127.0.0.1")"
+  TEMPLATE_NAME="$(read_env_var "$ROUTER_ENV" "TEMPLATE_NAME" "$(current_profile_template)")"
+  ENABLE_IPV6="$(read_env_var "$ROUTER_ENV" "ENABLE_IPV6" "0")"
+  ROUTE_MARK="$(read_env_var "$ROUTER_ENV" "ROUTE_MARK" "0x2333")"
+  ROUTE_MASK="$(read_env_var "$ROUTER_ENV" "ROUTE_MASK" "0xffffffff")"
+  ROUTE_TABLE="$(read_env_var "$ROUTER_ENV" "ROUTE_TABLE" "233")"
+  ROUTE_PRIORITY="$(read_env_var "$ROUTER_ENV" "ROUTE_PRIORITY" "100")"
+  PROXY_HOST_OUTPUT="$(read_env_var "$ROUTER_ENV" "PROXY_HOST_OUTPUT" "0")"
+  DNS_HIJACK_ENABLED="$(read_env_var "$ROUTER_ENV" "DNS_HIJACK_ENABLED" "1")"
+  LAN_INTERFACES="$(read_env_var "$ROUTER_ENV" "LAN_INTERFACES" "")"
+  LAN_CIDRS="$(read_env_var "$ROUTER_ENV" "LAN_CIDRS" "")"
+  PROXY_INGRESS_INTERFACES="$(read_env_var "$ROUTER_ENV" "PROXY_INGRESS_INTERFACES" "$LAN_INTERFACES")"
+  DNS_HIJACK_INTERFACES="$(read_env_var "$ROUTER_ENV" "DNS_HIJACK_INTERFACES" "$LAN_INTERFACES")"
+  BYPASS_CONTAINER_NAMES="$(read_env_var "$ROUTER_ENV" "BYPASS_CONTAINER_NAMES" "")"
+  BYPASS_SRC_CIDRS="$(read_env_var "$ROUTER_ENV" "BYPASS_SRC_CIDRS" "")"
+  BYPASS_DST_CIDRS="$(read_env_var "$ROUTER_ENV" "BYPASS_DST_CIDRS" "")"
+  BYPASS_UIDS="$(read_env_var "$ROUTER_ENV" "BYPASS_UIDS" "")"
 
   ROUTE_MARK_DEC=$((ROUTE_MARK))
   read -r -a PROXY_INGRESS_IFACES_ARR <<< "${PROXY_INGRESS_INTERFACES}"
@@ -487,31 +541,27 @@ load_router_env() {
 }
 
 load_router_env_readonly() {
-  MIXED_PORT="7890"
-  TPROXY_PORT="7893"
-  DNS_PORT="1053"
-  CONTROLLER_PORT="19090"
-  CONTROLLER_BIND_ADDRESS="127.0.0.1"
-  TEMPLATE_NAME="$(current_profile_template)"
-  ENABLE_IPV6="0"
-  ROUTE_MARK="0x2333"
-  ROUTE_MASK="0xffffffff"
-  ROUTE_TABLE="233"
-  ROUTE_PRIORITY="100"
-  PROXY_HOST_OUTPUT="0"
-  DNS_HIJACK_ENABLED="1"
-  LAN_INTERFACES=""
-  LAN_CIDRS=""
-  PROXY_INGRESS_INTERFACES=""
-  DNS_HIJACK_INTERFACES=""
-  BYPASS_CONTAINER_NAMES=""
-  BYPASS_SRC_CIDRS=""
-  BYPASS_DST_CIDRS=""
-  BYPASS_UIDS=""
-  if [[ -f "$ROUTER_ENV" ]]; then
-    # shellcheck disable=SC1090
-    source "$ROUTER_ENV"
-  fi
+  MIXED_PORT="$(read_env_var "$ROUTER_ENV" "MIXED_PORT" "7890")"
+  TPROXY_PORT="$(read_env_var "$ROUTER_ENV" "TPROXY_PORT" "7893")"
+  DNS_PORT="$(read_env_var "$ROUTER_ENV" "DNS_PORT" "1053")"
+  CONTROLLER_PORT="$(read_env_var "$ROUTER_ENV" "CONTROLLER_PORT" "19090")"
+  CONTROLLER_BIND_ADDRESS="$(read_env_var "$ROUTER_ENV" "CONTROLLER_BIND_ADDRESS" "127.0.0.1")"
+  TEMPLATE_NAME="$(read_env_var "$ROUTER_ENV" "TEMPLATE_NAME" "$(current_profile_template)")"
+  ENABLE_IPV6="$(read_env_var "$ROUTER_ENV" "ENABLE_IPV6" "0")"
+  ROUTE_MARK="$(read_env_var "$ROUTER_ENV" "ROUTE_MARK" "0x2333")"
+  ROUTE_MASK="$(read_env_var "$ROUTER_ENV" "ROUTE_MASK" "0xffffffff")"
+  ROUTE_TABLE="$(read_env_var "$ROUTER_ENV" "ROUTE_TABLE" "233")"
+  ROUTE_PRIORITY="$(read_env_var "$ROUTER_ENV" "ROUTE_PRIORITY" "100")"
+  PROXY_HOST_OUTPUT="$(read_env_var "$ROUTER_ENV" "PROXY_HOST_OUTPUT" "0")"
+  DNS_HIJACK_ENABLED="$(read_env_var "$ROUTER_ENV" "DNS_HIJACK_ENABLED" "1")"
+  LAN_INTERFACES="$(read_env_var "$ROUTER_ENV" "LAN_INTERFACES" "")"
+  LAN_CIDRS="$(read_env_var "$ROUTER_ENV" "LAN_CIDRS" "")"
+  PROXY_INGRESS_INTERFACES="$(read_env_var "$ROUTER_ENV" "PROXY_INGRESS_INTERFACES" "$LAN_INTERFACES")"
+  DNS_HIJACK_INTERFACES="$(read_env_var "$ROUTER_ENV" "DNS_HIJACK_INTERFACES" "$LAN_INTERFACES")"
+  BYPASS_CONTAINER_NAMES="$(read_env_var "$ROUTER_ENV" "BYPASS_CONTAINER_NAMES" "")"
+  BYPASS_SRC_CIDRS="$(read_env_var "$ROUTER_ENV" "BYPASS_SRC_CIDRS" "")"
+  BYPASS_DST_CIDRS="$(read_env_var "$ROUTER_ENV" "BYPASS_DST_CIDRS" "")"
+  BYPASS_UIDS="$(read_env_var "$ROUTER_ENV" "BYPASS_UIDS" "")"
 }
 
 ensure_layout() {
@@ -519,6 +569,7 @@ ensure_layout() {
   [[ -f "$PROVIDER_FILE" ]] || : >"$PROVIDER_FILE"
   [[ -f "$RENDERED_RULES_FILE" ]] || : >"$RENDERED_RULES_FILE"
   [[ -f "$ACL_RENDERED_RULES_FILE" ]] || : >"$ACL_RENDERED_RULES_FILE"
+  [[ -f "$RULESET_PRESET_RENDERED_FILE" ]] || : >"$RULESET_PRESET_RENDERED_FILE"
   ensure_settings
   ensure_router_env
   ensure_state_files

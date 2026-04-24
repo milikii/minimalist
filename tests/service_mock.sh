@@ -13,6 +13,7 @@ trap cleanup EXIT
 setup_case() {
   TMPDIR_CASE="$(mktemp -d)"
   mkdir -p "${TMPDIR_CASE}/bin" "${TMPDIR_CASE}/state" "${TMPDIR_CASE}/ruleset" "${TMPDIR_CASE}/proxy_providers" "${TMPDIR_CASE}/ui"
+  cp -a "${ROOT}/rules-repo" "${TMPDIR_CASE}/rules-repo"
 
   cat > "${TMPDIR_CASE}/router.env" <<'EOENV'
 TEMPLATE_NAME="nas-single-lan-v4"
@@ -175,25 +176,12 @@ fi
 EOCURL
   chmod +x "${TMPDIR_CASE}/bin/curl"
 
-  cat > "${TMPDIR_CASE}/bin/git" <<'EOGIT'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >> "${GIT_LOG:?}"
-case "$1" in
-  -C) shift 2 ;;
-esac
-case "$1" in
-  diff) exit 1 ;;
-  branch) echo "main" ;;
-  commit|push|add) exit 0 ;;
-  *) exit 0 ;;
-esac
-EOGIT
-  chmod +x "${TMPDIR_CASE}/bin/git"
 }
 
 env_prefix() {
-  printf 'APP_ROOT=%q MIHOMO_DIR=%q SETTINGS_ENV=%q ROUTER_ENV=%q CONFIG_FILE=%q RULES_DIR=%q PROVIDER_DIR=%q UI_DIR=%q STATE_DIR=%q NODES_STATE_FILE=%q RULES_STATE_FILE=%q ACL_STATE_FILE=%q SUBSCRIPTIONS_STATE_FILE=%q PROVIDER_FILE=%q RENDERED_RULES_FILE=%q ACL_RENDERED_RULES_FILE=%q MIHOMO_USER=%q MANAGER_BIN=%q MIHOMO_BIN=%q SYSTEMCTL_BIN=%q JOURNALCTL_BIN=%q SS_BIN=%q CURL_BIN=%q IPTABLES_BIN=%q GIT_BIN=%q RULES_REPO_DIR=%q SYSTEMCTL_LOG=%q GIT_LOG=%q CURL_LOG=%q SYSTEMD_UNIT=%q RESTART_SERVICE_UNIT=%q RESTART_TIMER_UNIT=%q UPDATE_SERVICE_UNIT=%q UPDATE_TIMER_UNIT=%q ROUTER_SYSCTL=%q' \
+  printf 'APP_ROOT=%q RULE_REPO_ROOT=%q MIHOMO_DIR=%q SETTINGS_ENV=%q ROUTER_ENV=%q CONFIG_FILE=%q RULES_DIR=%q PROVIDER_DIR=%q UI_DIR=%q STATE_DIR=%q NODES_STATE_FILE=%q RULES_STATE_FILE=%q ACL_STATE_FILE=%q SUBSCRIPTIONS_STATE_FILE=%q PROVIDER_FILE=%q RENDERED_RULES_FILE=%q ACL_RENDERED_RULES_FILE=%q MIHOMO_USER=%q MANAGER_BIN=%q MIHOMO_BIN=%q SYSTEMCTL_BIN=%q JOURNALCTL_BIN=%q SS_BIN=%q CURL_BIN=%q IPTABLES_BIN=%q SYSTEMCTL_LOG=%q CURL_LOG=%q SYSTEMD_UNIT=%q RESTART_SERVICE_UNIT=%q RESTART_TIMER_UNIT=%q UPDATE_SERVICE_UNIT=%q UPDATE_TIMER_UNIT=%q ROUTER_SYSCTL=%q' \
     "$ROOT" \
+    "${TMPDIR_CASE}/rules-repo" \
     "$TMPDIR_CASE" \
     "$TMPDIR_CASE/settings.env" \
     "$TMPDIR_CASE/router.env" \
@@ -217,10 +205,7 @@ env_prefix() {
     "$TMPDIR_CASE/bin/ss" \
     "$TMPDIR_CASE/bin/curl" \
     "$TMPDIR_CASE/bin/iptables" \
-    "$TMPDIR_CASE/bin/git" \
-    "$TMPDIR_CASE/repo" \
     "$TMPDIR_CASE/systemctl.log" \
-    "$TMPDIR_CASE/git.log" \
     "$TMPDIR_CASE/curl.log" \
     "$TMPDIR_CASE/mihomo.service" \
     "$TMPDIR_CASE/mihomo-restart.service" \
@@ -309,6 +294,8 @@ test_setup_bootstraps_empty_installation_even_when_webui_fails() {
   [[ -f "${TMPDIR_CASE}/config.yaml" ]]
   [[ -f "${TMPDIR_CASE}/mihomo.service" ]]
   [[ -f "${TMPDIR_CASE}/state/nodes.json" ]]
+  grep -q 'DOMAIN-SUFFIX,smzdm.com,DIRECT' "${TMPDIR_CASE}/ruleset/builtin.rules"
+  grep -q 'DOMAIN-SUFFIX,smzdm.com,DIRECT' "${TMPDIR_CASE}/config.yaml"
   grep -Fq 'country.mmdb' "${TMPDIR_CASE}/curl.log"
   grep -Fq 'geosite.dat' "${TMPDIR_CASE}/curl.log"
   grep -q '核心旁路由链已继续' /tmp/mh-setup-bootstrap.out || grep -q '核心旁路由链已继续' /tmp/mh-setup-bootstrap.err
@@ -351,17 +338,6 @@ test_rollback_config_restores_template() {
   grep -q 'TEMPLATE_NAME="nas-single-lan-v4"' "${TMPDIR_CASE}/router.env"
 }
 
-test_sync_rules_repo_command() {
-  setup_case
-  mkdir -p "${TMPDIR_CASE}/repo/.git"
-  run_manager render-config >/dev/null
-  python3 "${ROOT}/scripts/statectl.py" add-rule "${TMPDIR_CASE}/state/rules.json" domain foo.com DIRECT >/dev/null
-  python3 "${ROOT}/scripts/statectl.py" add-rule "${TMPDIR_CASE}/state/acl.json" geosite netflix DIRECT >/dev/null
-  run_manager sync-rules-repo >/dev/null
-  grep -Fq 'add manager/custom-rules' "${TMPDIR_CASE}/git.log"
-  grep -Fq 'push origin main' "${TMPDIR_CASE}/git.log"
-}
-
 main() {
   test_start_without_nodes_fails_before_systemctl_start
   test_configure_restart_enables_timer
@@ -374,7 +350,6 @@ main() {
   test_repair_restores_missing_assets
   test_update_subscriptions_imports_nodes
   test_rollback_config_restores_template
-  test_sync_rules_repo_command
   echo "service-mock: ok"
 }
 
