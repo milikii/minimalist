@@ -183,6 +183,14 @@
 
 - 用官方配置字段替代自研或缺失能力
 
+当前进展：
+
+- 已接入 `lan-disallowed-ips`
+- 已接入 `authentication`
+- 已接入 `skip-auth-prefixes`
+- 状态页和运行审计已开始展示这些字段
+- 这里的 `authentication` / `skip-auth-prefixes` 当前只覆盖显式代理端口，不是控制面认证
+
 任务：
 
 - 暴露 `authentication`

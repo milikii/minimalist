@@ -104,6 +104,9 @@ render_config() {
   local lan_cidrs
   local config_mode
   local allowed_cidr
+  local denied_cidr
+  local auth_entry
+  local skip_auth_prefix
   local enable_ipv6
   local explicit_proxy_only=0
   local sub_idx
@@ -151,6 +154,15 @@ EOF
   for allowed_cidr in "${lan_allowed_cidrs_arr[@]}"; do
     printf '  - %s\n' "$allowed_cidr" >>"$CONFIG_FILE"
   done
+  if [[ ${#LAN_DISALLOWED_CIDRS_ARR[@]} -gt 0 ]]; then
+    cat >>"$CONFIG_FILE" <<'EOF'
+lan-disallowed-ips:
+EOF
+    for denied_cidr in "${LAN_DISALLOWED_CIDRS_ARR[@]}"; do
+      [[ -n "$denied_cidr" ]] || continue
+      printf '  - %s\n' "$denied_cidr" >>"$CONFIG_FILE"
+    done
+  fi
   cat >>"$CONFIG_FILE" <<EOF
 mode: ${config_mode}
 log-level: info
@@ -169,7 +181,6 @@ geox-url:
 external-controller: ${CONTROLLER_BIND_ADDRESS}:${CONTROLLER_PORT}
 secret: "${secret}"
 external-ui: ${UI_DIR}
-
 profile:
   store-selected: true
   store-fake-ip: true
@@ -225,6 +236,25 @@ dns:
     - 119.29.29.29
 proxies: []
 EOF
+
+  if [[ ${#PROXY_AUTH_CREDENTIALS_ARR[@]} -gt 0 ]]; then
+    cat >>"$CONFIG_FILE" <<'EOF'
+authentication:
+EOF
+    for auth_entry in "${PROXY_AUTH_CREDENTIALS_ARR[@]}"; do
+      [[ -n "$auth_entry" ]] || continue
+      printf '  - %s\n' "$(printf '%s' "$auth_entry" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()).strip())')" >>"$CONFIG_FILE"
+    done
+    if [[ ${#SKIP_AUTH_PREFIXES_ARR[@]} -gt 0 ]]; then
+      cat >>"$CONFIG_FILE" <<'EOF'
+skip-auth-prefixes:
+EOF
+      for skip_auth_prefix in "${SKIP_AUTH_PREFIXES_ARR[@]}"; do
+        [[ -n "$skip_auth_prefix" ]] || continue
+        printf '  - %s\n' "$skip_auth_prefix" >>"$CONFIG_FILE"
+      done
+    fi
+  fi
 
   if [[ "$active_provider_count" -gt 0 ]]; then
     cat >>"$CONFIG_FILE" <<'EOF'
@@ -1245,8 +1275,11 @@ runtime_audit() {
   echo "控制面范围: ${CONTROLLER_SCOPE}"
   echo "局域网旁路由入口: ${PROXY_INGRESS_INTERFACES:-未配置}"
   echo "局域网网段: ${LAN_CIDRS:-未设置}"
+  echo "局域网禁止网段: ${LAN_DISALLOWED_CIDRS:-无}"
   echo "DNS 劫持入口: $([[ "${DNS_HIJACK_ENABLED}" == "1" ]] && echo "${DNS_HIJACK_INTERFACES:-未配置}" || echo '关闭')"
   echo "宿主机流量模式: $([[ "${PROXY_HOST_OUTPUT}" == "1" ]] && echo '透明接管(高风险)' || echo '默认直连 + localhost 显式代理')"
+  echo "显式代理认证: $([[ -n "${PROXY_AUTH_CREDENTIALS:-}" ]] && echo "启用 (${#PROXY_AUTH_CREDENTIALS_ARR[@]} 组账号)" || echo '关闭')"
+  echo "显式代理免认证网段: $([[ -n "${SKIP_AUTH_PREFIXES:-}" ]] && echo "${SKIP_AUTH_PREFIXES}" || echo '无')"
   echo "localhost 显式代理探测: ${proxy_probe}"
   echo "本机 WebUI 探测: ${controller_probe}"
   echo "局域网透明代理命中包数: ${tproxy_packets}"

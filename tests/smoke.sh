@@ -98,6 +98,14 @@ test_render_empty() {
   grep -q '^  ipv6: false' "${TMPDIR_CASE}/config.yaml"
   grep -q '^  - 192.168.2.0/24' "${TMPDIR_CASE}/config.yaml"
   grep -q '^  - 127.0.0.0/8' "${TMPDIR_CASE}/config.yaml"
+  if grep -q '^lan-disallowed-ips:' "${TMPDIR_CASE}/config.yaml"; then
+    echo "lan-disallowed-ips should be absent by default" >&2
+    exit 1
+  fi
+  if grep -q '^authentication:' "${TMPDIR_CASE}/config.yaml"; then
+    echo "authentication should be absent by default" >&2
+    exit 1
+  fi
   grep -q 'DOMAIN-SUFFIX,smzdm.com,DIRECT' "${TMPDIR_CASE}/config.yaml"
   [[ -f "${TMPDIR_CASE}/state/acl.json" ]]
   [[ -f "${TMPDIR_CASE}/state/subscriptions.json" ]]
@@ -236,6 +244,46 @@ EOF
   [[ ! -f "${TMPDIR_CASE}/router-pwned" ]]
   assert_contains "$output" '规则预设: $(touch '
   assert_contains "$output" '局域网网段: $(touch '
+}
+
+test_render_config_renders_official_access_fields() {
+  setup_case
+  cat > "${TMPDIR_CASE}/router.env" <<'EOF'
+TEMPLATE_NAME="nas-single-lan-v4"
+ENABLE_IPV6="0"
+LAN_INTERFACES="bridge1"
+LAN_CIDRS="192.168.2.0/24"
+LAN_DISALLOWED_CIDRS="192.168.2.10/32 192.168.2.11/32"
+PROXY_INGRESS_INTERFACES="bridge1"
+DNS_HIJACK_ENABLED="1"
+DNS_HIJACK_INTERFACES="bridge1"
+PROXY_AUTH_CREDENTIALS="alice:secret bob:pass"
+SKIP_AUTH_PREFIXES="127.0.0.1/32 192.168.2.0/24"
+PROXY_HOST_OUTPUT="0"
+BYPASS_CONTAINER_NAMES=""
+BYPASS_SRC_CIDRS=""
+BYPASS_DST_CIDRS=""
+BYPASS_UIDS=""
+MIXED_PORT="7890"
+TPROXY_PORT="7893"
+DNS_PORT="1053"
+CONTROLLER_PORT="19090"
+CONTROLLER_BIND_ADDRESS="127.0.0.1"
+ROUTE_MARK="0x2333"
+ROUTE_MASK="0xffffffff"
+ROUTE_TABLE="233"
+ROUTE_PRIORITY="100"
+EOF
+  run_manager render-config >/dev/null
+  grep -q '^lan-disallowed-ips:$' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^  - 192.168.2.10/32$' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^  - 192.168.2.11/32$' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^authentication:$' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^  - "alice:secret"$' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^  - "bob:pass"$' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^skip-auth-prefixes:$' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^  - 127.0.0.1/32$' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^  - 192.168.2.0/24$' "${TMPDIR_CASE}/config.yaml"
 }
 
 test_default_rule_preset_is_rendered() {
@@ -383,6 +431,9 @@ test_status_readonly() {
   assert_contains "$output" '订阅: 启用 0 / 总计 0'
   assert_contains "$output" '订阅 provider: 启用 0 / 总计 0'
   assert_contains "$output" '订阅缓存: 就绪 0 / 总计 0'
+  assert_contains "$output" '局域网禁止网段: 无'
+  assert_contains "$output" '显式代理认证: 关闭'
+  assert_contains "$output" '显式代理免认证网段: 无'
   assert_contains "$output" '本机源码同步: 关闭'
   assert_contains "$output" '宿主机流量: 默认直连；按需显式代理 http://127.0.0.1:7890'
   assert_contains "$output" '控制面密钥: 已隐藏；如需查看执行: mihomo show-secret'
@@ -394,6 +445,15 @@ test_status_warns_on_host_output_proxy() {
   output="$(run_manager status)"
   assert_contains "$output" '宿主机流量: 透明接管(高风险)'
   assert_contains "$output" 'tailscaled、cloudflared'
+}
+
+test_status_shows_official_access_fields() {
+  setup_case
+  sed -i 's/PROXY_HOST_OUTPUT="0"/PROXY_HOST_OUTPUT="0"\nLAN_DISALLOWED_CIDRS="192.168.2.10\/32"\nPROXY_AUTH_CREDENTIALS="alice:secret bob:pass"\nSKIP_AUTH_PREFIXES="127.0.0.1\/32"/' "${TMPDIR_CASE}/router.env"
+  output="$(run_manager status)"
+  assert_contains "$output" '局域网禁止网段: 192.168.2.10/32'
+  assert_contains "$output" '显式代理认证: 启用 (2 组账号)'
+  assert_contains "$output" '显式代理免认证网段: 127.0.0.1/32'
 }
 
 test_templates_mark_dualstack_as_deprecated() {
@@ -526,6 +586,7 @@ main() {
   test_subscription_state_commands
   test_subscription_state_uses_cache_and_enumeration_subobjects
   test_config_loader_treats_values_as_literals
+  test_render_config_renders_official_access_fields
   test_default_rule_preset_is_rendered
   test_apply_default_template_command
   test_rules_repo_command
@@ -539,6 +600,7 @@ main() {
   test_rules_repo_find_command
   test_status_readonly
   test_status_warns_on_host_output_proxy
+  test_status_shows_official_access_fields
   test_templates_mark_dualstack_as_deprecated
   test_status_warns_on_dualstack_placeholder
   test_render_config_uses_subscription_provider_cache

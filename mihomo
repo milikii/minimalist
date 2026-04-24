@@ -678,6 +678,9 @@ router_wizard() {
   local next_dns_ifaces
   local next_host_output
   local next_lan_cidrs
+  local next_lan_disallowed
+  local next_proxy_auth
+  local next_skip_auth
 
   echo
   info "当前模板: ${TEMPLATE_NAME} ($(template_summary "${TEMPLATE_NAME}"))"
@@ -695,12 +698,21 @@ router_wizard() {
   read -rp "宿主机本机流量是否接管 1/0 [${PROXY_HOST_OUTPUT}]: " input
   next_host_output="${input:-$PROXY_HOST_OUTPUT}"
   [[ "$next_host_output" == "0" || "$next_host_output" == "1" ]] || die "宿主机流量接管只能填 0 或 1"
+  read -rp "局域网禁止访问代理的网段，空格分隔 [${LAN_DISALLOWED_CIDRS}]: " input
+  next_lan_disallowed="${input:-$LAN_DISALLOWED_CIDRS}"
+  read -rp "显式代理认证账号 user:pass，空格分隔 [${PROXY_AUTH_CREDENTIALS}]: " input
+  next_proxy_auth="${input:-$PROXY_AUTH_CREDENTIALS}"
+  read -rp "显式代理免认证网段，空格分隔 [${SKIP_AUTH_PREFIXES}]: " input
+  next_skip_auth="${input:-$SKIP_AUTH_PREFIXES}"
 
   snapshot_before_change "router-wizard"
   upsert_env_var "$ROUTER_ENV" "LAN_INTERFACES" "$next_ingress_ifaces"
   upsert_env_var "$ROUTER_ENV" "PROXY_INGRESS_INTERFACES" "$next_ingress_ifaces"
   upsert_env_var "$ROUTER_ENV" "DNS_HIJACK_INTERFACES" "$next_dns_ifaces"
   upsert_env_var "$ROUTER_ENV" "PROXY_HOST_OUTPUT" "$next_host_output"
+  upsert_env_var "$ROUTER_ENV" "LAN_DISALLOWED_CIDRS" "$next_lan_disallowed"
+  upsert_env_var "$ROUTER_ENV" "PROXY_AUTH_CREDENTIALS" "$next_proxy_auth"
+  upsert_env_var "$ROUTER_ENV" "SKIP_AUTH_PREFIXES" "$next_skip_auth"
 
   next_lan_cidrs="$(detect_iface_networks "$next_ingress_ifaces" || true)"
   if [[ -n "$next_lan_cidrs" ]]; then
@@ -778,8 +790,11 @@ show_status() {
   echo "Mixed/TProxy/DNS: ${MIXED_PORT}/${TPROXY_PORT}/${DNS_PORT}"
   echo "局域网旁路由入口: ${PROXY_INGRESS_INTERFACES:-未配置}"
   echo "局域网网段: ${LAN_CIDRS:-未设置}"
+  echo "局域网禁止网段: ${LAN_DISALLOWED_CIDRS:-无}"
   echo "DNS 劫持入口: $([[ "${DNS_HIJACK_ENABLED}" == "1" ]] && echo "${DNS_HIJACK_INTERFACES}" || echo '关闭')"
   echo "宿主机流量: $([[ "$PROXY_HOST_OUTPUT" == "1" ]] && echo '透明接管(高风险)' || echo "默认直连；按需显式代理 http://127.0.0.1:${MIXED_PORT}")"
+  echo "显式代理认证: $([[ -n "${PROXY_AUTH_CREDENTIALS:-}" ]] && echo "启用 (${#PROXY_AUTH_CREDENTIALS_ARR[@]} 组账号)" || echo '关闭')"
+  echo "显式代理免认证网段: $([[ -n "${SKIP_AUTH_PREFIXES:-}" ]] && echo "${SKIP_AUTH_PREFIXES}" || echo '无')"
   echo "容器直连名单: ${BYPASS_CONTAINER_NAMES:-无}"
   if [[ "$manual_enabled" == "0" && "${sub_counts%%$'\t'*}" == "0" ]]; then
     next_step="导入节点: mihomo import-links 或添加订阅: mihomo add-subscription"
