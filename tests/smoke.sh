@@ -114,6 +114,10 @@ test_render_empty() {
     echo "external-ui-url should be absent by default" >&2
     exit 1
   fi
+  if grep -q '^external-controller-cors:' "${TMPDIR_CASE}/config.yaml"; then
+    echo "external-controller-cors should be absent by default" >&2
+    exit 1
+  fi
   grep -q 'DOMAIN-SUFFIX,smzdm.com,DIRECT' "${TMPDIR_CASE}/config.yaml"
   [[ -f "${TMPDIR_CASE}/state/acl.json" ]]
   [[ -f "${TMPDIR_CASE}/state/subscriptions.json" ]]
@@ -311,6 +315,44 @@ EOF
   grep -q '^external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"$' "${TMPDIR_CASE}/config.yaml"
 }
 
+test_render_config_renders_controller_cors_fields() {
+  setup_case
+  cat > "${TMPDIR_CASE}/router.env" <<'EOF'
+TEMPLATE_NAME="nas-single-lan-v4"
+ENABLE_IPV6="0"
+LAN_INTERFACES="bridge1"
+LAN_CIDRS="192.168.2.0/24"
+LAN_DISALLOWED_CIDRS=""
+PROXY_INGRESS_INTERFACES="bridge1"
+DNS_HIJACK_ENABLED="1"
+DNS_HIJACK_INTERFACES="bridge1"
+PROXY_AUTH_CREDENTIALS=""
+SKIP_AUTH_PREFIXES=""
+CONTROLLER_CORS_ALLOW_ORIGINS="http://192.168.2.10:3000 https://panel.example.com"
+CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK="1"
+PROXY_HOST_OUTPUT="0"
+BYPASS_CONTAINER_NAMES=""
+BYPASS_SRC_CIDRS=""
+BYPASS_DST_CIDRS=""
+BYPASS_UIDS=""
+MIXED_PORT="7890"
+TPROXY_PORT="7893"
+DNS_PORT="1053"
+CONTROLLER_PORT="19090"
+CONTROLLER_BIND_ADDRESS="0.0.0.0"
+ROUTE_MARK="0x2333"
+ROUTE_MASK="0xffffffff"
+ROUTE_TABLE="233"
+ROUTE_PRIORITY="100"
+EOF
+  run_manager render-config >/dev/null
+  grep -q '^external-controller-cors:$' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^  allow-origins:$' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^    - "http://192.168.2.10:3000"$' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^    - "https://panel.example.com"$' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^  allow-private-network: true$' "${TMPDIR_CASE}/config.yaml"
+}
+
 test_default_rule_preset_is_rendered() {
   setup_case
   run_manager set-rule-preset default >/dev/null
@@ -458,6 +500,8 @@ test_status_readonly() {
   assert_contains "$output" '订阅缓存: 就绪 0 / 总计 0'
   assert_contains "$output" '外部 UI 名称: 未设置'
   assert_contains "$output" '外部 UI 地址: 未设置'
+  assert_contains "$output" '控制面 CORS Origins: 未设置'
+  assert_contains "$output" '控制面 CORS Private-Network: 关闭'
   assert_contains "$output" '局域网禁止网段: 无'
   assert_contains "$output" '显式代理认证: 关闭'
   assert_contains "$output" '显式代理免认证网段: 无'
@@ -498,6 +542,14 @@ EOF
   output="$(run_manager status)"
   assert_contains "$output" '外部 UI 名称: metacubexd'
   assert_contains "$output" '外部 UI 地址: https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip'
+}
+
+test_status_shows_controller_cors_fields() {
+  setup_case
+  sed -i 's/PROXY_HOST_OUTPUT="0"/PROXY_HOST_OUTPUT="0"\nCONTROLLER_CORS_ALLOW_ORIGINS="http:\/\/192.168.2.10:3000 https:\/\/panel.example.com"\nCONTROLLER_CORS_ALLOW_PRIVATE_NETWORK="1"/' "${TMPDIR_CASE}/router.env"
+  output="$(run_manager status)"
+  assert_contains "$output" '控制面 CORS Origins: http://192.168.2.10:3000 https://panel.example.com'
+  assert_contains "$output" '控制面 CORS Private-Network: 启用'
 }
 
 test_templates_mark_dualstack_as_deprecated() {
@@ -633,6 +685,7 @@ main() {
   test_config_loader_treats_values_as_literals
   test_render_config_renders_official_access_fields
   test_render_config_renders_external_ui_fields
+  test_render_config_renders_controller_cors_fields
   test_default_rule_preset_is_rendered
   test_apply_default_template_command
   test_rules_repo_command
@@ -648,6 +701,7 @@ main() {
   test_status_warns_on_host_output_proxy
   test_status_shows_official_access_fields
   test_status_shows_external_ui_fields
+  test_status_shows_controller_cors_fields
   test_templates_mark_dualstack_as_deprecated
   test_status_warns_on_dualstack_placeholder
   test_render_config_uses_subscription_provider_cache

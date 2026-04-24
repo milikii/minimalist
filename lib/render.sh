@@ -107,6 +107,7 @@ render_config() {
   local denied_cidr
   local auth_entry
   local skip_auth_prefix
+  local cors_origin
   local enable_ipv6
   local explicit_proxy_only=0
   local sub_idx
@@ -182,6 +183,21 @@ external-controller: ${CONTROLLER_BIND_ADDRESS}:${CONTROLLER_PORT}
 secret: "${secret}"
 external-ui: ${UI_DIR}
 EOF
+  if [[ ${#CONTROLLER_CORS_ALLOW_ORIGINS_ARR[@]} -gt 0 || "${CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK:-0}" == "1" ]]; then
+    cat >>"$CONFIG_FILE" <<'EOF'
+external-controller-cors:
+EOF
+    if [[ ${#CONTROLLER_CORS_ALLOW_ORIGINS_ARR[@]} -gt 0 ]]; then
+      cat >>"$CONFIG_FILE" <<'EOF'
+  allow-origins:
+EOF
+      for cors_origin in "${CONTROLLER_CORS_ALLOW_ORIGINS_ARR[@]}"; do
+        [[ -n "$cors_origin" ]] || continue
+        printf '    - %s\n' "$(printf '%s' "$cors_origin" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()).strip())')" >>"$CONFIG_FILE"
+      done
+    fi
+    printf '  allow-private-network: %s\n' "$([[ "${CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK:-0}" == "1" ]] && echo true || echo false)" >>"$CONFIG_FILE"
+  fi
   if [[ -n "${EXTERNAL_UI_NAME:-}" ]]; then
     printf 'external-ui-name: %s\n' "$(printf '%s' "$EXTERNAL_UI_NAME" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()).strip())')" >>"$CONFIG_FILE"
   fi
@@ -1299,6 +1315,8 @@ runtime_audit() {
   echo "IPv6 模式: $([[ "${ENABLE_IPV6:-0}" == "1" ]] && echo '启用' || echo '关闭')"
   echo "外部 UI 名称: ${EXTERNAL_UI_NAME:-未设置}"
   echo "外部 UI 地址: ${EXTERNAL_UI_URL:-未设置}"
+  echo "控制面 CORS Origins: $([[ -n "${CONTROLLER_CORS_ALLOW_ORIGINS:-}" ]] && echo "${CONTROLLER_CORS_ALLOW_ORIGINS}" || echo '未设置')"
+  echo "控制面 CORS Private-Network: $([[ "${CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK:-0}" == "1" ]] && echo '启用' || echo '关闭')"
   echo "控制面范围: ${CONTROLLER_SCOPE}"
   echo "局域网旁路由入口: ${PROXY_INGRESS_INTERFACES:-未配置}"
   echo "局域网网段: ${LAN_CIDRS:-未设置}"

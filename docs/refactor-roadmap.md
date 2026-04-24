@@ -190,8 +190,10 @@
 - 已接入 `skip-auth-prefixes`
 - 已接入 `external-ui-name`
 - 已接入 `external-ui-url`
+- 已接入 `external-controller-cors`
 - 状态页和运行审计已开始展示这些字段
 - 这里的 `authentication` / `skip-auth-prefixes` 当前只覆盖显式代理端口，不是控制面认证
+- 当前 `external-controller-cors` 只覆盖 `allow-origins` / `allow-private-network`，不包含 TLS 证书管理
 
 任务：
 

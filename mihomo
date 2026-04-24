@@ -681,6 +681,8 @@ router_wizard() {
   local next_lan_disallowed
   local next_proxy_auth
   local next_skip_auth
+  local next_controller_cors_origins
+  local next_controller_cors_private
 
   echo
   info "当前模板: ${TEMPLATE_NAME} ($(template_summary "${TEMPLATE_NAME}"))"
@@ -704,6 +706,11 @@ router_wizard() {
   next_proxy_auth="${input:-$PROXY_AUTH_CREDENTIALS}"
   read -rp "显式代理免认证网段，空格分隔 [${SKIP_AUTH_PREFIXES}]: " input
   next_skip_auth="${input:-$SKIP_AUTH_PREFIXES}"
+  read -rp "控制面 CORS 允许来源，空格分隔 [${CONTROLLER_CORS_ALLOW_ORIGINS}]: " input
+  next_controller_cors_origins="${input:-$CONTROLLER_CORS_ALLOW_ORIGINS}"
+  read -rp "控制面 CORS 允许 Private-Network 1/0 [${CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK}]: " input
+  next_controller_cors_private="${input:-$CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK}"
+  [[ "$next_controller_cors_private" == "0" || "$next_controller_cors_private" == "1" ]] || die "控制面 CORS Private-Network 只能填 0 或 1"
 
   snapshot_before_change "router-wizard"
   upsert_env_var "$ROUTER_ENV" "LAN_INTERFACES" "$next_ingress_ifaces"
@@ -713,6 +720,8 @@ router_wizard() {
   upsert_env_var "$ROUTER_ENV" "LAN_DISALLOWED_CIDRS" "$next_lan_disallowed"
   upsert_env_var "$ROUTER_ENV" "PROXY_AUTH_CREDENTIALS" "$next_proxy_auth"
   upsert_env_var "$ROUTER_ENV" "SKIP_AUTH_PREFIXES" "$next_skip_auth"
+  upsert_env_var "$ROUTER_ENV" "CONTROLLER_CORS_ALLOW_ORIGINS" "$next_controller_cors_origins"
+  upsert_env_var "$ROUTER_ENV" "CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK" "$next_controller_cors_private"
 
   next_lan_cidrs="$(detect_iface_networks "$next_ingress_ifaces" || true)"
   if [[ -n "$next_lan_cidrs" ]]; then
@@ -782,6 +791,8 @@ show_status() {
   echo "WebUI: ${controller_url}"
   echo "外部 UI 名称: ${EXTERNAL_UI_NAME:-未设置}"
   echo "外部 UI 地址: ${EXTERNAL_UI_URL:-未设置}"
+  echo "控制面 CORS Origins: $([[ -n "${CONTROLLER_CORS_ALLOW_ORIGINS:-}" ]] && echo "${CONTROLLER_CORS_ALLOW_ORIGINS}" || echo '未设置')"
+  echo "控制面 CORS Private-Network: $([[ "${CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK:-0}" == "1" ]] && echo '启用' || echo '关闭')"
   echo "控制面范围: ${CONTROLLER_SCOPE}"
   echo "控制面密钥: 已隐藏；如需查看执行: mihomo show-secret"
   if [[ "${MANAGER_SYNC_ENABLED:-0}" == "1" ]]; then
