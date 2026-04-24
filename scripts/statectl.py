@@ -197,6 +197,62 @@ def empty_subscriptions_state() -> dict:
     return {"version": SUBSCRIPTION_VERSION, "subscriptions": []}
 
 
+def normalize_subscription_item(item: dict) -> tuple[dict, bool]:
+    changed = False
+
+    cache = item.get("cache")
+    if not isinstance(cache, dict):
+        cache = {}
+        changed = True
+    enumeration = item.get("enumeration")
+    if not isinstance(enumeration, dict):
+        enumeration = {}
+        changed = True
+
+    legacy_last_updated = item.get("last_updated_at", "")
+    legacy_cache_success = item.get("last_cache_success_at", item.get("last_success_at", ""))
+    legacy_last_error = item.get("last_error", "")
+    legacy_enumerated_count = int(item.get("last_enumerated_count", item.get("last_imported_count", 0)) or 0)
+
+    if "last_attempt_at" not in cache:
+        cache["last_attempt_at"] = legacy_last_updated
+        changed = True
+    if "last_success_at" not in cache:
+        cache["last_success_at"] = legacy_cache_success
+        changed = True
+    if "last_error" not in cache:
+        cache["last_error"] = legacy_last_error
+        changed = True
+
+    if "last_count" not in enumeration:
+        enumeration["last_count"] = legacy_enumerated_count
+        changed = True
+    if "last_updated_at" not in enumeration:
+        enumeration["last_updated_at"] = legacy_cache_success or legacy_last_updated
+        changed = True
+    if "method" not in enumeration:
+        enumeration["method"] = item.get("enumeration_method", "uri_scan")
+        changed = True
+
+    item["cache"] = cache
+    item["enumeration"] = enumeration
+
+    for legacy_key in (
+        "last_updated_at",
+        "last_cache_success_at",
+        "last_success_at",
+        "last_enumerated_count",
+        "last_imported_count",
+        "last_error",
+        "enumeration_method",
+    ):
+        if legacy_key in item:
+            del item[legacy_key]
+            changed = True
+
+    return item, changed
+
+
 def normalize_rule_kind(kind: str) -> str:
     lowered = kind.strip().lower()
     aliases = {
@@ -311,12 +367,8 @@ def ensure_subscriptions_state(path: Path) -> dict:
         state = load_json(path, empty_subscriptions_state())
         changed = False
         for item in state.get("subscriptions", []):
-            if "last_cache_success_at" not in item:
-                item["last_cache_success_at"] = item.get("last_success_at", "")
-                changed = True
-            if "last_enumerated_count" not in item:
-                item["last_enumerated_count"] = int(item.get("last_imported_count", 0) or 0)
-                changed = True
+            _, item_changed = normalize_subscription_item(item)
+            changed = changed or item_changed
         if changed:
             save_json(path, state)
         return state
@@ -1173,6 +1225,8 @@ def cmd_validate_rule_targets(args: argparse.Namespace) -> int:
 def cmd_list_subscriptions(args: argparse.Namespace) -> int:
     state = ensure_subscriptions_state(Path(args.state_file))
     for idx, item in enumerate(state["subscriptions"], start=1):
+        cache = item.get("cache") or {}
+        enumeration = item.get("enumeration") or {}
         print(
             "\t".join(
                 [
@@ -1181,9 +1235,9 @@ def cmd_list_subscriptions(args: argparse.Namespace) -> int:
                     item["name"],
                     item["url"],
                     "1" if item.get("enabled", True) else "0",
-                    item.get("last_cache_success_at", item.get("last_success_at", "")),
-                    str(item.get("last_enumerated_count", item.get("last_imported_count", 0))),
-                    item.get("last_error", ""),
+                    str(cache.get("last_success_at", "")),
+                    str(enumeration.get("last_count", 0)),
+                    str(cache.get("last_error", "")),
                 ]
             )
         )
@@ -1207,10 +1261,16 @@ def cmd_append_subscription(args: argparse.Namespace) -> int:
         "url": args.url,
         "enabled": args.enabled == "1",
         "created_at": now_iso(),
-        "last_updated_at": "",
-        "last_cache_success_at": "",
-        "last_enumerated_count": 0,
-        "last_error": "",
+        "cache": {
+            "last_attempt_at": "",
+            "last_success_at": "",
+            "last_error": "",
+        },
+        "enumeration": {
+            "last_count": 0,
+            "last_updated_at": "",
+            "method": "uri_scan",
+        },
     }
     state["subscriptions"].append(item)
     save_json(path, state)
@@ -1243,10 +1303,16 @@ def cmd_mark_subscription_success(args: argparse.Namespace) -> int:
     state = ensure_subscriptions_state(path)
     item = find_subscription(state, args.subscription_id)
     timestamp = now_iso()
-    item["last_updated_at"] = timestamp
-    item["last_cache_success_at"] = timestamp
-    item["last_enumerated_count"] = int(args.enumerated_count)
-    item["last_error"] = ""
+    cache = item.get("cache") or {}
+    enumeration = item.get("enumeration") or {}
+    cache["last_attempt_at"] = timestamp
+    cache["last_success_at"] = timestamp
+    cache["last_error"] = ""
+    enumeration["last_count"] = int(args.enumerated_count)
+    enumeration["last_updated_at"] = timestamp
+    enumeration["method"] = "uri_scan"
+    item["cache"] = cache
+    item["enumeration"] = enumeration
     save_json(path, state)
     return 0
 
@@ -1255,8 +1321,10 @@ def cmd_mark_subscription_error(args: argparse.Namespace) -> int:
     path = Path(args.state_file)
     state = ensure_subscriptions_state(path)
     item = find_subscription(state, args.subscription_id)
-    item["last_updated_at"] = now_iso()
-    item["last_error"] = args.message
+    cache = item.get("cache") or {}
+    cache["last_attempt_at"] = now_iso()
+    cache["last_error"] = args.message
+    item["cache"] = cache
     save_json(path, state)
     return 0
 

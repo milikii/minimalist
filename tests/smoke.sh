@@ -180,6 +180,28 @@ test_subscription_state_commands() {
   assert_contains "$output" '可枚举'
 }
 
+test_subscription_state_uses_cache_and_enumeration_subobjects() {
+  setup_case
+  run_manager add-subscription demo https://example.com/sub.txt 1 >/dev/null
+  sub_id="$(python3 "${STATECTL}" list-subscriptions "${TMPDIR_CASE}/state/subscriptions.json" | awk -F'\t' 'NR==1{print $2}')"
+  python3 "${STATECTL}" mark-subscription-success "${TMPDIR_CASE}/state/subscriptions.json" "${sub_id}" 2 >/dev/null
+  python3 - "${TMPDIR_CASE}/state/subscriptions.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as f:
+    data = json.load(f)
+item = data["subscriptions"][0]
+assert "cache" in item, item
+assert "enumeration" in item, item
+assert item["cache"]["last_success_at"], item
+assert item["enumeration"]["last_count"] == 2, item
+assert item["enumeration"]["method"] == "uri_scan", item
+for legacy in ("last_updated_at", "last_cache_success_at", "last_success_at", "last_enumerated_count", "last_imported_count", "last_error"):
+    assert legacy not in item, item
+PY
+}
+
 test_config_loader_treats_values_as_literals() {
   setup_case
   cat > "${TMPDIR_CASE}/settings.env" <<EOF
@@ -497,6 +519,7 @@ main() {
   test_scan_marks_invalid_ss_payload
   test_scan_marks_invalid_vless_port
   test_subscription_state_commands
+  test_subscription_state_uses_cache_and_enumeration_subobjects
   test_config_loader_treats_values_as_literals
   test_default_rule_preset_is_rendered
   test_apply_default_template_command
