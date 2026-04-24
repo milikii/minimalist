@@ -39,7 +39,7 @@ ensure_permissions() {
 
 render_provider_file() {
   require_statectl
-  python3 "$STATECTL" render-provider "$NODES_STATE_FILE" "$PROVIDER_FILE"
+  python3 "$STATECTL" render-provider "$NODES_STATE_FILE" "$PROVIDER_FILE" --exclude-source-kind subscription
 }
 
 render_rules_file() {
@@ -99,23 +99,47 @@ render_config() {
   render_rule_preset_file
 
   local secret
-  local enabled_count
+  local manual_enabled_count
+  local active_provider_count=0
   local lan_cidrs
   local config_mode
   local allowed_cidr
   local enable_ipv6
   local explicit_proxy_only=0
+  local sub_idx
+  local sub_id
+  local sub_name
+  local sub_url
+  local sub_enabled
+  local sub_last_success
+  local sub_imported_count
+  local sub_last_error
+  local provider_name
+  local provider_relpath
   local -a lan_allowed_cidrs_arr=()
+  local -a active_provider_names=()
+  local -a active_subscription_ids=()
 
   secret="$(current_secret)"
   [[ -n "$secret" ]] || secret="$(random_secret)"
-  enabled_count="$(node_enabled_count)"
+  manual_enabled_count="$(python3 "$STATECTL" enabled-count "$NODES_STATE_FILE" --exclude-source-kind subscription)"
   config_mode="${CONFIG_MODE:-rule}"
   lan_cidrs="${LAN_CIDRS:-192.168.2.0/24}"
   enable_ipv6="${ENABLE_IPV6:-0}"
   [[ "${TEMPLATE_NAME:-}" == "nas-explicit-proxy-only" ]] && explicit_proxy_only=1
   read -r -a lan_allowed_cidrs_arr <<< "${lan_cidrs}"
   lan_allowed_cidrs_arr+=("127.0.0.0/8")
+  if [[ "$manual_enabled_count" -gt 0 ]]; then
+    active_provider_names+=("manual")
+    active_provider_count=$((active_provider_count + 1))
+  fi
+  while IFS=$'\t' read -r sub_idx sub_id sub_name sub_url sub_enabled sub_last_success sub_imported_count sub_last_error; do
+    [[ "$sub_enabled" == "1" ]] || continue
+    [[ -s "$(subscription_provider_file "$sub_id")" ]] || continue
+    active_provider_names+=("$(subscription_provider_name "$sub_id")")
+    active_subscription_ids+=("$sub_id")
+    active_provider_count=$((active_provider_count + 1))
+  done < <(subscription_list_tsv || true)
 
   cat >"$CONFIG_FILE" <<EOF
 mixed-port: ${MIXED_PORT}
@@ -202,10 +226,13 @@ dns:
 proxies: []
 EOF
 
-  if [[ "$enabled_count" -gt 0 ]]; then
+  if [[ "$active_provider_count" -gt 0 ]]; then
     cat >>"$CONFIG_FILE" <<'EOF'
 
 proxy-providers:
+EOF
+    if [[ "$manual_enabled_count" -gt 0 ]]; then
+      cat >>"$CONFIG_FILE" <<'EOF'
   manual:
     type: file
     path: ./proxy_providers/manual.txt
@@ -215,6 +242,24 @@ proxy-providers:
       interval: 300
       timeout: 5000
       lazy: true
+EOF
+    fi
+    for sub_id in "${active_subscription_ids[@]}"; do
+      provider_name="$(subscription_provider_name "$sub_id")"
+      provider_relpath="$(subscription_provider_relpath "$sub_id")"
+      cat >>"$CONFIG_FILE" <<EOF
+  ${provider_name}:
+    type: file
+    path: ${provider_relpath}
+    health-check:
+      enable: true
+      url: "https://cp.cloudflare.com/generate_204"
+      interval: 300
+      timeout: 5000
+      lazy: true
+EOF
+    done
+    cat >>"$CONFIG_FILE" <<'EOF'
 
 proxy-groups:
   - name: "PROXY"
@@ -223,7 +268,11 @@ proxy-groups:
       - DIRECT
       - AUTO
     use:
-      - manual
+EOF
+    for provider_name in "${active_provider_names[@]}"; do
+      printf '      - %s\n' "$provider_name" >>"$CONFIG_FILE"
+    done
+    cat >>"$CONFIG_FILE" <<'EOF'
 
   - name: "AUTO"
     type: url-test
@@ -232,8 +281,10 @@ proxy-groups:
     tolerance: 80
     lazy: true
     use:
-      - manual
 EOF
+    for provider_name in "${active_provider_names[@]}"; do
+      printf '      - %s\n' "$provider_name" >>"$CONFIG_FILE"
+    done
   else
     cat >>"$CONFIG_FILE" <<'EOF'
 

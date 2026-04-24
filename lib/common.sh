@@ -669,6 +669,27 @@ subscription_list_tsv() {
   python3 "$STATECTL" list-subscriptions "$SUBSCRIPTIONS_STATE_FILE"
 }
 
+subscription_provider_dir() {
+  printf '%s\n' "${PROVIDER_DIR}/subscriptions"
+}
+
+subscription_provider_file() {
+  local subscription_id="$1"
+  printf '%s/%s.txt\n' "$(subscription_provider_dir)" "$subscription_id"
+}
+
+subscription_provider_relpath() {
+  local subscription_id="$1"
+  printf './proxy_providers/subscriptions/%s.txt\n' "$subscription_id"
+}
+
+subscription_provider_name() {
+  local subscription_id="$1"
+  local short_id="${subscription_id%%-*}"
+  [[ -n "$short_id" ]] || short_id="$subscription_id"
+  printf 'subscription-%s\n' "$short_id"
+}
+
 readonly_node_counts() {
   if [[ -f "$NODES_STATE_FILE" ]]; then
     python3 - "$NODES_STATE_FILE" <<'PY'

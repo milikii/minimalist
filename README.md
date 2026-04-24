@@ -11,6 +11,7 @@
 - `tailscaled` / `cloudflared` 运行时，脚本拒绝启用宿主机透明接管，避免误伤 SSH / 隧道链路。
 - 控制面默认只绑定 `127.0.0.1:${CONTROLLER_PORT:-19090}`；状态页不再默认打印密钥，需显式执行 `mihomo show-secret`。
 - `nas-single-lan-dualstack` 当前仅兼容保留，不代表项目已经实现真双栈旁路由。
+- 订阅更新会把原始 provider 内容缓存到 `proxy_providers/subscriptions/*.txt`；订阅节点在本地节点列表中仅作只读枚举，启用/关闭以订阅开关为准。
 - 重构判断与后续路线见 [docs/refactor-roadmap.md](docs/refactor-roadmap.md)。
 
 ## 推荐入口

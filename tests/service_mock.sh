@@ -382,12 +382,16 @@ test_repair_restores_missing_assets() {
   [[ -f "${TMPDIR_CASE}/mihomo.service" ]]
 }
 
-test_update_subscriptions_imports_nodes() {
+test_update_subscriptions_refreshes_provider_cache() {
   setup_case
   run_manager add-subscription demo https://subscription.example/list.txt 1 >/dev/null
   run_manager update-subscriptions >/dev/null
-  grep -q 'sub-vless' "${TMPDIR_CASE}/proxy_providers/manual.txt"
-  grep -q 'sub-trojan' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  sub_id="$(python3 "${ROOT}/scripts/statectl.py" list-subscriptions "${TMPDIR_CASE}/state/subscriptions.json" | awk -F'\t' 'NR==1{print $2}')"
+  [[ -s "${TMPDIR_CASE}/proxy_providers/subscriptions/${sub_id}.txt" ]]
+  grep -q 'sub-vless' "${TMPDIR_CASE}/proxy_providers/subscriptions/${sub_id}.txt"
+  grep -q '^proxies: \[\]$' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q "./proxy_providers/subscriptions/${sub_id}.txt" "${TMPDIR_CASE}/config.yaml"
+  grep -q 'subscription-' "${TMPDIR_CASE}/config.yaml"
 }
 
 test_rollback_config_restores_template() {
@@ -413,7 +417,7 @@ main() {
   test_setup_bootstraps_empty_installation_even_when_webui_fails
   test_enable_start_after_cold_setup
   test_repair_restores_missing_assets
-  test_update_subscriptions_imports_nodes
+  test_update_subscriptions_refreshes_provider_cache
   test_rollback_config_restores_template
   echo "service-mock: ok"
 }

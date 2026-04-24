@@ -336,6 +336,20 @@ def iter_enabled_names(nodes: list[dict]) -> list[str]:
     return [node["name"] for node in nodes if node.get("enabled")]
 
 
+def node_source_kind(node: dict) -> str:
+    source = node.get("source") or {}
+    return str(source.get("kind", "manual") or "manual")
+
+
+def node_matches_source(node: dict, include_source_kind: str | None = None, exclude_source_kind: str | None = None) -> bool:
+    source_kind = node_source_kind(node)
+    if include_source_kind and source_kind != include_source_kind:
+        return False
+    if exclude_source_kind and source_kind == exclude_source_kind:
+        return False
+    return True
+
+
 def parse_json_from_uri_payload(uri: str) -> dict:
     payload = normalize_uri(uri)[len("vmess://") :]
     if "#" in payload:
@@ -816,9 +830,18 @@ def provider_item_from_node(node: dict) -> dict:
     fail(f"unsupported scheme: {scheme}")
 
 
-def render_provider(path: Path, nodes: list[dict]) -> None:
+def render_provider(
+    path: Path,
+    nodes: list[dict],
+    include_source_kind: str | None = None,
+    exclude_source_kind: str | None = None,
+) -> None:
     ensure_parent(path)
-    enabled = [provider_item_from_node(node) for node in nodes if node.get("enabled")]
+    enabled = [
+        provider_item_from_node(node)
+        for node in nodes
+        if node.get("enabled") and node_matches_source(node, include_source_kind, exclude_source_kind)
+    ]
     if not enabled:
         path.write_text("proxies: []\n", encoding="utf-8")
         return
@@ -1013,6 +1036,8 @@ def cmd_rename_node(args: argparse.Namespace) -> int:
     if index < 0 or index >= len(state["nodes"]):
         fail("node index out of range")
     node = state["nodes"][index]
+    if node_source_kind(node) == "subscription":
+        fail("subscription node is provider-managed; rename the upstream subscription content instead")
     ensure_unique_name(state["nodes"], args.new_name, ignore_id=node["id"])
     old_name = node["name"]
     node["name"] = args.new_name
@@ -1033,6 +1058,8 @@ def cmd_set_node_enabled(args: argparse.Namespace) -> int:
     index = int(args.index) - 1
     if index < 0 or index >= len(state["nodes"]):
         fail("node index out of range")
+    if node_source_kind(state["nodes"][index]) == "subscription":
+        fail("subscription node is provider-managed; enable or disable the subscription instead")
     state["nodes"][index]["enabled"] = args.enabled == "1"
     save_json(path, state)
     return 0
@@ -1040,13 +1067,23 @@ def cmd_set_node_enabled(args: argparse.Namespace) -> int:
 
 def cmd_enabled_count(args: argparse.Namespace) -> int:
     state = ensure_nodes_state(Path(args.state_file))
-    print(sum(1 for node in state["nodes"] if node.get("enabled")))
+    print(
+        sum(
+            1
+            for node in state["nodes"]
+            if node.get("enabled") and node_matches_source(node, args.source_kind, args.exclude_source_kind)
+        )
+    )
     return 0
 
 
 def cmd_enabled_names(args: argparse.Namespace) -> int:
     state = ensure_nodes_state(Path(args.state_file))
-    for name in iter_enabled_names(state["nodes"]):
+    for name in [
+        node["name"]
+        for node in state["nodes"]
+        if node.get("enabled") and node_matches_source(node, args.source_kind, args.exclude_source_kind)
+    ]:
         print(name)
     return 0
 
@@ -1054,6 +1091,8 @@ def cmd_enabled_names(args: argparse.Namespace) -> int:
 def cmd_all_names(args: argparse.Namespace) -> int:
     state = ensure_nodes_state(Path(args.state_file))
     for node in state["nodes"]:
+        if not node_matches_source(node, args.source_kind, args.exclude_source_kind):
+            continue
         print(node["name"])
     return 0
 
@@ -1089,7 +1128,7 @@ def cmd_remove_rule(args: argparse.Namespace) -> int:
 
 def cmd_render_provider(args: argparse.Namespace) -> int:
     state = ensure_nodes_state(Path(args.state_file))
-    render_provider(Path(args.output_file), state["nodes"])
+    render_provider(Path(args.output_file), state["nodes"], args.source_kind, args.exclude_source_kind)
     return 0
 
 
@@ -1268,14 +1307,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     enabled_count = sub.add_parser("enabled-count")
     enabled_count.add_argument("state_file")
+    enabled_count.add_argument("--source-kind")
+    enabled_count.add_argument("--exclude-source-kind")
     enabled_count.set_defaults(func=cmd_enabled_count)
 
     enabled_names = sub.add_parser("enabled-names")
     enabled_names.add_argument("state_file")
+    enabled_names.add_argument("--source-kind")
+    enabled_names.add_argument("--exclude-source-kind")
     enabled_names.set_defaults(func=cmd_enabled_names)
 
     all_names = sub.add_parser("all-names")
     all_names.add_argument("state_file")
+    all_names.add_argument("--source-kind")
+    all_names.add_argument("--exclude-source-kind")
     all_names.set_defaults(func=cmd_all_names)
 
     add_rule = sub.add_parser("add-rule")
@@ -1297,6 +1342,8 @@ def build_parser() -> argparse.ArgumentParser:
     render_provider_cmd = sub.add_parser("render-provider")
     render_provider_cmd.add_argument("state_file")
     render_provider_cmd.add_argument("output_file")
+    render_provider_cmd.add_argument("--source-kind")
+    render_provider_cmd.add_argument("--exclude-source-kind")
     render_provider_cmd.set_defaults(func=cmd_render_provider)
 
     render_rules_cmd = sub.add_parser("render-rules")

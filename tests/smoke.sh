@@ -384,6 +384,41 @@ test_status_warns_on_dualstack_placeholder() {
   assert_contains "$output" '当前模板仅兼容保留；本项目当前只承诺 Debian NAS 的 IPv4 旁路由。'
 }
 
+test_render_config_uses_subscription_provider_cache() {
+  setup_case
+  run_manager add-subscription demo https://subscription.example/list.txt 1 >/dev/null
+  sub_id="$(python3 "${STATECTL}" list-subscriptions "${TMPDIR_CASE}/state/subscriptions.json" | awk -F'\t' 'NR==1{print $2}')"
+  mkdir -p "${TMPDIR_CASE}/proxy_providers/subscriptions"
+  cat > "${TMPDIR_CASE}/proxy_providers/subscriptions/${sub_id}.txt" <<'EOF'
+vless://uuid@example.com:443?encryption=none&security=reality&sni=www.microsoft.com&fp=chrome&pbk=PUBLIC_KEY&sid=abcd&type=tcp#sub-provider-node
+EOF
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://uuid@example.com:443?encryption=none&security=reality&sni=www.microsoft.com&fp=chrome&pbk=PUBLIC_KEY&sid=abcd&type=tcp#manual-node' manual-node 1 >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'trojan://password@example.org:443?security=tls&sni=www.apple.com&type=ws&host=www.apple.com&path=%2Fws#sub-node-cache' sub-node-cache 1 subscription "${sub_id}" >/dev/null
+  run_manager render-config >/dev/null
+  grep -q 'name: "manual-node"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  if grep -q 'sub-node-cache' "${TMPDIR_CASE}/proxy_providers/manual.txt"; then
+    echo "subscription cache nodes should not be rendered into manual provider" >&2
+    exit 1
+  fi
+  grep -q "./proxy_providers/subscriptions/${sub_id}.txt" "${TMPDIR_CASE}/config.yaml"
+  grep -q "subscription-${sub_id%%-*}:" "${TMPDIR_CASE}/config.yaml"
+}
+
+test_subscription_nodes_are_readonly() {
+  setup_case
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'trojan://password@example.org:443?security=tls&sni=www.apple.com&type=ws&host=www.apple.com&path=%2Fws#sub-node-cache' sub-node-cache 1 subscription sub-001 >/dev/null
+  if python3 "${STATECTL}" rename-node "${TMPDIR_CASE}/state/nodes.json" 1 renamed-node "${TMPDIR_CASE}/state/rules.json" >/tmp/mh-sub-rename.out 2>/tmp/mh-sub-rename.err; then
+    echo "subscription node rename should fail" >&2
+    exit 1
+  fi
+  grep -q 'provider-managed' /tmp/mh-sub-rename.err
+  if python3 "${STATECTL}" set-node-enabled "${TMPDIR_CASE}/state/nodes.json" 1 0 >/tmp/mh-sub-toggle.out 2>/tmp/mh-sub-toggle.err; then
+    echo "subscription node toggle should fail" >&2
+    exit 1
+  fi
+  grep -q 'provider-managed' /tmp/mh-sub-toggle.err
+}
+
 test_usage_mentions_new_commands() {
   output="$(run_manager help)"
   assert_contains "$output" 'apply-default-template'
@@ -438,6 +473,8 @@ main() {
   test_status_warns_on_host_output_proxy
   test_templates_mark_dualstack_as_deprecated
   test_status_warns_on_dualstack_placeholder
+  test_render_config_uses_subscription_provider_cache
+  test_subscription_nodes_are_readonly
   test_usage_mentions_new_commands
   test_menu_mentions_new_buckets
   echo "smoke: ok"

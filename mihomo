@@ -76,9 +76,9 @@ list_subscriptions_pretty() {
     echo "暂无订阅"
     return 0
   fi
-  printf '%-4s %-8s %-20s %-6s %-8s %-24s %s\n' "ID" "内部ID" "名称" "启用" "节点数" "上次成功" "URL"
+  printf '%-4s %-8s %-20s %-6s %-10s %-24s %s\n' "ID" "内部ID" "名称" "启用" "可枚举节点" "上次成功" "URL"
   while IFS=$'\t' read -r idx sub_id name url enabled last_success imported_count last_error; do
-    printf '%-4s %-8s %-20s %-6s %-8s %-24s %s\n' \
+    printf '%-4s %-8s %-20s %-6s %-10s %-24s %s\n' \
       "$idx" "${sub_id:0:8}" "$name" \
       "$([[ "$enabled" == "1" ]] && printf '启用' || printf '关闭')" \
       "$imported_count" "${last_success:-未成功}" "$url"
@@ -369,6 +369,13 @@ toggle_subscription_command() {
   sub_id="$(resolve_subscription_id_from_index "$idx")" || die "订阅不存在"
   snapshot_before_change "toggle-subscription"
   python3 "$STATECTL" set-subscription-enabled "$SUBSCRIPTIONS_STATE_FILE" "$sub_id" "$enabled"
+  if [[ "$enabled" == "0" ]]; then
+    python3 "$STATECTL" purge-subscription-nodes "$NODES_STATE_FILE" "$sub_id" >/dev/null
+  fi
+  post_state_change
+  if [[ "$enabled" == "1" && ! -s "$(subscription_provider_file "$sub_id")" ]]; then
+    warn "订阅已启用，但当前还没有 provider 缓存；执行 mihomo update-subscriptions 拉取后才会生效。"
+  fi
   ok "订阅状态已更新"
 }
 
@@ -382,6 +389,7 @@ remove_subscription_command() {
   sub_id="$(resolve_subscription_id_from_index "$idx")" || die "订阅不存在"
   snapshot_before_change "remove-subscription"
   python3 "$STATECTL" purge-subscription-nodes "$NODES_STATE_FILE" "$sub_id" >/dev/null
+  rm -f "$(subscription_provider_file "$sub_id")"
   python3 "$STATECTL" remove-subscription "$SUBSCRIPTIONS_STATE_FILE" "$sub_id"
   post_state_change
   ok "订阅已删除"
@@ -402,14 +410,18 @@ update_subscriptions_command() {
   local last_success
   local imported_count
   local last_error
+  local provider_file
   snapshot_before_change "update-subscriptions"
   while IFS=$'\t' read -r idx sub_id name url enabled last_success imported_count last_error; do
     [[ "$enabled" == "1" ]] || continue
     tmp="$(mktemp)"
     if curl_cmd -fsSL "$url" -o "$tmp"; then
+      provider_file="$(subscription_provider_file "$sub_id")"
+      install -D -m 0640 "$tmp" "$provider_file"
+      chown root:"$MIHOMO_USER" "$provider_file"
       imported_count="$(python3 "$STATECTL" sync-subscription-nodes "$NODES_STATE_FILE" "$sub_id" "$tmp")"
       python3 "$STATECTL" mark-subscription-success "$SUBSCRIPTIONS_STATE_FILE" "$sub_id" "$imported_count" >/dev/null
-      ok "订阅已更新: ${name} (${imported_count} 节点)"
+      ok "订阅 provider 缓存已更新: ${name} (可枚举 ${imported_count} 节点)"
       updated=$((updated + 1))
     else
       python3 "$STATECTL" mark-subscription-error "$SUBSCRIPTIONS_STATE_FILE" "$sub_id" "curl failed for ${url}" >/dev/null
