@@ -64,11 +64,16 @@ list_nodes_pretty() {
     return 0
   fi
   printf '%-4s %-6s %-28s %-22s %-6s %-10s %-10s %-16s\n' "ID" "状态" "名称" "地址" "端口" "网络" "安全" "来源"
+  local source_label
   while IFS=$'\t' read -r idx enabled name server port network security _id source; do
+    source_label="${source:-manual}"
+    if [[ "$source_label" == subscription:* ]]; then
+      source_label="subscription(ro):${source_label#subscription:}"
+    fi
     printf '%-4s %-6s %-28s %-22s %-6s %-10s %-10s %-16s\n' \
       "$idx" \
       "$([[ "$enabled" == "1" ]] && printf '启用' || printf '关闭')" \
-      "$name" "$server" "$port" "$network" "$security" "${source:-manual}"
+      "$name" "$server" "$port" "$network" "$security" "$source_label"
   done < <(node_list_tsv)
 }
 

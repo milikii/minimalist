@@ -651,12 +651,12 @@ node_list_tsv() {
 
 node_enabled_names() {
   require_statectl
-  python3 "$STATECTL" enabled-names "$NODES_STATE_FILE"
+  python3 "$STATECTL" enabled-names "$NODES_STATE_FILE" --exclude-source-kind subscription
 }
 
 node_all_names() {
   require_statectl
-  python3 "$STATECTL" all-names "$NODES_STATE_FILE"
+  python3 "$STATECTL" all-names "$NODES_STATE_FILE" --exclude-source-kind subscription
 }
 
 acl_list_tsv() {

@@ -1152,7 +1152,11 @@ def cmd_render_rules(args: argparse.Namespace) -> int:
 def cmd_validate_rule_targets(args: argparse.Namespace) -> int:
     rules_state = ensure_rules_state(Path(args.rules_state))
     nodes_state = ensure_nodes_state(Path(args.nodes_state))
-    enabled_names = set(iter_enabled_names(nodes_state["nodes"]))
+    enabled_names = {
+        node["name"]
+        for node in nodes_state["nodes"]
+        if node.get("enabled") and node_matches_source(node, exclude_source_kind="subscription")
+    }
     allowed = {"DIRECT", "PROXY", "REJECT"} | enabled_names
     if enabled_names:
         allowed.add("AUTO")

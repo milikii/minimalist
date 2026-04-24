@@ -408,6 +408,17 @@ EOF
   grep -q "subscription-${sub_id%%-*}:" "${TMPDIR_CASE}/config.yaml"
 }
 
+test_rule_targets_reject_subscription_cache_nodes() {
+  setup_case
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'trojan://password@example.org:443?security=tls&sni=www.apple.com&type=ws&host=www.apple.com&path=%2Fws#sub-node-cache' sub-node-cache 1 subscription sub-001 >/dev/null
+  python3 "${STATECTL}" add-rule "${TMPDIR_CASE}/state/acl.json" port 443 sub-node-cache >/dev/null
+  if run_manager render-config >/tmp/mh-sub-target.out 2>/tmp/mh-sub-target.err; then
+    echo "subscription cache node should not be accepted as rule target" >&2
+    exit 1
+  fi
+  grep -q 'ACL 规则存在指向不存在或未启用节点的目标' /tmp/mh-sub-target.err
+}
+
 test_status_distinguishes_manual_nodes_and_subscription_cache() {
   setup_case
   run_manager add-subscription demo https://subscription.example/list.txt 1 >/dev/null
@@ -439,6 +450,13 @@ test_subscription_nodes_are_readonly() {
     exit 1
   fi
   grep -q 'provider-managed' /tmp/mh-sub-toggle.err
+}
+
+test_nodes_list_marks_subscription_cache_as_readonly() {
+  setup_case
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'trojan://password@example.org:443?security=tls&sni=www.apple.com&type=ws&host=www.apple.com&path=%2Fws#sub-node-cache' sub-node-cache 1 subscription sub-001 >/dev/null
+  output="$(run_manager nodes)"
+  assert_contains "$output" 'subscription(ro):sub-001'
 }
 
 test_usage_mentions_new_commands() {
@@ -496,8 +514,10 @@ main() {
   test_templates_mark_dualstack_as_deprecated
   test_status_warns_on_dualstack_placeholder
   test_render_config_uses_subscription_provider_cache
+  test_rule_targets_reject_subscription_cache_nodes
   test_status_distinguishes_manual_nodes_and_subscription_cache
   test_subscription_nodes_are_readonly
+  test_nodes_list_marks_subscription_cache_as_readonly
   test_usage_mentions_new_commands
   test_menu_mentions_new_buckets
   echo "smoke: ok"
