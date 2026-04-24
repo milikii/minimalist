@@ -602,6 +602,7 @@ test_usage_mentions_new_commands() {
   assert_contains "$output" 'repair'
   assert_contains "$output" 'install-self-sync [minutes]'
   assert_contains "$output" 'disable-self-sync'
+  assert_contains "$output" 'install-webui [name] [url]'
   assert_contains "$output" 'templates'
   assert_contains "$output" 'rules-repo'
   assert_contains "$output" 'rule-presets'

@@ -16,6 +16,7 @@
 - 具名规则目标当前只允许指向手动节点；订阅缓存节点不能作为 ACL/自定义规则的具名目标。
 - `mihomo nodes` 当前只展示手动节点；订阅 provider 的可枚举结果只保留在订阅状态中，不再进入节点交互主路径。
 - 已接入官方 `lan-disallowed-ips`、`authentication`、`skip-auth-prefixes` 字段；其中 `authentication` / `skip-auth-prefixes` 作用于显式代理端口，不是控制面认证。
+- 已接入官方 `external-ui-name`、`external-ui-url` 字段；可通过 `mihomo install-webui [name] [url]` 落盘到当前设置。
 - 重构判断与后续路线见 [docs/refactor-roadmap.md](docs/refactor-roadmap.md)。
 
 ## 推荐入口

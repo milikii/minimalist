@@ -836,7 +836,7 @@ repair_command() {
   [[ -f "$COUNTRY_MMDB" ]] || install_country_mmdb
   ensure_geosite_ready
   if [[ ! -d "$UI_DIR" || -z "$(find "$UI_DIR" -mindepth 1 -maxdepth 1 2>/dev/null | head -n 1)" ]]; then
-    install_webui zashboard || warn "WebUI 修复失败；核心旁路由链已继续"
+    install_webui || warn "WebUI 修复失败；核心旁路由链已继续"
   fi
   config_test
   ok "修复完成；核心部署已恢复到可测试状态"
@@ -1088,7 +1088,7 @@ maintenance_menu() {
         esac
         ;;
       2) install_geosite_dat ;;
-      3) install_webui zashboard || warn "WebUI 更新失败" ;;
+      3) install_webui || warn "WebUI 更新失败" ;;
       4) snapshot_before_change "update-alpha"; install_binary alpha; upsert_env_var "$SETTINGS_ENV" "CORE_CHANNEL" "alpha"; restart_service_if_active ;;
       5) snapshot_before_change "update-stable"; install_binary stable; upsert_env_var "$SETTINGS_ENV" "CORE_CHANNEL" "stable"; restart_service_if_active ;;
       6) rollback_core ;;
@@ -1133,7 +1133,7 @@ full_setup() {
   write_sysctl
   [[ -f "$COUNTRY_MMDB" ]] || install_country_mmdb
   ensure_geosite_ready
-  if install_webui zashboard; then
+  if install_webui; then
     ok "WebUI 已就绪"
   else
     warn "WebUI 下载/解压失败；核心旁路由链已继续，后续可单独执行: mihomo install-webui"
@@ -1282,7 +1282,7 @@ mihomo v${SCRIPT_VERSION}
   $0 update-alpha [--quiet]
   $0 update-stable [--quiet]
   $0 rollback-core
-  $0 install-webui
+  $0 install-webui [name] [url]
   $0 install-geosite
   $0 set-mode [rule|global|direct]
   $0 set-ports
@@ -1355,7 +1355,7 @@ main() {
       restart_service_if_active
       ;;
     rollback-core) rollback_core ;;
-    install-webui) install_webui zashboard ;;
+    install-webui) install_webui "${2:-}" "${3:-}" ;;
     start) start_service_command ;;
     restart) restart_service_command ;;
     stop) stop_service_command ;;

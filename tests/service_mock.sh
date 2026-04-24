@@ -176,6 +176,28 @@ fi
 EOCURL
   chmod +x "${TMPDIR_CASE}/bin/curl"
 
+  cat > "${TMPDIR_CASE}/bin/unzip" <<'EOUNZIP'
+#!/usr/bin/env bash
+if [[ -z "${UNZIP_OK_FLAG:-}" || ! -f "${UNZIP_OK_FLAG}" ]]; then
+  exit 1
+fi
+dest=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -d)
+      dest="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+mkdir -p "${dest:?}/mock-ui"
+printf '<!doctype html>\n' > "${dest}/mock-ui/index.html"
+EOUNZIP
+  chmod +x "${TMPDIR_CASE}/bin/unzip"
+
 }
 
 install_pipefail_ss_mock() {
@@ -194,7 +216,9 @@ EOSS
 }
 
 env_prefix() {
-  printf 'APP_ROOT=%q INSTALL_ROOT=%q RULE_REPO_ROOT=%q MIHOMO_DIR=%q SETTINGS_ENV=%q ROUTER_ENV=%q CONFIG_FILE=%q RULES_DIR=%q PROVIDER_DIR=%q UI_DIR=%q STATE_DIR=%q NODES_STATE_FILE=%q RULES_STATE_FILE=%q ACL_STATE_FILE=%q SUBSCRIPTIONS_STATE_FILE=%q PROVIDER_FILE=%q RENDERED_RULES_FILE=%q ACL_RENDERED_RULES_FILE=%q MIHOMO_USER=%q MANAGER_BIN=%q COMPAT_MANAGER_BIN=%q MIHOMO_BIN=%q SYSTEMCTL_BIN=%q JOURNALCTL_BIN=%q SS_BIN=%q CURL_BIN=%q IPTABLES_BIN=%q SYSTEMCTL_LOG=%q CURL_LOG=%q SYSTEMD_UNIT=%q RESTART_SERVICE_UNIT=%q RESTART_TIMER_UNIT=%q UPDATE_SERVICE_UNIT=%q UPDATE_TIMER_UNIT=%q MANAGER_SYNC_SERVICE_UNIT=%q MANAGER_SYNC_TIMER_UNIT=%q ROUTER_SYSCTL=%q' \
+  printf 'PATH=%q UNZIP_OK_FLAG=%q APP_ROOT=%q INSTALL_ROOT=%q RULE_REPO_ROOT=%q MIHOMO_DIR=%q SETTINGS_ENV=%q ROUTER_ENV=%q CONFIG_FILE=%q RULES_DIR=%q PROVIDER_DIR=%q UI_DIR=%q STATE_DIR=%q NODES_STATE_FILE=%q RULES_STATE_FILE=%q ACL_STATE_FILE=%q SUBSCRIPTIONS_STATE_FILE=%q PROVIDER_FILE=%q RENDERED_RULES_FILE=%q ACL_RENDERED_RULES_FILE=%q MIHOMO_USER=%q MANAGER_BIN=%q COMPAT_MANAGER_BIN=%q MIHOMO_BIN=%q SYSTEMCTL_BIN=%q JOURNALCTL_BIN=%q SS_BIN=%q CURL_BIN=%q IPTABLES_BIN=%q SYSTEMCTL_LOG=%q CURL_LOG=%q SYSTEMD_UNIT=%q RESTART_SERVICE_UNIT=%q RESTART_TIMER_UNIT=%q UPDATE_SERVICE_UNIT=%q UPDATE_TIMER_UNIT=%q MANAGER_SYNC_SERVICE_UNIT=%q MANAGER_SYNC_TIMER_UNIT=%q ROUTER_SYSCTL=%q' \
+    "${TMPDIR_CASE}/bin:${PATH}" \
+    "${TMPDIR_CASE}/unzip-ok" \
     "$ROOT" \
     "${TMPDIR_CASE}/install-root" \
     "${TMPDIR_CASE}/rules-repo" \
@@ -350,6 +374,14 @@ test_install_geosite_downloads_official_asset() {
   [[ -f "${TMPDIR_CASE}/GeoSite.dat" ]]
 }
 
+test_install_webui_persists_external_ui_source() {
+  setup_case
+  touch "${TMPDIR_CASE}/unzip-ok"
+  run_manager install-webui metacubexd https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip >/dev/null
+  grep -q '^EXTERNAL_UI_NAME="metacubexd"$' "${TMPDIR_CASE}/settings.env"
+  grep -q '^EXTERNAL_UI_URL="https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"$' "${TMPDIR_CASE}/settings.env"
+}
+
 test_setup_bootstraps_empty_installation_even_when_webui_fails() {
   setup_case
   rm -f "${TMPDIR_CASE}/router.env" "${TMPDIR_CASE}/settings.env" "${TMPDIR_CASE}/Country.mmdb" "${TMPDIR_CASE}/GeoSite.dat"
@@ -432,6 +464,7 @@ main() {
   test_install_self_sync_writes_units_and_status
   test_disable_self_sync_removes_units
   test_install_geosite_downloads_official_asset
+  test_install_webui_persists_external_ui_source
   test_setup_bootstraps_empty_installation_even_when_webui_fails
   test_enable_start_after_cold_setup
   test_repair_restores_missing_assets
