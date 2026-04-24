@@ -308,7 +308,18 @@ def ensure_rules_state(path: Path, legacy_path: Path | None = None) -> dict:
 
 def ensure_subscriptions_state(path: Path) -> dict:
     if path.exists():
-        return load_json(path, empty_subscriptions_state())
+        state = load_json(path, empty_subscriptions_state())
+        changed = False
+        for item in state.get("subscriptions", []):
+            if "last_cache_success_at" not in item:
+                item["last_cache_success_at"] = item.get("last_success_at", "")
+                changed = True
+            if "last_enumerated_count" not in item:
+                item["last_enumerated_count"] = int(item.get("last_imported_count", 0) or 0)
+                changed = True
+        if changed:
+            save_json(path, state)
+        return state
     state = empty_subscriptions_state()
     save_json(path, state)
     return state
@@ -1166,8 +1177,8 @@ def cmd_list_subscriptions(args: argparse.Namespace) -> int:
                     item["name"],
                     item["url"],
                     "1" if item.get("enabled", True) else "0",
-                    item.get("last_success_at", ""),
-                    str(item.get("last_imported_count", 0)),
+                    item.get("last_cache_success_at", item.get("last_success_at", "")),
+                    str(item.get("last_enumerated_count", item.get("last_imported_count", 0))),
                     item.get("last_error", ""),
                 ]
             )
@@ -1193,8 +1204,8 @@ def cmd_append_subscription(args: argparse.Namespace) -> int:
         "enabled": args.enabled == "1",
         "created_at": now_iso(),
         "last_updated_at": "",
-        "last_success_at": "",
-        "last_imported_count": 0,
+        "last_cache_success_at": "",
+        "last_enumerated_count": 0,
         "last_error": "",
     }
     state["subscriptions"].append(item)
@@ -1229,8 +1240,8 @@ def cmd_mark_subscription_success(args: argparse.Namespace) -> int:
     item = find_subscription(state, args.subscription_id)
     timestamp = now_iso()
     item["last_updated_at"] = timestamp
-    item["last_success_at"] = timestamp
-    item["last_imported_count"] = int(args.imported_count)
+    item["last_cache_success_at"] = timestamp
+    item["last_enumerated_count"] = int(args.enumerated_count)
     item["last_error"] = ""
     save_json(path, state)
     return 0
@@ -1381,7 +1392,7 @@ def build_parser() -> argparse.ArgumentParser:
     mark_success = sub.add_parser("mark-subscription-success")
     mark_success.add_argument("state_file")
     mark_success.add_argument("subscription_id")
-    mark_success.add_argument("imported_count")
+    mark_success.add_argument("enumerated_count")
     mark_success.set_defaults(func=cmd_mark_subscription_success)
 
     mark_error = sub.add_parser("mark-subscription-error")

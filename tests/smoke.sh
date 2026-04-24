@@ -176,6 +176,8 @@ test_subscription_state_commands() {
   output="$(run_manager subscriptions)"
   assert_contains "$output" 'test-sub'
   assert_contains "$output" 'https://example.com/sub.txt'
+  assert_contains "$output" '缓存'
+  assert_contains "$output" '可枚举'
 }
 
 test_config_loader_treats_values_as_literals() {
@@ -355,8 +357,10 @@ test_status_readonly() {
   assert_contains "$output" '模板: nas-single-lan-v4 (单 LAN IPv4 旁路由)'
   assert_contains "$output" '规则预设: default (项目内置默认模板：PT 直连，FCM 域名/IP 强制代理)'
   assert_contains "$output" 'IPv6: 关闭'
-  assert_contains "$output" '节点: 启用 0 / 总计 0'
+  assert_contains "$output" '手动节点: 启用 0 / 总计 0'
   assert_contains "$output" '订阅: 启用 0 / 总计 0'
+  assert_contains "$output" '订阅 provider: 启用 0 / 总计 0'
+  assert_contains "$output" '订阅缓存: 就绪 0 / 总计 0'
   assert_contains "$output" '本机源码同步: 关闭'
   assert_contains "$output" '宿主机流量: 默认直连；按需显式代理 http://127.0.0.1:7890'
   assert_contains "$output" '控制面密钥: 已隐藏；如需查看执行: mihomo show-secret'
@@ -402,6 +406,24 @@ EOF
   fi
   grep -q "./proxy_providers/subscriptions/${sub_id}.txt" "${TMPDIR_CASE}/config.yaml"
   grep -q "subscription-${sub_id%%-*}:" "${TMPDIR_CASE}/config.yaml"
+}
+
+test_status_distinguishes_manual_nodes_and_subscription_cache() {
+  setup_case
+  run_manager add-subscription demo https://subscription.example/list.txt 1 >/dev/null
+  sub_id="$(python3 "${STATECTL}" list-subscriptions "${TMPDIR_CASE}/state/subscriptions.json" | awk -F'\t' 'NR==1{print $2}')"
+  mkdir -p "${TMPDIR_CASE}/proxy_providers/subscriptions"
+  cat > "${TMPDIR_CASE}/proxy_providers/subscriptions/${sub_id}.txt" <<'EOF'
+vless://uuid@example.com:443?encryption=none&security=reality&sni=www.microsoft.com&fp=chrome&pbk=PUBLIC_KEY&sid=abcd&type=tcp#sub-provider-node
+EOF
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://uuid@example.com:443?encryption=none&security=reality&sni=www.microsoft.com&fp=chrome&pbk=PUBLIC_KEY&sid=abcd&type=tcp#manual-node' manual-node 1 >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'trojan://password@example.org:443?security=tls&sni=www.apple.com&type=ws&host=www.apple.com&path=%2Fws#sub-node-cache' sub-node-cache 1 subscription "${sub_id}" >/dev/null
+  python3 "${STATECTL}" mark-subscription-success "${TMPDIR_CASE}/state/subscriptions.json" "${sub_id}" 1 >/dev/null
+  output="$(run_manager status)"
+  assert_contains "$output" '手动节点: 启用 1 / 总计 1'
+  assert_contains "$output" '订阅: 启用 1 / 总计 1'
+  assert_contains "$output" '订阅 provider: 启用 1 / 总计 1'
+  assert_contains "$output" '订阅缓存: 就绪 1 / 总计 1'
 }
 
 test_subscription_nodes_are_readonly() {
@@ -474,6 +496,7 @@ main() {
   test_templates_mark_dualstack_as_deprecated
   test_status_warns_on_dualstack_placeholder
   test_render_config_uses_subscription_provider_cache
+  test_status_distinguishes_manual_nodes_and_subscription_cache
   test_subscription_nodes_are_readonly
   test_usage_mentions_new_commands
   test_menu_mentions_new_buckets

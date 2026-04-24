@@ -163,6 +163,7 @@
 - 已把订阅更新落盘为原始 provider 缓存文件：`proxy_providers/subscriptions/*.txt`
 - 已让运行配置优先消费这些 provider 缓存，而不是把订阅节点重新渲染进 `manual.txt`
 - 订阅节点当前在本地节点列表中仅作为只读枚举缓存，避免本地改名/开关与运行态脱节
+- 状态页已拆分“手动节点 / 订阅 provider / 订阅缓存”，开始从“导入节点思维”转向“provider 缓存思维”
 
 任务：
 

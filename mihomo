@@ -23,6 +23,17 @@ node_count_total() {
   printf '%s\n' "$total"
 }
 
+manual_node_counts() {
+  local enabled=0
+  local total=0
+  while IFS=$'\t' read -r _ enabled_flag _ _ _ _ _ _ source; do
+    [[ "$source" == subscription:* ]] && continue
+    total=$((total + 1))
+    [[ "$enabled_flag" == "1" ]] && enabled=$((enabled + 1))
+  done < <(node_list_tsv || true)
+  printf '%s\t%s\n' "$enabled" "$total"
+}
+
 subscription_counts() {
   local enabled=0
   local total=0
@@ -31,6 +42,20 @@ subscription_counts() {
     [[ "$enabled_flag" == "1" ]] && enabled=$((enabled + 1))
   done < <(subscription_list_tsv || true)
   printf '%s\t%s\n' "$enabled" "$total"
+}
+
+subscription_provider_counts() {
+  local enabled=0
+  local total=0
+  local ready=0
+  local sub_id
+  local enabled_flag
+  while IFS=$'\t' read -r _ sub_id _ _ enabled_flag _ _ _; do
+    total=$((total + 1))
+    [[ "$enabled_flag" == "1" ]] && enabled=$((enabled + 1))
+    [[ -s "$(subscription_provider_file "$sub_id")" ]] && ready=$((ready + 1))
+  done < <(subscription_list_tsv || true)
+  printf '%s\t%s\t%s\n' "$enabled" "$total" "$ready"
 }
 
 list_nodes_pretty() {
@@ -76,12 +101,13 @@ list_subscriptions_pretty() {
     echo "暂无订阅"
     return 0
   fi
-  printf '%-4s %-8s %-20s %-6s %-10s %-24s %s\n' "ID" "内部ID" "名称" "启用" "可枚举节点" "上次成功" "URL"
-  while IFS=$'\t' read -r idx sub_id name url enabled last_success imported_count last_error; do
-    printf '%-4s %-8s %-20s %-6s %-10s %-24s %s\n' \
+  printf '%-4s %-8s %-20s %-6s %-8s %-10s %-24s %s\n' "ID" "内部ID" "名称" "启用" "缓存" "可枚举" "缓存成功" "URL"
+  while IFS=$'\t' read -r idx sub_id name url enabled last_success enumerated_count last_error; do
+    printf '%-4s %-8s %-20s %-6s %-8s %-10s %-24s %s\n' \
       "$idx" "${sub_id:0:8}" "$name" \
       "$([[ "$enabled" == "1" ]] && printf '启用' || printf '关闭')" \
-      "$imported_count" "${last_success:-未成功}" "$url"
+      "$([[ -s "$(subscription_provider_file "$sub_id")" ]] && printf '就绪' || printf '缺失')" \
+      "$enumerated_count" "${last_success:-未成功}" "$url"
     if [[ -n "$last_error" ]]; then
       printf '     错误: %s\n' "$last_error"
     fi
@@ -408,20 +434,20 @@ update_subscriptions_command() {
   local url
   local enabled
   local last_success
-  local imported_count
+  local enumerated_count
   local last_error
   local provider_file
   snapshot_before_change "update-subscriptions"
-  while IFS=$'\t' read -r idx sub_id name url enabled last_success imported_count last_error; do
+  while IFS=$'\t' read -r idx sub_id name url enabled last_success enumerated_count last_error; do
     [[ "$enabled" == "1" ]] || continue
     tmp="$(mktemp)"
     if curl_cmd -fsSL "$url" -o "$tmp"; then
       provider_file="$(subscription_provider_file "$sub_id")"
       install -D -m 0640 "$tmp" "$provider_file"
       chown root:"$MIHOMO_USER" "$provider_file"
-      imported_count="$(python3 "$STATECTL" sync-subscription-nodes "$NODES_STATE_FILE" "$sub_id" "$tmp")"
-      python3 "$STATECTL" mark-subscription-success "$SUBSCRIPTIONS_STATE_FILE" "$sub_id" "$imported_count" >/dev/null
-      ok "订阅 provider 缓存已更新: ${name} (可枚举 ${imported_count} 节点)"
+      enumerated_count="$(python3 "$STATECTL" sync-subscription-nodes "$NODES_STATE_FILE" "$sub_id" "$tmp")"
+      python3 "$STATECTL" mark-subscription-success "$SUBSCRIPTIONS_STATE_FILE" "$sub_id" "$enumerated_count" >/dev/null
+      ok "订阅 provider 缓存已更新: ${name} (可枚举 ${enumerated_count} 节点)"
       updated=$((updated + 1))
     else
       python3 "$STATECTL" mark-subscription-error "$SUBSCRIPTIONS_STATE_FILE" "$sub_id" "curl failed for ${url}" >/dev/null
@@ -707,14 +733,20 @@ show_status() {
   local version="未安装"
   local service_state="inactive"
   local service_enable="disabled"
-  local enabled_nodes total_nodes controller_url counts next_step sub_counts
+  local controller_url next_step sub_counts manual_counts provider_counts
+  local manual_enabled manual_total sub_enabled sub_total sub_ready
   [[ -x "$MIHOMO_BIN" ]] && version="$("$MIHOMO_BIN" -v 2>/dev/null | head -n 1 || echo "$MIHOMO_BIN")"
   service_is_active && service_state="active"
   service_is_enabled && service_enable="enabled"
-  counts="$(readonly_node_counts)"
   sub_counts="$(subscription_counts)"
-  enabled_nodes="${counts%%$'\t'*}"
-  total_nodes="${counts##*$'\t'}"
+  manual_counts="$(manual_node_counts)"
+  provider_counts="$(subscription_provider_counts)"
+  manual_enabled="${manual_counts%%$'\t'*}"
+  manual_total="${manual_counts##*$'\t'}"
+  sub_enabled="${provider_counts%%$'\t'*}"
+  provider_counts="${provider_counts#*$'\t'}"
+  sub_total="${provider_counts%%$'\t'*}"
+  sub_ready="${provider_counts##*$'\t'}"
   controller_scope_summary
   controller_url="http://${CONTROLLER_HOST}:${CONTROLLER_PORT}/ui/"
   echo
@@ -726,8 +758,10 @@ show_status() {
   echo "模板: ${TEMPLATE_NAME:-$PROFILE_TEMPLATE} ($(template_summary "${TEMPLATE_NAME:-$PROFILE_TEMPLATE}"))"
   echo "规则预设: ${RULESET_PRESET:-$(default_rule_preset)} ($(rule_preset_summary "${RULESET_PRESET:-$(default_rule_preset)}"))"
   echo "IPv6: $([[ "${ENABLE_IPV6:-0}" == "1" ]] && echo '启用' || echo '关闭')"
-  echo "节点: 启用 ${enabled_nodes} / 总计 ${total_nodes}"
+  echo "手动节点: 启用 ${manual_enabled} / 总计 ${manual_total}"
   echo "订阅: 启用 ${sub_counts%%$'\t'*} / 总计 ${sub_counts##*$'\t'}"
+  echo "订阅 provider: 启用 ${sub_enabled} / 总计 ${sub_total}"
+  echo "订阅缓存: 就绪 ${sub_ready} / 总计 ${sub_total}"
   echo "WebUI: ${controller_url}"
   echo "控制面范围: ${CONTROLLER_SCOPE}"
   echo "控制面密钥: 已隐藏；如需查看执行: mihomo show-secret"
@@ -742,9 +776,11 @@ show_status() {
   echo "DNS 劫持入口: $([[ "${DNS_HIJACK_ENABLED}" == "1" ]] && echo "${DNS_HIJACK_INTERFACES}" || echo '关闭')"
   echo "宿主机流量: $([[ "$PROXY_HOST_OUTPUT" == "1" ]] && echo '透明接管(高风险)' || echo "默认直连；按需显式代理 http://127.0.0.1:${MIXED_PORT}")"
   echo "容器直连名单: ${BYPASS_CONTAINER_NAMES:-无}"
-  if [[ "$enabled_nodes" == "0" && "${sub_counts%%$'\t'*}" == "0" ]]; then
+  if [[ "$manual_enabled" == "0" && "${sub_counts%%$'\t'*}" == "0" ]]; then
     next_step="导入节点: mihomo import-links 或添加订阅: mihomo add-subscription"
-  elif [[ "$enabled_nodes" == "0" ]]; then
+  elif [[ "$sub_enabled" -gt 0 && "$sub_ready" -lt "$sub_enabled" ]]; then
+    next_step="更新订阅: mihomo update-subscriptions"
+  elif [[ "$manual_enabled" == "0" && "${sub_counts%%$'\t'*}" != "0" ]]; then
     next_step="更新订阅: mihomo update-subscriptions"
   elif [[ "$service_state" != "active" ]]; then
     next_step="启动服务: mihomo start"
