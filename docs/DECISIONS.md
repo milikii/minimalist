@@ -36,7 +36,7 @@
 
 - 静态意图继续保存在 `settings.env`、`router.env` 和本项目状态文件
 - 运行态状态下一阶段优先从 Mihomo REST API 读取
-- 前三刀已落在 `mihomo status` / `mihomo runtime-audit` 的“当前模式”读取，以及 `mihomo status` 的最小策略组摘要读取；不一次性扩到全部策略组与摘要
+- 前四刀已落在 `mihomo status` / `mihomo runtime-audit` 的“当前模式”读取，以及两者的最小策略组摘要读取；不一次性扩到全部策略组与摘要
 
 ## 2026-04-25 codex 会话产物不进入版本控制
 

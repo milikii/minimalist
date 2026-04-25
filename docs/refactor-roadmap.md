@@ -214,6 +214,7 @@
 - `mihomo status` 的“当前模式”已优先读取 Mihomo REST API `/configs`
 - `mihomo runtime-audit` 的“当前模式”已优先读取 Mihomo REST API `/configs`
 - `mihomo status` 已能读取 Mihomo REST API `/proxies`，输出最小策略组运行态摘要
+- `mihomo runtime-audit` 已能读取 Mihomo REST API `/proxies`，输出最小策略组运行态摘要
 - 控制面不可达时已回退到本地 `config.yaml`，避免状态页因控制面短暂失败而退化不可用
 
 任务：
