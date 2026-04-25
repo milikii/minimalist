@@ -851,12 +851,18 @@ install_project() {
 prepare_project_install_tree() {
   local src_root="$1"
 
-  rm -rf "$INSTALL_ROOT"
-  mkdir -p "$(dirname "$INSTALL_ROOT")"
-  cp -a "$src_root" "$INSTALL_ROOT"
+  stage_project_install_tree "$src_root"
   rm -rf "$INSTALL_ROOT/.git" "$INSTALL_ROOT/.codex"
   find "$INSTALL_ROOT" -type d -name '__pycache__' -prune -exec rm -rf {} +
   find "$INSTALL_ROOT" -type f \( -name '*.bak.*' -o -name '*.pyc' \) -delete
+}
+
+stage_project_install_tree() {
+  local src_root="$1"
+
+  rm -rf "$INSTALL_ROOT"
+  mkdir -p "$(dirname "$INSTALL_ROOT")"
+  cp -a "$src_root" "$INSTALL_ROOT"
 }
 
 finalize_project_install() {
