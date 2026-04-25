@@ -494,6 +494,7 @@ test_status_readonly() {
   assert_contains "$output" '当前模式: rule'
   assert_contains "$output" '当前模式来源: 本地配置回退'
   assert_contains "$output" '本地配置模式: rule'
+  assert_contains "$output" '运行态策略组: 未获取'
   assert_contains "$output" '模板: nas-single-lan-v4 (单 LAN IPv4 旁路由)'
   assert_contains "$output" '规则预设: default (项目内置默认模板：PT 直连，FCM 域名/IP 强制代理)'
   assert_contains "$output" 'IPv6: 关闭'

@@ -2,7 +2,7 @@
 
 ## 当前主线
 
-- 当前主线已进入阶段 4，已完成第二刀：`mihomo runtime-audit` 的当前模式也改为 REST 运行态优先、控制面不可达时回退本地配置。
+- 当前主线已进入阶段 4，已完成第三刀：`mihomo status` 已能输出最小策略组运行态摘要。
 - 项目权威文档基线已补齐并生效：`STATUS.md`、`NEXT_STEP.md`、`DECISIONS.md`、`ARCHITECTURE.md`。
 
 ## 当前真相
@@ -30,8 +30,10 @@
 - 阶段 4：已开始
   - `mihomo status` 的“当前模式”已优先读取 Mihomo REST API `/configs`
   - `mihomo runtime-audit` 的“当前模式”已优先读取 Mihomo REST API `/configs`
+  - `mihomo status` 已优先读取 Mihomo REST API `/proxies`，输出最小策略组运行态摘要
   - 控制面不可达时会回退到本地 `config.yaml`
-  - 除当前模式外，`runtime-audit` 其余内容仍主要依赖本地配置、systemd 和系统探测信息
+  - 控制面不可达时，`status` 的策略组摘要会显示“未获取”，不影响其他状态输出
+  - `runtime-audit` 仍未输出策略组运行态摘要
 
 ## 质量状态
 
@@ -43,6 +45,6 @@
 
 ## 当前风险与限制
 
-- 策略组选择和控制面摘要还没有从 Mihomo REST API 读取
+- `runtime-audit` 仍未输出策略组运行态摘要，控制面摘要也还没有落地
 - `scripts/statectl.py` 仍保留过渡期协议解析逻辑，尚未退化为更小的状态工具
 - `nas-single-lan-dualstack` 仅兼容保留，不代表项目已支持真双栈旁路由

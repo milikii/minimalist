@@ -908,3 +908,31 @@ current_mode_with_source() {
   [[ -n "$mode_value" ]] || mode_value="rule"
   printf '%s\t%s\n' "$mode_value" "本地配置回退"
 }
+
+runtime_policy_group_summary() {
+  local json
+  json="$(controller_api_get "/proxies" 2>/dev/null)" || return 1
+  python3 -c 'import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    raise SystemExit(1)
+proxies = data.get("proxies")
+if not isinstance(proxies, dict):
+    raise SystemExit(1)
+summary = []
+for name, item in proxies.items():
+    if not isinstance(item, dict):
+        continue
+    all_values = item.get("all")
+    now = item.get("now")
+    if not isinstance(all_values, list) or not all_values:
+        continue
+    if not isinstance(now, str) or not now:
+        continue
+    summary.append(f"{name}={now}")
+if not summary:
+    raise SystemExit(1)
+print("; ".join(summary))
+' <<<"$json"
+}

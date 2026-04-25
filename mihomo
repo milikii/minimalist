@@ -761,7 +761,7 @@ show_status() {
   local service_enable="disabled"
   local controller_url next_step sub_counts manual_counts provider_counts
   local manual_enabled manual_total sub_enabled sub_total sub_ready
-  local current_mode_summary current_mode_value current_mode_source configured_mode_value
+  local current_mode_summary current_mode_value current_mode_source configured_mode_value runtime_policy_groups
   [[ -x "$MIHOMO_BIN" ]] && version="$("$MIHOMO_BIN" -v 2>/dev/null | head -n 1 || echo "$MIHOMO_BIN")"
   service_is_active && service_state="active"
   service_is_enabled && service_enable="enabled"
@@ -781,6 +781,8 @@ show_status() {
   current_mode_source="${current_mode_summary#*$'\t'}"
   configured_mode_value="$(configured_mode || true)"
   [[ -n "$configured_mode_value" ]] || configured_mode_value="rule"
+  runtime_policy_groups="$(runtime_policy_group_summary 2>/dev/null || true)"
+  [[ -n "$runtime_policy_groups" ]] || runtime_policy_groups="未获取"
   echo
   echo "Mihomo 管理器 v${SCRIPT_VERSION}"
   echo "核心版本: ${version}"
@@ -789,6 +791,7 @@ show_status() {
   echo "当前模式: ${current_mode_value}"
   echo "当前模式来源: ${current_mode_source}"
   echo "本地配置模式: ${configured_mode_value}"
+  echo "运行态策略组: ${runtime_policy_groups}"
   echo "模板: ${TEMPLATE_NAME:-$PROFILE_TEMPLATE} ($(template_summary "${TEMPLATE_NAME:-$PROFILE_TEMPLATE}"))"
   echo "规则预设: ${RULESET_PRESET:-$(default_rule_preset)} ($(rule_preset_summary "${RULESET_PRESET:-$(default_rule_preset)}"))"
   echo "IPv6: $([[ "${ENABLE_IPV6:-0}" == "1" ]] && echo '启用' || echo '关闭')"
