@@ -98,5 +98,6 @@
 - 当前已抽离 `write_manager_sync_units` 的 service unit 写入 helper
 - 当前已抽离 `write_manager_sync_units` 的 timer unit 写入 helper
 - 当前已抽离 `disable_project_sync` 的成功提示收尾 helper
-- 下一刀先抽离 `install_project` 的安装树复制与元数据清理 helper
+- 当前已抽离 `install_project` 的安装树复制与元数据清理 helper
+- 下一刀先抽离 `install_project` 的命令链接与成功提示收尾 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

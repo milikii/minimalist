@@ -709,6 +709,7 @@ test_install_self_sync_writes_units_and_status() {
   setup_case
   output="$(run_manager install-self-sync 5)"
   [[ -x "${TMPDIR_CASE}/install-root/mihomo" ]]
+  [[ -d "${TMPDIR_CASE}/install-root/scripts" ]]
   [[ -L "${TMPDIR_CASE}/mihomo" ]]
   [[ ! -d "${TMPDIR_CASE}/install-root/.git" ]]
   [[ ! -d "${TMPDIR_CASE}/install-root/.codex" ]]
