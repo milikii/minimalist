@@ -925,10 +925,7 @@ write_manager_sync_timer_unit() {
 render_manager_sync_timer_unit() {
   local interval_minutes="$1"
 
-  cat <<EOF
-$(render_manager_sync_unit_header "Periodic Mihomo Manager Working Tree Sync Timer")
-$(render_manager_sync_timer_unit_sections "$interval_minutes")
-EOF
+  render_manager_sync_unit "Periodic Mihomo Manager Working Tree Sync Timer" render_manager_sync_timer_unit_sections "$interval_minutes"
 }
 
 render_manager_sync_timer_unit_sections() {
@@ -977,9 +974,16 @@ write_rendered_manager_sync_unit_file() {
 render_manager_sync_service_unit() {
   local src_root="$1"
 
+  render_manager_sync_unit "Sync Mihomo Manager From Working Tree" render_manager_sync_service_unit_sections "$src_root"
+}
+
+render_manager_sync_unit() {
+  local description="$1"
+  shift
+
   cat <<EOF
-$(render_manager_sync_unit_header "Sync Mihomo Manager From Working Tree")
-$(render_manager_sync_service_unit_sections "$src_root")
+$(render_manager_sync_unit_header "$description")
+$( "$@" )
 EOF
 }
 

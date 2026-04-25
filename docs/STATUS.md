@@ -2,7 +2,7 @@
 
 ## 当前主线
 
-- 当前主线已进入阶段 5，已完成第八十二刀：`render_manager_sync_timer_unit` 的 sections 已抽到共用 helper。
+- 当前主线已进入阶段 5，已完成第八十三刀：manager sync unit 的通用 render 包装已抽到共用 helper。
 - 项目权威文档基线已补齐并生效：`STATUS.md`、`NEXT_STEP.md`、`DECISIONS.md`、`ARCHITECTURE.md`。
 
 ## 当前真相
@@ -120,6 +120,7 @@
   - manager sync unit 的通用 Unit 头部已抽到共用 helper
   - `render_manager_sync_service_unit` 的 sections 已抽到共用 helper
   - `render_manager_sync_timer_unit` 的 sections 已抽到共用 helper
+  - manager sync unit 的通用 render 包装已抽到共用 helper
   - `install_webui` 的解压失败告警输出已恢复，与重构前真相一致
   - 当前行为与输出文本保持与重构前真相一致
 
@@ -133,6 +134,6 @@
 
 ## 当前风险与限制
 
-- manager sync unit 的通用 render 包装仍重复出现在 service/timer render 中，阶段 5 后续可继续收口
+- `write_manager_sync_service_unit` / `write_manager_sync_timer_unit` 的通用 render+write 编排仍可继续收口，阶段 5 后续可继续推进
 - `scripts/statectl.py` 仍保留过渡期协议解析逻辑，尚未退化为更小的状态工具
 - `nas-single-lan-dualstack` 仅兼容保留，不代表项目已支持真双栈旁路由
