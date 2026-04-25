@@ -96,5 +96,6 @@
 - 当前已抽离 `install_project_sync` 的 systemd 激活收尾 helper
 - 当前已抽离 `install_project_sync` 的成功提示收尾 helper
 - 当前已抽离 `write_manager_sync_units` 的 service unit 写入 helper
-- 下一刀先抽离 `write_manager_sync_units` 的 timer unit 写入 helper
+- 当前已抽离 `write_manager_sync_units` 的 timer unit 写入 helper
+- 下一刀先抽离 `disable_project_sync` 的成功提示收尾 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

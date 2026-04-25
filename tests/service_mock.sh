@@ -721,6 +721,8 @@ test_install_self_sync_writes_units_and_status() {
   grep -Fq "WorkingDirectory=${ROOT}" "${TMPDIR_CASE}/mihomo-manager-sync.service"
   grep -Fq "ExecStart=${ROOT}/mihomo install-self" "${TMPDIR_CASE}/mihomo-manager-sync.service"
   grep -q '^OnUnitActiveSec=5min$' "${TMPDIR_CASE}/mihomo-manager-sync.timer"
+  grep -q '^Persistent=true$' "${TMPDIR_CASE}/mihomo-manager-sync.timer"
+  grep -q '^Unit=mihomo-manager-sync.service$' "${TMPDIR_CASE}/mihomo-manager-sync.timer"
   grep -q "已启用本机源码自动同步: 每 5 分钟从 ${ROOT} 同步到 ${TMPDIR_CASE}/install-root" <<<"$output"
   status_output="$(run_manager status)"
   grep -q "本机源码同步: 启用；每 5 分钟从 ${ROOT} 同步" <<<"$status_output"

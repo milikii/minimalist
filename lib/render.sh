@@ -860,6 +860,12 @@ write_manager_sync_units() {
   local src_root="$1"
   local interval_minutes="$2"
   write_manager_sync_service_unit "$src_root"
+  write_manager_sync_timer_unit "$interval_minutes"
+}
+
+write_manager_sync_timer_unit() {
+  local interval_minutes="$1"
+
   cat >"$MANAGER_SYNC_TIMER_UNIT" <<EOF
 [Unit]
 Description=Periodic Mihomo Manager Working Tree Sync Timer
