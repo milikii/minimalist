@@ -141,5 +141,6 @@
 - 当前已抽离 `ConditionPathExists=` 的通用输出 helper
 - 当前已抽离 timer 静态设置 helper
 - 当前已抽离 timer 动态间隔行 helper
-- 下一刀先抽离 `WorkingDirectory=` 行 helper
+- 当前已抽离 `WorkingDirectory=` 行 helper
+- 下一刀先抽离 `ExecStart=` 行 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

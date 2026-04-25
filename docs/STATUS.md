@@ -2,7 +2,7 @@
 
 ## 当前主线
 
-- 当前主线已进入阶段 5，已完成第八十九刀：timer 动态间隔行已抽到共用 helper。
+- 当前主线已进入阶段 5，已完成第九十刀：`WorkingDirectory=` 行已抽到共用 helper。
 - 项目权威文档基线已补齐并生效：`STATUS.md`、`NEXT_STEP.md`、`DECISIONS.md`、`ARCHITECTURE.md`。
 
 ## 当前真相
@@ -127,6 +127,7 @@
   - `ConditionPathExists=` 的通用输出已抽到共用 helper
   - timer 静态设置已抽到共用 helper
   - timer 动态间隔行已抽到共用 helper
+  - `WorkingDirectory=` 行已抽到共用 helper
   - `install_webui` 的解压失败告警输出已恢复，与重构前真相一致
   - 当前行为与输出文本保持与重构前真相一致
 
@@ -140,6 +141,6 @@
 
 ## 当前风险与限制
 
-- `render_manager_sync_service_unit_body` 的 `WorkingDirectory=` 行仍内联在函数中，阶段 5 后续可继续推进
+- `render_manager_sync_service_unit_body` 的 `ExecStart=` 行仍内联在函数中，阶段 5 后续可继续推进
 - `scripts/statectl.py` 仍保留过渡期协议解析逻辑，尚未退化为更小的状态工具
 - `nas-single-lan-dualstack` 仅兼容保留，不代表项目已支持真双栈旁路由
