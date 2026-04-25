@@ -1010,10 +1010,19 @@ EOF
 render_manager_sync_service_unit_sections() {
   local src_root="$1"
 
-  cat <<EOF
-$(render_manager_sync_service_unit_conditions "$src_root")
+  render_manager_sync_unit_sections \
+    "$(render_manager_sync_service_unit_conditions "$src_root")" \
+    "$(render_manager_sync_service_unit_body "$src_root")"
+}
 
-$(render_manager_sync_service_unit_body "$src_root")
+render_manager_sync_unit_sections() {
+  local first_block="$1"
+  local second_block="$2"
+
+  cat <<EOF
+${first_block}
+
+${second_block}
 EOF
 }
 
