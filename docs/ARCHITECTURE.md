@@ -135,5 +135,6 @@
 - 当前已抽离 `render_manager_sync_service_unit` 的 sections helper
 - 当前已抽离 `render_manager_sync_timer_unit` 的 sections helper
 - 当前已抽离 manager sync unit 的通用 render 包装 helper
-- 下一刀先抽离 manager sync unit 的通用 render+write 编排 helper
+- 当前已抽离 manager sync unit 的通用 render+write 编排 helper
+- 下一刀先抽离 manager sync unit 的通用 sections helper，并先接入 service
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

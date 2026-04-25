@@ -878,6 +878,24 @@ test_manager_sync_unit_file_writer_persists_rendered_content() {
   grep -q '^Description=demo$' "${TMPDIR_CASE}/demo.unit"
 }
 
+test_manager_sync_render_and_write_helper_persists_unit() {
+  setup_case
+
+  (
+    export APP_ROOT="$ROOT"
+    # shellcheck disable=SC1091
+    source "${ROOT}/lib/common.sh"
+    # shellcheck disable=SC1091
+    source "${ROOT}/lib/render.sh"
+    write_rendered_manager_sync_unit "${TMPDIR_CASE}/helper.unit" "Helper Unit" printf '%s\n' '[Service]' 'ExecStart=/bin/true'
+  )
+
+  grep -q '^\[Unit\]$' "${TMPDIR_CASE}/helper.unit"
+  grep -q '^Description=Helper Unit$' "${TMPDIR_CASE}/helper.unit"
+  grep -q '^\[Service\]$' "${TMPDIR_CASE}/helper.unit"
+  grep -q '^ExecStart=/bin/true$' "${TMPDIR_CASE}/helper.unit"
+}
+
 test_usage_mentions_new_commands() {
   output="$(run_manager help)"
   assert_contains "$output" 'apply-default-template'
@@ -952,6 +970,7 @@ main() {
   test_project_sync_disablement_prelude_resets_settings
   test_manager_sync_unit_writer_outputs_both_unit_files
   test_manager_sync_unit_file_writer_persists_rendered_content
+  test_manager_sync_render_and_write_helper_persists_unit
   test_usage_mentions_new_commands
   test_menu_mentions_new_buckets
   echo "smoke: ok"

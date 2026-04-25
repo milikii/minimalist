@@ -919,7 +919,7 @@ perform_manager_sync_unit_writes() {
 write_manager_sync_timer_unit() {
   local interval_minutes="$1"
 
-  write_rendered_manager_sync_unit_file "$MANAGER_SYNC_TIMER_UNIT" render_manager_sync_timer_unit "$interval_minutes"
+  write_rendered_manager_sync_unit "$MANAGER_SYNC_TIMER_UNIT" "Periodic Mihomo Manager Working Tree Sync Timer" render_manager_sync_timer_unit_sections "$interval_minutes"
 }
 
 render_manager_sync_timer_unit() {
@@ -961,7 +961,7 @@ EOF
 write_manager_sync_service_unit() {
   local src_root="$1"
 
-  write_rendered_manager_sync_unit_file "$MANAGER_SYNC_SERVICE_UNIT" render_manager_sync_service_unit "$src_root"
+  write_rendered_manager_sync_unit "$MANAGER_SYNC_SERVICE_UNIT" "Sync Mihomo Manager From Working Tree" render_manager_sync_service_unit_sections "$src_root"
 }
 
 write_rendered_manager_sync_unit_file() {
@@ -969,6 +969,17 @@ write_rendered_manager_sync_unit_file() {
   shift
 
   "$@" >"$unit_path"
+}
+
+write_rendered_manager_sync_unit() {
+  local unit_path="$1"
+  shift
+  local description="$1"
+  shift
+  local section_renderer="$1"
+  shift
+
+  write_rendered_manager_sync_unit_file "$unit_path" render_manager_sync_unit "$description" "$section_renderer" "$@"
 }
 
 render_manager_sync_service_unit() {
