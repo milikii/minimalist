@@ -930,7 +930,13 @@ EOF
 write_manager_sync_service_unit() {
   local src_root="$1"
 
-  cat >"$MANAGER_SYNC_SERVICE_UNIT" <<EOF
+  render_manager_sync_service_unit "$src_root" >"$MANAGER_SYNC_SERVICE_UNIT"
+}
+
+render_manager_sync_service_unit() {
+  local src_root="$1"
+
+  cat <<EOF
 [Unit]
 Description=Sync Mihomo Manager From Working Tree
 ConditionPathExists=${src_root}/.git

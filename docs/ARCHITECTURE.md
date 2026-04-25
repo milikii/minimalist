@@ -123,5 +123,6 @@
 - 当前已抽离 `disable_project_sync` 的重置前置 helper
 - 当前已抽离 `disable_project_sync` 的清理与成功提示收尾 helper
 - 当前已抽离 `disable_project_sync` 的总编排 helper
-- 下一刀先抽离 `write_manager_sync_service_unit` 的 unit 内容 helper
+- 当前已抽离 `write_manager_sync_service_unit` 的 unit 内容 helper
+- 下一刀先抽离 `write_manager_sync_timer_unit` 的 unit 内容 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力
