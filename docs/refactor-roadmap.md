@@ -262,6 +262,7 @@
 - `audit_installation` 的 ACL / 规则预设检查已抽到共用 helper
 - `audit_installation` 的 timer / GeoSite 检查已抽到共用 helper
 - `audit_installation` 的成功收尾已抽到共用 helper
+- `install_geosite_dat` 的成功安装收尾已抽到共用 helper
 - 当前仍保持原有输出文本与退化行为不变
 
 任务：

@@ -731,9 +731,10 @@ test_disable_self_sync_removes_units() {
 
 test_install_geosite_downloads_official_asset() {
   setup_case
-  run_manager install-geosite >/dev/null
+  output="$(run_manager install-geosite)"
   grep -Fq 'https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat' "${TMPDIR_CASE}/curl.log"
   [[ -f "${TMPDIR_CASE}/GeoSite.dat" ]]
+  grep -q 'GeoSite.dat 已更新并通过验证' <<<"$output"
 }
 
 test_install_webui_persists_external_ui_source() {

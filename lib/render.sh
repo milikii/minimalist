@@ -693,6 +693,12 @@ install_geosite_dat() {
     die "GeoSite.dat 未通过验证；已停止安装，避免把坏资产写进运行目录"
   }
 
+  install_geosite_file "$tmp_geosite"
+}
+
+install_geosite_file() {
+  local tmp_geosite="$1"
+
   install -m 0644 "$tmp_geosite" "${MIHOMO_DIR}/GeoSite.dat"
   chown "${MIHOMO_USER}:${MIHOMO_USER}" "${MIHOMO_DIR}/GeoSite.dat"
   rm -f "$tmp_geosite"

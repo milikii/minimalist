@@ -2,7 +2,7 @@
 
 ## 当前主线
 
-- 当前主线已进入阶段 5，已完成第二十九刀：`audit_installation` 的成功收尾已抽到共用 helper。
+- 当前主线已进入阶段 5，已完成第三十刀：`install_geosite_dat` 的成功安装收尾已抽到共用 helper。
 - 项目权威文档基线已补齐并生效：`STATUS.md`、`NEXT_STEP.md`、`DECISIONS.md`、`ARCHITECTURE.md`。
 
 ## 当前真相
@@ -67,8 +67,9 @@
   - `audit_installation` 的 ACL / 规则预设检查已抽到共用 helper
   - `audit_installation` 的 timer / GeoSite 检查已抽到共用 helper
   - `audit_installation` 的成功收尾已抽到共用 helper
+  - `install_geosite_dat` 的成功安装收尾已抽到共用 helper
   - 当前行为与输出文本保持不变
-  - `install_geosite_dat` 的成功安装收尾仍在函数内联，尚未继续收口
+  - `install_webui` 的下载阶段仍在函数内联，尚未继续收口
 
 ## 质量状态
 
@@ -80,6 +81,6 @@
 
 ## 当前风险与限制
 
-- `install_geosite_dat` 的成功安装收尾仍在函数内联，阶段 5 后续可继续收口
+- `install_webui` 的下载阶段仍在函数内联，阶段 5 后续可继续收口
 - `scripts/statectl.py` 仍保留过渡期协议解析逻辑，尚未退化为更小的状态工具
 - `nas-single-lan-dualstack` 仅兼容保留，不代表项目已支持真双栈旁路由
