@@ -135,7 +135,8 @@
 - 第八十九刀再抽离 timer 动态间隔行 helper
 - 第九十刀再抽离 `WorkingDirectory=` 行 helper
 - 第九十一刀再抽离 `ExecStart=` 行 helper
-- 第九十二刀先抽离 `OnBootSec=` 行 helper
+- 第九十二刀再抽离 `OnBootSec=` 行 helper
+- 第九十三刀先抽离 `Unit=mihomo-manager-sync.service` 行 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 
