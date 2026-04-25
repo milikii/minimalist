@@ -3,12 +3,12 @@
 ## 当前阶段
 
 - 下一闭环进入阶段 5：代码结构收口。
-- 当前已完成第五十四刀：`cleanup_project_install_tree_metadata` 的 VCS 元数据清理已抽到共用 helper。
+- 当前已完成第五十五刀：`cleanup_project_install_tree_metadata` 的 Python 缓存清理已抽到共用 helper。
 - 目标不是扩功能，而是在不改变行为的前提下，继续消除 `cleanup_project_install_tree_metadata` / `install_project_sync` 周边的结构重复逻辑。
 
 ## 下一最小闭环
 
-- 提取 `cleanup_project_install_tree_metadata` 的 Python 缓存清理 helper
+- 提取 `cleanup_project_install_tree_metadata` 的备份垃圾清理 helper
 - 保持现有输出文本、顺序与退化行为不变
 - 补 focused tests，确保重构不改变行为
 - 文档同步切到阶段 5 当前真相
@@ -22,7 +22,7 @@
 
 ## 退出条件
 
-- `cleanup_project_install_tree_metadata` 的 Python 缓存清理不再与备份/字节码垃圾清理内联耦合
+- `cleanup_project_install_tree_metadata` 的备份垃圾清理不再内联在主函数中
 - 现有 `status` 输出文本、顺序与入口展示行为保持不变
 - 相关 smoke / service-mock 回归通过
 - 文档同步更新当前阶段结论

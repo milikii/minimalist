@@ -98,7 +98,8 @@
 - 第五十二刀再抽离 `prepare_project_install_tree` 的目标目录重建与源码复制 helper
 - 第五十三刀再抽离 `prepare_project_install_tree` 的元数据清理 helper
 - 第五十四刀再抽离 `cleanup_project_install_tree_metadata` 的 VCS 元数据清理 helper
-- 第五十五刀先抽离 `cleanup_project_install_tree_metadata` 的 Python 缓存清理 helper
+- 第五十五刀再抽离 `cleanup_project_install_tree_metadata` 的 Python 缓存清理 helper
+- 第五十六刀先抽离 `cleanup_project_install_tree_metadata` 的备份垃圾清理 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 

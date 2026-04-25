@@ -865,12 +865,17 @@ stage_project_install_tree() {
 
 cleanup_project_install_tree_metadata() {
   cleanup_project_install_tree_vcs_metadata
-  find "$INSTALL_ROOT" -type d -name '__pycache__' -prune -exec rm -rf {} +
-  find "$INSTALL_ROOT" -type f \( -name '*.bak.*' -o -name '*.pyc' \) -delete
+  cleanup_project_install_tree_python_cache
+  find "$INSTALL_ROOT" -type f -name '*.bak.*' -delete
 }
 
 cleanup_project_install_tree_vcs_metadata() {
   rm -rf "$INSTALL_ROOT/.git" "$INSTALL_ROOT/.codex"
+}
+
+cleanup_project_install_tree_python_cache() {
+  find "$INSTALL_ROOT" -type d -name '__pycache__' -prune -exec rm -rf {} +
+  find "$INSTALL_ROOT" -type f -name '*.pyc' -delete
 }
 
 finalize_project_install() {
