@@ -741,7 +741,7 @@ test_install_self_sync_rejects_invalid_interval() {
 test_disable_self_sync_removes_units() {
   setup_case
   run_manager install-self-sync 2 >/dev/null
-  run_manager disable-self-sync >/dev/null
+  output="$(run_manager disable-self-sync)"
   grep -q '^MANAGER_SYNC_ENABLED="0"$' "${TMPDIR_CASE}/settings.env"
   grep -q '^MANAGER_SYNC_INTERVAL_MINUTES="1"$' "${TMPDIR_CASE}/settings.env"
   grep -q '^MANAGER_SYNC_SOURCE=""$' "${TMPDIR_CASE}/settings.env"
@@ -749,6 +749,7 @@ test_disable_self_sync_removes_units() {
   grep -Fq 'daemon-reload' "${TMPDIR_CASE}/systemctl.log"
   [[ ! -f "${TMPDIR_CASE}/mihomo-manager-sync.service" ]]
   [[ ! -f "${TMPDIR_CASE}/mihomo-manager-sync.timer" ]]
+  grep -q '已关闭本机源码自动同步' <<<"$output"
 }
 
 test_install_geosite_downloads_official_asset() {

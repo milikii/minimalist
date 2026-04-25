@@ -917,7 +917,7 @@ disable_project_sync() {
   ensure_settings
   reset_project_sync_settings
   cleanup_project_sync_runtime
-  ok "已关闭本机源码自动同步"
+  print_project_sync_disabled_message
 }
 
 validate_project_sync_inputs() {
@@ -961,6 +961,10 @@ print_project_sync_enabled_message() {
   local interval_minutes="$2"
 
   ok "已启用本机源码自动同步: 每 ${interval_minutes} 分钟从 ${src_root} 同步到 ${INSTALL_ROOT}"
+}
+
+print_project_sync_disabled_message() {
+  ok "已关闭本机源码自动同步"
 }
 
 delete_jump() {

@@ -90,6 +90,7 @@
 - 第四十四刀再抽离 `write_manager_sync_units` 的 service unit 写入 helper
 - 第四十五刀再抽离 `write_manager_sync_units` 的 timer unit 写入 helper
 - 第四十六刀再抽离 `disable_project_sync` 的成功提示收尾 helper
+- 第四十七刀再抽离 `install_project` 的安装树复制与元数据清理 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 
