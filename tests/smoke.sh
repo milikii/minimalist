@@ -523,6 +523,26 @@ test_status_warns_on_host_output_proxy() {
   assert_contains "$output" 'tailscaled、cloudflared'
 }
 
+test_status_recommends_import_when_no_nodes_or_subscriptions() {
+  setup_case
+  output="$(run_manager status)"
+  assert_contains "$output" '推荐下一步: 导入节点: mihomo import-links 或添加订阅: mihomo add-subscription'
+}
+
+test_status_recommends_update_subscriptions_when_provider_not_ready() {
+  setup_case
+  run_manager add-subscription demo https://subscription.example/list.txt 1 >/dev/null
+  output="$(run_manager status)"
+  assert_contains "$output" '推荐下一步: 更新订阅: mihomo update-subscriptions'
+}
+
+test_status_recommends_start_when_nodes_ready_but_service_inactive() {
+  setup_case
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://uuid@example.com:443?encryption=none&security=reality&sni=www.microsoft.com&fp=chrome&pbk=PUBLIC_KEY&sid=abcd&type=tcp#manual-node' manual-node 1 >/dev/null
+  output="$(run_manager status)"
+  assert_contains "$output" '推荐下一步: 启动服务: mihomo start'
+}
+
 test_status_shows_official_access_fields() {
   setup_case
   sed -i 's/PROXY_HOST_OUTPUT="0"/PROXY_HOST_OUTPUT="0"\nLAN_DISALLOWED_CIDRS="192.168.2.10\/32"\nPROXY_AUTH_CREDENTIALS="alice:secret bob:pass"\nSKIP_AUTH_PREFIXES="127.0.0.1\/32"/' "${TMPDIR_CASE}/router.env"

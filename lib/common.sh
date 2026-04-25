@@ -1090,3 +1090,23 @@ print_count_summary_lines() {
   echo "订阅 provider: 启用 ${sub_enabled} / 总计 ${sub_total}"
   echo "订阅缓存: 就绪 ${sub_ready} / 总计 ${sub_total}"
 }
+
+status_next_step() {
+  local service_state="${1:-inactive}"
+  local manual_enabled="${2:-0}"
+  local subscription_enabled="${3:-0}"
+  local provider_enabled="${4:-0}"
+  local provider_ready="${5:-0}"
+
+  if [[ "$manual_enabled" == "0" && "$subscription_enabled" == "0" ]]; then
+    echo "导入节点: mihomo import-links 或添加订阅: mihomo add-subscription"
+  elif [[ "$provider_enabled" -gt 0 && "$provider_ready" -lt "$provider_enabled" ]]; then
+    echo "更新订阅: mihomo update-subscriptions"
+  elif [[ "$manual_enabled" == "0" && "$subscription_enabled" != "0" ]]; then
+    echo "更新订阅: mihomo update-subscriptions"
+  elif [[ "$service_state" != "active" ]]; then
+    echo "启动服务: mihomo start"
+  else
+    echo "宿主机默认直连；局域网设备把网关和 DNS 指向 NAS 后即可走旁路由"
+  fi
+}

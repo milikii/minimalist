@@ -49,6 +49,7 @@
 - 第三刀再抽离 `status` / `runtime-audit` 共用的网络与访问静态信息展示 helper
 - 第四刀再抽离 `status` / `runtime-audit` 共用的模板/规则预设/IPv6 展示 helper
 - 第五刀再抽离 `status` / `runtime-audit` 共用的计数类与节点统计展示 helper
+- 第六刀再抽离 `status` 的推荐下一步判断 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 

@@ -754,17 +754,7 @@ show_status() {
   fi
   echo "Mixed/TProxy/DNS: ${MIXED_PORT}/${TPROXY_PORT}/${DNS_PORT}"
   print_network_access_lines status
-  if [[ "$manual_enabled" == "0" && "${sub_counts%%$'\t'*}" == "0" ]]; then
-    next_step="导入节点: mihomo import-links 或添加订阅: mihomo add-subscription"
-  elif [[ "$sub_enabled" -gt 0 && "$sub_ready" -lt "$sub_enabled" ]]; then
-    next_step="更新订阅: mihomo update-subscriptions"
-  elif [[ "$manual_enabled" == "0" && "${sub_counts%%$'\t'*}" != "0" ]]; then
-    next_step="更新订阅: mihomo update-subscriptions"
-  elif [[ "$service_state" != "active" ]]; then
-    next_step="启动服务: mihomo start"
-  else
-    next_step="宿主机默认直连；局域网设备把网关和 DNS 指向 NAS 后即可走旁路由"
-  fi
+  next_step="$(status_next_step "$service_state" "$manual_enabled" "${sub_counts%%$'\t'*}" "$sub_enabled" "$sub_ready")"
   echo "推荐下一步: ${next_step}"
   if template_is_deprecated "${TEMPLATE_NAME:-$PROFILE_TEMPLATE}"; then
     warn "当前模板仅兼容保留；本项目当前只承诺 Debian NAS 的 IPv4 旁路由。"

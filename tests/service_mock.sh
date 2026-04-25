@@ -407,6 +407,13 @@ EOF
   grep -Fq 'http://127.0.0.1:19090/version' "${TMPDIR_CASE}/curl.log"
 }
 
+test_status_recommends_router_ready_when_service_active() {
+  setup_case
+  python3 "${ROOT}/scripts/statectl.py" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://uuid@example.com:443?encryption=none&security=reality&sni=www.microsoft.com&fp=chrome&pbk=PUBLIC_KEY&sid=abcd&type=tcp#manual-node' manual-node 1 >/dev/null
+  output="$(run_manager status)"
+  grep -q '推荐下一步: 宿主机默认直连；局域网设备把网关和 DNS 指向 NAS 后即可走旁路由' <<<"$output"
+}
+
 test_healthcheck_uses_localhost_proxy_probe() {
   setup_case
   touch "${TMPDIR_CASE}/Country.mmdb"
