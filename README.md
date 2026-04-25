@@ -25,7 +25,7 @@
 - `mihomo status`：查看当前运行定位、入口接口、规则预设、宿主机流量模式和容器直连名单；当前模式、最小策略组摘要和最小控制面运行态摘要优先读取运行态，控制面不可达时回退或显示未获取。
 - `mihomo show-secret`：显式查看控制面密钥；默认状态页不会直接暴露。
 - `mihomo healthcheck`：检查端口监听、WebUI 与 `127.0.0.1:7890` 显式代理是否可用。
-- `mihomo runtime-audit`：看 systemd 状态、近 24 小时 warning/error 和健康摘要；当前模式与最小策略组摘要优先读取运行态，控制面不可达时回退或显示未获取。
+- `mihomo runtime-audit`：看 systemd 状态、近 24 小时 warning/error 和健康摘要；当前模式、最小策略组摘要和最小控制面运行态摘要优先读取运行态，控制面不可达时回退或显示未获取。
 - `./mihomo install-self-sync [minutes]`：把当前 git 工作树安装到本机，并按分钟周期自动同步到 `/usr/local/lib/mihomo-manager`。
 - `mihomo apply-default-template`：一键应用项目默认模板，启用项目内置规则仓库，并把宿主机流量恢复为默认直连。
 - `mihomo rules-repo`：查看当前项目内置规则仓库摘要和各规则集条目数。

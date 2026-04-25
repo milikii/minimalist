@@ -2,7 +2,7 @@
 
 ## 当前主线
 
-- 当前主线已进入阶段 4，已完成第五刀：`mihomo status` 已能输出最小控制面运行态摘要。
+- 当前主线已完成阶段 4 的最小运行态读取收口，下一闭环进入阶段 5 的代码结构收口。
 - 项目权威文档基线已补齐并生效：`STATUS.md`、`NEXT_STEP.md`、`DECISIONS.md`、`ARCHITECTURE.md`。
 
 ## 当前真相
@@ -27,15 +27,16 @@
   - 已接入 `external-controller-cors.allow-origins`
   - 已接入 `external-controller-cors.allow-private-network`
   - `external-controller-tls` 已明确暂缓，不进入当前阶段实现
-- 阶段 4：已开始
+- 阶段 4：已完成
   - `mihomo status` 的“当前模式”已优先读取 Mihomo REST API `/configs`
   - `mihomo runtime-audit` 的“当前模式”已优先读取 Mihomo REST API `/configs`
   - `mihomo status` 已优先读取 Mihomo REST API `/proxies`，输出最小策略组运行态摘要
   - `mihomo runtime-audit` 已优先读取 Mihomo REST API `/proxies`，输出最小策略组运行态摘要
   - `mihomo status` 已优先读取 Mihomo REST API `/version`，输出最小控制面运行态摘要
+  - `mihomo runtime-audit` 已优先读取 Mihomo REST API `/version`，输出最小控制面运行态摘要
   - 控制面不可达时会回退到本地 `config.yaml`
   - 控制面不可达时，`status` / `runtime-audit` 的策略组摘要会显示“未获取”，不影响其他状态输出
-  - 控制面不可达时，`status` 的控制面运行态摘要会显示“未获取”
+  - 控制面不可达时，`status` / `runtime-audit` 的控制面运行态摘要会显示“未获取”
 
 ## 质量状态
 
@@ -47,6 +48,6 @@
 
 ## 当前风险与限制
 
-- `runtime-audit` 仍未输出最小控制面运行态摘要
+- `status` / `runtime-audit` 的运行态摘要存在格式与取值逻辑重复，进入阶段 5 后应先做结构收口
 - `scripts/statectl.py` 仍保留过渡期协议解析逻辑，尚未退化为更小的状态工具
 - `nas-single-lan-dualstack` 仅兼容保留，不代表项目已支持真双栈旁路由

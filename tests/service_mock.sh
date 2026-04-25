@@ -342,6 +342,7 @@ test_runtime_audit_outputs() {
   grep -q '当前模式来源: 本地配置回退' <<<"$output"
   grep -q '本地配置模式: rule' <<<"$output"
   grep -q '运行态策略组: 未获取' <<<"$output"
+  grep -q '控制面运行态: 未获取' <<<"$output"
   grep -q '当前模板: nas-single-lan-v4 (单 LAN IPv4 旁路由)' <<<"$output"
   grep -q '过去 24 小时 warning 数: 1' <<<"$output"
   grep -q '下次 Alpha 自动更新: Tue 2026-04-21 00:00:00 CST' <<<"$output"
@@ -369,13 +370,18 @@ EOF
   cat > "${TMPDIR_CASE}/controller-proxies.json" <<'EOF'
 {"proxies":{"PROXY":{"type":"Selector","now":"AUTO","all":["DIRECT","AUTO"]},"AUTO":{"type":"URLTest","now":"manual-node","all":["manual-node"]}}}
 EOF
+  cat > "${TMPDIR_CASE}/controller-version.json" <<'EOF'
+{"meta":true,"version":"Mihomo Meta v1.19.10"}
+EOF
   output="$(run_manager runtime-audit)"
   grep -q '当前模式: global' <<<"$output"
   grep -q '当前模式来源: Mihomo REST API' <<<"$output"
   grep -q '本地配置模式: rule' <<<"$output"
   grep -q '运行态策略组: PROXY=AUTO; AUTO=manual-node' <<<"$output"
+  grep -q '控制面运行态: API 可达; 版本 Mihomo Meta v1.19.10' <<<"$output"
   grep -Fq 'http://127.0.0.1:19090/configs' "${TMPDIR_CASE}/curl.log"
   grep -Fq 'http://127.0.0.1:19090/proxies' "${TMPDIR_CASE}/curl.log"
+  grep -Fq 'http://127.0.0.1:19090/version' "${TMPDIR_CASE}/curl.log"
 }
 
 test_status_reads_mode_from_controller() {
