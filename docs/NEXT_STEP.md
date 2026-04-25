@@ -3,12 +3,12 @@
 ## 当前阶段
 
 - 下一闭环进入阶段 5：代码结构收口。
-- 当前已完成第六十八刀：`install_project_sync` 的激活与成功提示收尾已抽到共用 helper。
+- 当前已完成第六十九刀：`disable_project_sync` 的重置前置已抽到共用 helper。
 - 目标不是扩功能，而是在不改变行为的前提下，继续消除 `disable_project_sync` 周边的结构重复逻辑。
 
 ## 下一最小闭环
 
-- 提取 `disable_project_sync` 的重置与清理收尾 helper
+- 提取 `disable_project_sync` 的清理与成功提示收尾 helper
 - 保持现有输出文本、顺序与退化行为不变
 - 补 focused tests，确保重构不改变行为
 - 文档同步切到阶段 5 当前真相
@@ -22,7 +22,7 @@
 
 ## 退出条件
 
-- `disable_project_sync` 的重置与清理收尾不再直接平铺在主函数中
+- `disable_project_sync` 的清理与成功提示收尾不再直接平铺在主函数中
 - 现有 `status` 输出文本、顺序与入口展示行为保持不变
 - 相关 smoke / service-mock 回归通过
 - 文档同步更新当前阶段结论

@@ -112,7 +112,8 @@
 - 第六十六刀再抽离 `validate_project_sync_inputs` 的源码树校验 helper
 - 第六十七刀再抽离 `install_project_sync` 的安装与设置前置 helper
 - 第六十八刀再抽离 `install_project_sync` 的激活与成功提示收尾 helper
-- 第六十九刀先抽离 `disable_project_sync` 的重置与清理收尾 helper
+- 第六十九刀先抽离 `disable_project_sync` 的重置前置 helper
+- 第七十刀先抽离 `disable_project_sync` 的清理与成功提示收尾 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 

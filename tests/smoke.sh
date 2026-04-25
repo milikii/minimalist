@@ -823,6 +823,25 @@ test_project_sync_installation_prelude_prepares_units_and_settings() {
   grep -q '^OnUnitActiveSec=5min$' "${TMPDIR_CASE}/mihomo-manager-sync.timer"
 }
 
+test_project_sync_disablement_prelude_resets_settings() {
+  setup_case
+
+  (
+    export APP_ROOT="$ROOT"
+    export MIHOMO_DIR="${TMPDIR_CASE}"
+    export SETTINGS_ENV="${TMPDIR_CASE}/settings.env"
+    # shellcheck disable=SC1091
+    source "${ROOT}/lib/common.sh"
+    # shellcheck disable=SC1091
+    source "${ROOT}/lib/render.sh"
+    prepare_project_sync_disablement
+  )
+
+  grep -q '^MANAGER_SYNC_ENABLED="0"$' "${TMPDIR_CASE}/settings.env"
+  grep -q '^MANAGER_SYNC_INTERVAL_MINUTES="1"$' "${TMPDIR_CASE}/settings.env"
+  grep -q '^MANAGER_SYNC_SOURCE=""$' "${TMPDIR_CASE}/settings.env"
+}
+
 test_usage_mentions_new_commands() {
   output="$(run_manager help)"
   assert_contains "$output" 'apply-default-template'
@@ -894,6 +913,7 @@ main() {
   test_project_sync_validation_rejects_non_git_source_tree
   test_project_sync_validation_rejects_missing_source_entry
   test_project_sync_installation_prelude_prepares_units_and_settings
+  test_project_sync_disablement_prelude_resets_settings
   test_usage_mentions_new_commands
   test_menu_mentions_new_buckets
   echo "smoke: ok"

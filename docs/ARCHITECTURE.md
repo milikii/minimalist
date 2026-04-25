@@ -120,5 +120,6 @@
 - 当前已抽离 `validate_project_sync_inputs` 的源码树校验 helper
 - 当前已抽离 `install_project_sync` 的安装与设置前置 helper
 - 当前已抽离 `install_project_sync` 的激活与成功提示收尾 helper
-- 下一刀先抽离 `disable_project_sync` 的重置与清理收尾 helper
+- 当前已抽离 `disable_project_sync` 的重置前置 helper
+- 下一刀先抽离 `disable_project_sync` 的清理与成功提示收尾 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

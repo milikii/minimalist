@@ -955,8 +955,7 @@ install_project_sync() {
 
 disable_project_sync() {
   require_root
-  ensure_settings
-  reset_project_sync_settings
+  prepare_project_sync_disablement
   cleanup_project_sync_runtime
   print_project_sync_disabled_message
 }
@@ -1011,6 +1010,11 @@ finalize_project_sync_enablement() {
 
   activate_project_sync_runtime
   print_project_sync_enabled_message "$src_root" "$interval_minutes"
+}
+
+prepare_project_sync_disablement() {
+  ensure_settings
+  reset_project_sync_settings
 }
 
 persist_project_sync_settings() {
