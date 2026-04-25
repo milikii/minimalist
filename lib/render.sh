@@ -860,9 +860,13 @@ prepare_project_install_tree() {
 }
 
 finalize_project_install() {
-  chmod +x "$INSTALL_ROOT/mihomo" "$INSTALL_ROOT/scripts/statectl.py"
+  ensure_project_install_binaries_executable
   write_project_command_links
   ok "已安装管理命令到 ${MANAGER_BIN}"
+}
+
+ensure_project_install_binaries_executable() {
+  chmod +x "$INSTALL_ROOT/mihomo" "$INSTALL_ROOT/scripts/statectl.py"
 }
 
 write_project_command_links() {
