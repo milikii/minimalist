@@ -5,3 +5,5 @@ __pycache__/
 *.bak.*
 *.swp
 *.swo
+codex.log
+.codex
