@@ -779,6 +779,50 @@ test_project_sync_validation_rejects_missing_source_entry() {
   grep -q "未找到源码入口: ${source_root}/mihomo" /tmp/mh-sync-missing-entry.out
 }
 
+test_project_sync_installation_prelude_prepares_units_and_settings() {
+  setup_case
+
+  (
+    export APP_ROOT="$ROOT"
+    export INSTALL_ROOT="${TMPDIR_CASE}/install-root"
+    export MIHOMO_DIR="${TMPDIR_CASE}"
+    export SETTINGS_ENV="${TMPDIR_CASE}/settings.env"
+    export ROUTER_ENV="${TMPDIR_CASE}/router.env"
+    export RULES_DIR="${TMPDIR_CASE}/ruleset"
+    export PROVIDER_DIR="${TMPDIR_CASE}/proxy_providers"
+    export UI_DIR="${TMPDIR_CASE}/ui"
+    export STATE_DIR="${TMPDIR_CASE}/state"
+    export NODES_STATE_FILE="${TMPDIR_CASE}/state/nodes.json"
+    export RULES_STATE_FILE="${TMPDIR_CASE}/state/rules.json"
+    export ACL_STATE_FILE="${TMPDIR_CASE}/state/acl.json"
+    export SUBSCRIPTIONS_STATE_FILE="${TMPDIR_CASE}/state/subscriptions.json"
+    export PROVIDER_FILE="${TMPDIR_CASE}/proxy_providers/manual.txt"
+    export RENDERED_RULES_FILE="${TMPDIR_CASE}/ruleset/custom.rules"
+    export ACL_RENDERED_RULES_FILE="${TMPDIR_CASE}/ruleset/acl.rules"
+    export MANAGER_BIN="${TMPDIR_CASE}/mihomo"
+    export COMPAT_MANAGER_BIN="${TMPDIR_CASE}/mihomo-sidecar.sh"
+    export MIHOMO_BIN=/bin/true
+    export MANAGER_SYNC_SERVICE_UNIT="${TMPDIR_CASE}/mihomo-manager-sync.service"
+    export MANAGER_SYNC_TIMER_UNIT="${TMPDIR_CASE}/mihomo-manager-sync.timer"
+    # shellcheck disable=SC1091
+    source "${ROOT}/lib/common.sh"
+    # shellcheck disable=SC1091
+    source "${ROOT}/lib/render.sh"
+    prepare_project_sync_installation "${ROOT}" 5
+  )
+
+  [[ -x "${TMPDIR_CASE}/install-root/mihomo" ]]
+  [[ -x "${TMPDIR_CASE}/install-root/scripts/statectl.py" ]]
+  [[ -L "${TMPDIR_CASE}/mihomo" ]]
+  [[ -L "${TMPDIR_CASE}/mihomo-sidecar.sh" ]]
+  grep -q '^MANAGER_SYNC_ENABLED="1"$' "${TMPDIR_CASE}/settings.env"
+  grep -q '^MANAGER_SYNC_INTERVAL_MINUTES="5"$' "${TMPDIR_CASE}/settings.env"
+  grep -q "^MANAGER_SYNC_SOURCE=\"${ROOT}\"$" "${TMPDIR_CASE}/settings.env"
+  grep -Fq "ConditionPathExists=${ROOT}/.git" "${TMPDIR_CASE}/mihomo-manager-sync.service"
+  grep -Fq "ExecStart=${ROOT}/mihomo install-self" "${TMPDIR_CASE}/mihomo-manager-sync.service"
+  grep -q '^OnUnitActiveSec=5min$' "${TMPDIR_CASE}/mihomo-manager-sync.timer"
+}
+
 test_usage_mentions_new_commands() {
   output="$(run_manager help)"
   assert_contains "$output" 'apply-default-template'
@@ -849,6 +893,7 @@ main() {
   test_project_install_tree_cleanup_removes_install_artifacts
   test_project_sync_validation_rejects_non_git_source_tree
   test_project_sync_validation_rejects_missing_source_entry
+  test_project_sync_installation_prelude_prepares_units_and_settings
   test_usage_mentions_new_commands
   test_menu_mentions_new_buckets
   echo "smoke: ok"
