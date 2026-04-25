@@ -106,33 +106,48 @@ docs/STATUS.md
 README 或 docs 中能找到最基本排障入口
 不要未经需要就引入完整 observability 堆栈。
 
-会话落盘要求（codex.log）
-为避免用户在手机 SSH 客户端中无法看到完整输出，项目执行期间必须维护仓库根目录下的 codex.log。
+会话落盘要求（codex.md）
+为避免用户在手机 SSH 客户端中无法看到完整输出，项目执行期间必须维护仓库根目录下的 codex.md。
 
 规则如下：
 
-codex.log 记录最近 3 轮与当前任务直接相关的完整会话。
+codex.md 记录最近 3 轮与当前任务直接相关的完整会话。
 每一轮会话至少包含：
 时间戳
 当前任务或上下文
 用户输入原文
 Codex 输出原文
 当前轮状态：done / in_progress / need_user_decision / blocked
-只要产生新的面向用户输出，就必须在结束当前轮前同步写入 codex.log。
-若当前轮需要用户决定、确认、回复，必须把该轮完整输出写入 codex.log，不能只写摘要。
-若当前轮出现失败、blocker、停止原因，也必须完整写入 codex.log。
-codex.log 只保留最近 3 轮完整会话；写入新一轮后，应裁剪更早内容，避免无限增长。
-若当前执行环境无法安全写入 codex.log，必须明确告知用户，不能假装已记录。
-codex.log 仅用于保存最近三轮人机对话，不替代 docs/STATUS.md、docs/NEXT_STEP.md、docs/DECISIONS.md 等项目真相文档。
-codex.log 默认不提交到 git；若仓库有 .gitignore，应确保 codex.log 被忽略。只有用户明确要求保留会话审计时，才允许纳入版本控制。
-codex.log 的写入不改变正常对用户的输出格式；它只是额外落盘，不替代正常回复。
+只要产生新的面向用户输出，就必须在结束当前轮前同步写入 codex.md。
+若当前轮需要用户决定、确认、回复，必须把该轮完整输出写入 codex.md，不能只写摘要。
+若当前轮出现失败、blocker、停止原因，也必须完整写入 codex.md。
+codex.md 只保留最近 3 轮完整会话；写入新一轮后，应裁剪更早内容，避免无限增长。
+若当前执行环境无法安全写入 codex.md，必须明确告知用户，不能假装已记录。
+codex.md 仅用于保存最近三轮人机对话，不替代 docs/STATUS.md、docs/NEXT_STEP.md、docs/DECISIONS.md 等项目真相文档。
+codex.md 默认不提交到 git；若仓库有 .gitignore，应确保 codex.md 被忽略。只有用户明确要求保留会话审计时，才允许纳入版本控制。
+codex.md 的写入不改变正常对用户的输出格式；它只是额外落盘，不替代正常回复。
 建议格式：
 
-==== ROUND 2026-04-25T12:34:56+08:00 ==== TASK: 修复 import 流程回归并验证 smoke USER: <用户原文>
+Codex Recent Rounds
+Round 1
+Time: 2026-04-25T12:34:56+08:00
+Task: 修复 import 流程回归并验证 smoke
+Status: need_user_decision
+User
+用户原文
 
-CODEX: <Codex 原文>
+Codex
+Codex 原文
 
-STATUS: need_user_decision ==== END ROUND ====
+Round 2
+Time: 2026-04-25T13:02:10+08:00
+Task: 拆 shared runtime 对 telegram_bot 的直接依赖
+Status: done
+User
+用户原文
+
+Codex
+Codex 原文
 
 模块化要求
 本项目默认追求“边界清晰的模块化”，不是“为了拆而拆”。
