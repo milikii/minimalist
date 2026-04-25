@@ -666,6 +666,28 @@ test_audit_installation_reports_unknown_rule_preset() {
   grep -q 'invalid: unknown rule preset missing' /tmp/mh-audit-missing-preset.out
 }
 
+test_audit_installation_reports_restart_timer_drift() {
+  setup_case
+  run_manager render-config >/dev/null
+  touch "${TMPDIR_CASE}/GeoSite.dat"
+  sed -i 's/^RESTART_INTERVAL_HOURS=\"0\"$/RESTART_INTERVAL_HOURS=\"24\"/' "${TMPDIR_CASE}/settings.env"
+  if run_manager audit-installation >/tmp/mh-audit-restart-drift.out 2>&1; then
+    echo "audit-installation should fail when restart timer drift exists" >&2
+    exit 1
+  fi
+  grep -q 'drift: restart interval configured but restart timer not enabled' /tmp/mh-audit-restart-drift.out
+}
+
+test_audit_installation_reports_missing_geosite() {
+  setup_case
+  run_manager render-config >/dev/null
+  if run_manager audit-installation >/tmp/mh-audit-missing-geosite.out 2>&1; then
+    echo "audit-installation should fail when GeoSite.dat is missing" >&2
+    exit 1
+  fi
+  grep -q "missing: ${TMPDIR_CASE}/GeoSite.dat" /tmp/mh-audit-missing-geosite.out
+}
+
 test_menu_survives_failed_healthcheck() {
   setup_case
   run_manager render-config >/dev/null

@@ -260,6 +260,7 @@
 - `audit_installation` 的基础文件存在性检查已抽到共用 helper
 - `audit_installation` 的 nodes/rules 渲染漂移检查已抽到共用 helper
 - `audit_installation` 的 ACL / 规则预设检查已抽到共用 helper
+- `audit_installation` 的 timer / GeoSite 检查已抽到共用 helper
 - 当前仍保持原有输出文本与退化行为不变
 
 任务：

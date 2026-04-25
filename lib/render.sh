@@ -1209,6 +1209,40 @@ audit_installation_acl_and_rule_preset_check() {
   return "$failed"
 }
 
+audit_installation_timer_and_geosite_check() {
+  local failed=0
+
+  if [[ "${ALPHA_AUTO_UPDATE:-0}" == "1" ]]; then
+    if ! systemctl_cmd is-enabled mihomo-alpha-update.timer >/dev/null 2>&1; then
+      echo "drift: alpha auto-update enabled in settings but timer not enabled"
+      failed=1
+    fi
+  fi
+
+  if [[ "${RESTART_INTERVAL_HOURS:-0}" =~ ^[0-9]+$ ]] && [[ "${RESTART_INTERVAL_HOURS:-0}" -gt 0 ]]; then
+    if ! systemctl_cmd is-enabled mihomo-restart.timer >/dev/null 2>&1; then
+      echo "drift: restart interval configured but restart timer not enabled"
+      failed=1
+    fi
+  fi
+
+  if [[ -f "${MIHOMO_DIR}/GeoSite.dat" ]]; then
+    if geosite_probe_ready; then
+      echo "ok: GeoSite.dat 可用于 geosite 规则"
+    else
+      echo "invalid: GeoSite.dat 当前不可用于 geosite 规则"
+      sed -n '1,20p' /tmp/mihomo-geosite-probe.out 2>/dev/null || true
+      sed -n '1,20p' /tmp/mihomo-geosite-probe.err 2>/dev/null || true
+      failed=1
+    fi
+  else
+    echo "missing: ${MIHOMO_DIR}/GeoSite.dat"
+    failed=1
+  fi
+
+  return "$failed"
+}
+
 listener_snapshot() {
   ss_cmd -lntup 2>/dev/null || true
 }
@@ -1303,34 +1337,7 @@ audit_installation() {
   audit_installation_required_files_check || status=1
   audit_installation_nodes_and_rules_check "$tmpdir" || status=1
   audit_installation_acl_and_rule_preset_check "$tmpdir" "$rule_preset_name" || status=1
-
-  if [[ "${ALPHA_AUTO_UPDATE:-0}" == "1" ]]; then
-    if ! systemctl_cmd is-enabled mihomo-alpha-update.timer >/dev/null 2>&1; then
-      echo "drift: alpha auto-update enabled in settings but timer not enabled"
-      status=1
-    fi
-  fi
-
-  if [[ "${RESTART_INTERVAL_HOURS:-0}" =~ ^[0-9]+$ ]] && [[ "${RESTART_INTERVAL_HOURS:-0}" -gt 0 ]]; then
-    if ! systemctl_cmd is-enabled mihomo-restart.timer >/dev/null 2>&1; then
-      echo "drift: restart interval configured but restart timer not enabled"
-      status=1
-    fi
-  fi
-
-  if [[ -f "${MIHOMO_DIR}/GeoSite.dat" ]]; then
-    if geosite_probe_ready; then
-      echo "ok: GeoSite.dat 可用于 geosite 规则"
-    else
-      echo "invalid: GeoSite.dat 当前不可用于 geosite 规则"
-      sed -n '1,20p' /tmp/mihomo-geosite-probe.out 2>/dev/null || true
-      sed -n '1,20p' /tmp/mihomo-geosite-probe.err 2>/dev/null || true
-      status=1
-    fi
-  else
-    echo "missing: ${MIHOMO_DIR}/GeoSite.dat"
-    status=1
-  fi
+  audit_installation_timer_and_geosite_check || status=1
 
   if [[ "$status" -eq 0 ]]; then
     ok "安装审计通过"
