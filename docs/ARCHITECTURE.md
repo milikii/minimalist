@@ -78,5 +78,6 @@
 - 当前已抽离 `healthcheck` 的基础状态检查 helper
 - 当前已抽离 `audit_installation` 的基础文件存在性检查 helper
 - 当前已抽离 `audit_installation` 的 nodes/rules 渲染漂移检查 helper
-- 下一刀先抽离 `audit_installation` 的 ACL / 规则预设检查 helper
+- 当前已抽离 `audit_installation` 的 ACL / 规则预设检查 helper
+- 下一刀先抽离 `audit_installation` 的 timer / GeoSite 检查 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

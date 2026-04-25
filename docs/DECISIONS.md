@@ -71,6 +71,7 @@
 - 第二十五刀再抽离 `audit_installation` 的基础文件存在性检查 helper
 - 第二十六刀再抽离 `audit_installation` 的 nodes/rules 渲染漂移检查 helper
 - 第二十七刀再抽离 `audit_installation` 的 ACL / 规则预设检查 helper
+- 第二十八刀再抽离 `audit_installation` 的 timer / GeoSite 检查 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 

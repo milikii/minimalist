@@ -3,12 +3,12 @@
 ## 当前阶段
 
 - 下一闭环进入阶段 5：代码结构收口。
-- 当前已完成第二十六刀：`audit_installation` 的 nodes/rules 渲染漂移检查已抽到共用 helper。
+- 当前已完成第二十七刀：`audit_installation` 的 ACL / 规则预设检查已抽到共用 helper。
 - 目标不是扩功能，而是在不改变行为的前提下，继续消除展示层重复逻辑。
 
 ## 下一最小闭环
 
-- 提取 `audit_installation` 的 ACL / 规则预设检查 helper
+- 提取 `audit_installation` 的 timer / GeoSite 检查 helper
 - 保持现有输出文本、顺序与退化行为不变
 - 补 focused tests，确保重构不改变行为
 - 文档同步切到阶段 5 当前真相
@@ -22,7 +22,7 @@
 
 ## 退出条件
 
-- `audit_installation` 的 ACL / 规则预设检查逻辑不再以内联形式存在
+- `audit_installation` 的 timer / GeoSite 检查逻辑不再以内联形式存在
 - 现有 `status` 输出文本、顺序与入口展示行为保持不变
 - 相关 smoke / service-mock 回归通过
 - 文档同步更新当前阶段结论

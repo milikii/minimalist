@@ -1168,6 +1168,47 @@ audit_installation_nodes_and_rules_check() {
   return "$failed"
 }
 
+audit_installation_acl_and_rule_preset_check() {
+  local tmpdir="$1"
+  local rule_preset_name="$2"
+  local manifest_path
+  local failed=0
+
+  if [[ -f "$ACL_STATE_FILE" ]]; then
+    python3 "$STATECTL" render-rules "$ACL_STATE_FILE" "$tmpdir/acl.txt"
+    if [[ -f "$ACL_RENDERED_RULES_FILE" ]] && ! cmp -s "$tmpdir/acl.txt" "$ACL_RENDERED_RULES_FILE"; then
+      echo "drift: rendered acl file differs from acl state"
+      failed=1
+    fi
+    if ! python3 "$STATECTL" validate-rule-targets "$ACL_STATE_FILE" "$NODES_STATE_FILE" >/tmp/mihomo-audit-acl-targets.log 2>&1; then
+      echo "invalid: acl targets reference unavailable targets"
+      sed -n '1,20p' /tmp/mihomo-audit-acl-targets.log
+      failed=1
+    fi
+  else
+    echo "missing: ${ACL_STATE_FILE}"
+    failed=1
+  fi
+
+  if ! rule_preset_exists "$rule_preset_name"; then
+    echo "invalid: unknown rule preset ${rule_preset_name}"
+    failed=1
+  else
+    require_rulepresetctl
+    manifest_path="$(rule_preset_manifest_path "$rule_preset_name")"
+    python3 "$RULEPRESETCTL" render "$manifest_path" "$tmpdir/builtin.rules"
+    if [[ ! -f "$RULESET_PRESET_RENDERED_FILE" ]]; then
+      echo "missing: ${RULESET_PRESET_RENDERED_FILE}"
+      failed=1
+    elif ! cmp -s "$tmpdir/builtin.rules" "$RULESET_PRESET_RENDERED_FILE"; then
+      echo "drift: rendered builtin rules differ from rule preset"
+      failed=1
+    fi
+  fi
+
+  return "$failed"
+}
+
 listener_snapshot() {
   ss_cmd -lntup 2>/dev/null || true
 }
@@ -1254,7 +1295,6 @@ audit_installation() {
   load_router_env_readonly
   local status=0
   local tmpdir
-  local manifest_path
   local rule_preset_name="${RULESET_PRESET:-$(default_rule_preset)}"
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "$tmpdir"' RETURN
@@ -1262,38 +1302,7 @@ audit_installation() {
   echo "== audit =="
   audit_installation_required_files_check || status=1
   audit_installation_nodes_and_rules_check "$tmpdir" || status=1
-
-  if [[ -f "$ACL_STATE_FILE" ]]; then
-    python3 "$STATECTL" render-rules "$ACL_STATE_FILE" "$tmpdir/acl.txt"
-    if [[ -f "$ACL_RENDERED_RULES_FILE" ]] && ! cmp -s "$tmpdir/acl.txt" "$ACL_RENDERED_RULES_FILE"; then
-      echo "drift: rendered acl file differs from acl state"
-      status=1
-    fi
-    if ! python3 "$STATECTL" validate-rule-targets "$ACL_STATE_FILE" "$NODES_STATE_FILE" >/tmp/mihomo-audit-acl-targets.log 2>&1; then
-      echo "invalid: acl targets reference unavailable targets"
-      sed -n '1,20p' /tmp/mihomo-audit-acl-targets.log
-      status=1
-    fi
-  else
-    echo "missing: ${ACL_STATE_FILE}"
-    status=1
-  fi
-
-  if ! rule_preset_exists "$rule_preset_name"; then
-    echo "invalid: unknown rule preset ${rule_preset_name}"
-    status=1
-  else
-    require_rulepresetctl
-    manifest_path="$(rule_preset_manifest_path "$rule_preset_name")"
-    python3 "$RULEPRESETCTL" render "$manifest_path" "$tmpdir/builtin.rules"
-    if [[ ! -f "$RULESET_PRESET_RENDERED_FILE" ]]; then
-      echo "missing: ${RULESET_PRESET_RENDERED_FILE}"
-      status=1
-    elif ! cmp -s "$tmpdir/builtin.rules" "$RULESET_PRESET_RENDERED_FILE"; then
-      echo "drift: rendered builtin rules differ from rule preset"
-      status=1
-    fi
-  fi
+  audit_installation_acl_and_rule_preset_check "$tmpdir" "$rule_preset_name" || status=1
 
   if [[ "${ALPHA_AUTO_UPDATE:-0}" == "1" ]]; then
     if ! systemctl_cmd is-enabled mihomo-alpha-update.timer >/dev/null 2>&1; then

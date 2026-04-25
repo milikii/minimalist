@@ -644,6 +644,28 @@ test_audit_installation_reports_rules_drift() {
   grep -q 'drift: rendered rules file differs from rules state' /tmp/mh-audit-rules-drift.out
 }
 
+test_audit_installation_reports_acl_drift() {
+  setup_case
+  run_manager render-config >/dev/null
+  python3 "${ROOT}/scripts/statectl.py" add-rule "${TMPDIR_CASE}/state/acl.json" domain example.com DIRECT >/dev/null
+  if run_manager audit-installation >/tmp/mh-audit-acl-drift.out 2>&1; then
+    echo "audit-installation should fail when rendered acl drifts from acl state" >&2
+    exit 1
+  fi
+  grep -q 'drift: rendered acl file differs from acl state' /tmp/mh-audit-acl-drift.out
+}
+
+test_audit_installation_reports_unknown_rule_preset() {
+  setup_case
+  run_manager render-config >/dev/null
+  sed -i 's/^RULESET_PRESET=\"default\"$/RULESET_PRESET=\"missing\"/' "${TMPDIR_CASE}/settings.env"
+  if run_manager audit-installation >/tmp/mh-audit-missing-preset.out 2>&1; then
+    echo "audit-installation should fail when rule preset is unknown" >&2
+    exit 1
+  fi
+  grep -q 'invalid: unknown rule preset missing' /tmp/mh-audit-missing-preset.out
+}
+
 test_menu_survives_failed_healthcheck() {
   setup_case
   run_manager render-config >/dev/null
