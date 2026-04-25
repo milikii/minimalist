@@ -52,108 +52,13 @@
 ## 下一阶段边界
 
 - 阶段 5 进入“代码结构收口”
-- 当前已抽离 `status` / `runtime-audit` 共用的运行态摘要 helper
-- 当前已抽离 `status` / `runtime-audit` 共用的控制面静态信息展示 helper
-- 当前已抽离 `status` / `runtime-audit` 共用的网络与访问静态信息展示 helper
-- 当前已抽离 `status` / `runtime-audit` 共用的模板/规则预设/IPv6 展示 helper
-- 当前已抽离 `status` / `runtime-audit` 共用的计数类与节点统计展示 helper
-- 当前已抽离 `status` 的推荐下一步判断 helper
-- 当前已抽离 `status` 的警告与收尾展示 helper
-- 当前已抽离 `status` 的同步与端口展示 helper
-- 当前已抽离 `status` 的 WebUI / 控制面密钥入口展示 helper
-- 当前已抽离 `status` 推荐下一步所需的计数预处理 helper
-- 当前已抽离 `status` 的基础概览展示 helper
-- 当前已抽离 `status` 的基础状态采集 helper
-- 当前已抽离 `runtime-audit` 的探测与流量摘要展示 helper
-- 当前已抽离 `runtime-audit` 的告警与定时器展示 helper
-- 当前已抽离 `runtime-audit` 的基础概览展示 helper
-- 当前已抽离 `runtime-audit` 的基础状态采集 helper
-- 当前已抽离 `runtime-audit` 的探测状态采集 helper
-- 当前已抽离 `runtime-audit` 的健康摘要收尾 helper
-- 当前已抽离 `runtime-audit` 的告警与定时器状态采集 helper
-- 当前已抽离 `healthcheck` 的端口监听检查 helper
-- 当前已抽离 `healthcheck` 的探测检查 helper
-- 当前已抽离 `diagnose` 的配置摘要展示 helper
-- 当前已抽离 `diagnose` 的 systemd / listeners / logs 分段展示 helper
-- 当前已抽离 `healthcheck` 的基础状态检查 helper
-- 当前已抽离 `audit_installation` 的基础文件存在性检查 helper
-- 当前已抽离 `audit_installation` 的 nodes/rules 渲染漂移检查 helper
-- 当前已抽离 `audit_installation` 的 ACL / 规则预设检查 helper
-- 当前已抽离 `audit_installation` 的 timer / GeoSite 检查 helper
-- 当前已抽离 `audit_installation` 的成功收尾 helper
-- 当前已抽离 `install_geosite_dat` 的成功安装收尾 helper
-- 当前已抽离 `install_webui` 的下载阶段 helper
-- 当前已抽离 `install_webui` 的解压与源码目录识别 helper
-- 当前已抽离 `install_webui` 的部署与持久化收尾 helper
-- 当前已抽离 `install_webui` 的失败收尾 helper
-- 当前已抽离 `install_webui` 的临时工作区清理 helper
-- 当前已抽离 `install_webui` 的参数与目标解析 helper
-- 当前已抽离 `install_webui` 的临时工作区准备 helper
-- 当前已抽离 `install_project_sync` 的入参校验 helper
-- 当前已抽离 `install_project_sync` 的设置持久化 helper
-- 当前已抽离 `disable_project_sync` 的设置重置 helper
-- 当前已抽离 `disable_project_sync` 的运行时清理 helper
-- 当前已抽离 `install_project_sync` 的 systemd 激活收尾 helper
-- 当前已抽离 `install_project_sync` 的成功提示收尾 helper
-- 当前已抽离 `write_manager_sync_units` 的 service unit 写入 helper
-- 当前已抽离 `write_manager_sync_units` 的 timer unit 写入 helper
-- 当前已抽离 `disable_project_sync` 的成功提示收尾 helper
-- 当前已抽离 `install_project` 的安装树复制与元数据清理 helper
-- 当前已抽离 `install_project` 的命令链接与成功提示收尾 helper
-- 当前已抽离 `finalize_project_install` 的命令链接写入 helper
-- 当前已抽离 `finalize_project_install` 的可执行权限设置 helper
-- 当前已抽离 `finalize_project_install` 的成功提示 helper
-- 当前已抽离 `prepare_project_install_tree` 的目标目录重建与源码复制 helper
-- 当前已抽离 `prepare_project_install_tree` 的元数据清理 helper
-- 当前已抽离 `cleanup_project_install_tree_metadata` 的 VCS 元数据清理 helper
-- 当前已抽离 `cleanup_project_install_tree_metadata` 的 Python 缓存清理 helper
-- 当前已抽离 `cleanup_project_install_tree_metadata` 的备份垃圾清理 helper
-- 当前已抽离 `cleanup_project_sync_runtime` 的 unit 文件删除 helper
-- 当前已抽离 `activate_project_sync_runtime` / `cleanup_project_sync_runtime` 的 systemd reload helper
-- 当前已抽离 `cleanup_project_sync_runtime` 的 timer 停用 helper
-- 当前已抽离 `activate_project_sync_runtime` 的 timer 启用 helper
-- 当前已抽离 `persist_project_sync_settings` 的 MANAGER_SYNC 三连写 helper
-- 当前已让 `reset_project_sync_settings` 复用 `write_manager_sync_settings`
-- 当前已抽离 `validate_project_sync_inputs` 的同步间隔校验 helper
-- 当前已抽离 `validate_project_sync_inputs` 的 git 工作树校验 helper
-- 当前已抽离 `validate_project_sync_inputs` 的源码入口校验 helper
-- 当前已抽离 `validate_project_sync_inputs` 的源码树校验 helper
-- 当前已抽离 `install_project_sync` 的安装与设置前置 helper
-- 当前已抽离 `install_project_sync` 的激活与成功提示收尾 helper
-- 当前已抽离 `disable_project_sync` 的重置前置 helper
-- 当前已抽离 `disable_project_sync` 的清理与成功提示收尾 helper
-- 当前已抽离 `disable_project_sync` 的总编排 helper
-- 当前已抽离 `write_manager_sync_service_unit` 的 unit 内容 helper
-- 当前已抽离 `write_manager_sync_timer_unit` 的 unit 内容 helper
-- 当前已抽离 `write_manager_sync_units` 的 service/timer 写入编排 helper
-- 当前已抽离 `render_manager_sync_service_unit` 的 ConditionPathExists 内容 helper
-- 当前已抽离 `render_manager_sync_service_unit` 的 Service 段内容 helper
-- 当前已抽离 `render_manager_sync_timer_unit` 的 Timer 段内容 helper
-- 当前已抽离 `render_manager_sync_timer_unit` 的 Install 段内容 helper
-- 当前已抽离 manager sync unit 的通用文件写入 helper
-- 当前已抽离 manager sync unit 的通用 Unit 头部 helper
-- 当前已抽离 `render_manager_sync_service_unit` 的 sections helper
-- 当前已抽离 `render_manager_sync_timer_unit` 的 sections helper
-- 当前已抽离 manager sync unit 的通用 render 包装 helper
-- 当前已抽离 manager sync unit 的通用 render+write 编排 helper
-- 当前已抽离 manager sync unit 的通用 sections helper，并先接入 service
-- 当前已让 `render_manager_sync_timer_unit` 复用通用 sections helper
-- 当前已抽离 `ConditionPathExists=` 的通用输出 helper
-- 当前已抽离 timer 静态设置 helper
-- 当前已抽离 timer 动态间隔行 helper
-- 当前已抽离 `WorkingDirectory=` 行 helper
-- 当前已抽离 `ExecStart=` 行 helper
-- 当前已抽离 `OnBootSec=` 行 helper
-- 当前已抽离 `Unit=mihomo-manager-sync.service` 行 helper
-- 当前已抽离 timer 静态设置里的剩余静态行 helper
-- 当前已抽离 `[Service]` 标题行 helper
-- 当前已抽离 `Type=oneshot` 行 helper
-- 当前已抽离 `[Timer]` 标题行 helper
-- 当前已抽离 `[Install]` 标题行 helper
-- 当前已抽离 `WantedBy=timers.target` 行 helper
-- 当前已抽离 `AccuracySec=15s` 行 helper
-- 当前已抽离 `Persistent=true` 行 helper
-- 当前已抽离 timer 静态设置组合 helper
-- 当前已抽离 service body 组合 helper
-- 下一刀先抽离 service conditions 组合 helper
-- 不在该阶段顺手重构脚本结构或扩展更多控制面能力
+- 推进粒度已切换为职责块收口，不再默认继续单行 helper 抽取
+- 当前已完成三类块级收口：
+  - 运行态与审计展示块：`status`、`runtime-audit`、`healthcheck`、`diagnose`、`audit_installation`
+  - 安装与同步块：`install_webui`、`install_project`、`install_project_sync`、`disable_project_sync`、`finalize_project_install`
+  - manager sync unit 渲染块：通用 render/write、sections、timer static settings、service body
+- 下一闭环优先转向 `lib/render.sh` 的 `render_config`
+  - 分离访问/控制面基础段
+  - 分离 DNS 与基础配置段
+  - 分离 provider / rules 装配段
+- 不在该阶段顺手扩更多控制面能力，也不继续围绕 manager sync unit 做单行 helper 级拆分

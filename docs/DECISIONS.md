@@ -42,116 +42,22 @@
   - 两者的最小控制面运行态摘要读取
 - 不一次性扩到全部策略组与摘要
 
-## 2026-04-25 阶段 5 先做展示层结构收口
+## 2026-04-26 阶段 5 改为按职责块收口
 
-- 第一刀先抽离 `status` / `runtime-audit` 共用的运行态摘要 helper
-- 第二刀再抽离 `status` / `runtime-audit` 共用的控制面静态信息展示 helper
-- 第三刀再抽离 `status` / `runtime-audit` 共用的网络与访问静态信息展示 helper
-- 第四刀再抽离 `status` / `runtime-audit` 共用的模板/规则预设/IPv6 展示 helper
-- 第五刀再抽离 `status` / `runtime-audit` 共用的计数类与节点统计展示 helper
-- 第六刀再抽离 `status` 的推荐下一步判断 helper
-- 第七刀再抽离 `status` 的警告与收尾展示 helper
-- 第八刀再抽离 `status` 的同步与端口展示 helper
-- 第九刀再抽离 `status` 的 WebUI / 控制面密钥入口展示 helper
-- 第十刀收口 `status` 推荐下一步所需的重复计数解析
-- 第十一刀再抽离 `status` 的基础概览展示 helper
-- 第十二刀再抽离 `status` 的基础状态采集 helper
-- 第十三刀再抽离 `runtime-audit` 的探测与流量摘要展示 helper
-- 第十四刀再抽离 `runtime-audit` 的告警与定时器展示 helper
-- 第十五刀再抽离 `runtime-audit` 的基础概览展示 helper
-- 第十六刀再抽离 `runtime-audit` 的基础状态采集 helper
-- 第十七刀再抽离 `runtime-audit` 的探测状态采集 helper
-- 第十八刀再抽离 `runtime-audit` 的健康摘要收尾 helper
-- 第十九刀再抽离 `runtime-audit` 的告警与定时器状态采集 helper
-- 第二十刀再抽离 `healthcheck` 的端口监听检查 helper
-- 第二十一刀再抽离 `healthcheck` 的探测检查 helper
-- 第二十二刀再抽离 `diagnose` 的配置摘要展示 helper
-- 第二十三刀再抽离 `diagnose` 的 systemd / listeners / logs 分段展示 helper
-- 第二十四刀再抽离 `healthcheck` 的基础状态检查 helper
-- 第二十五刀再抽离 `audit_installation` 的基础文件存在性检查 helper
-- 第二十六刀再抽离 `audit_installation` 的 nodes/rules 渲染漂移检查 helper
-- 第二十七刀再抽离 `audit_installation` 的 ACL / 规则预设检查 helper
-- 第二十八刀再抽离 `audit_installation` 的 timer / GeoSite 检查 helper
-- 第二十九刀再抽离 `audit_installation` 的成功收尾 helper
-- 第三十刀再抽离 `install_geosite_dat` 的成功安装收尾 helper
-- 第三十一刀再抽离 `install_webui` 的下载阶段 helper
-- 第三十二刀再抽离 `install_webui` 的解压与源码目录识别 helper
-- 第三十三刀再抽离 `install_webui` 的部署与持久化收尾 helper
-- 第三十四刀再抽离 `install_webui` 的失败收尾 helper
-- 第三十五刀再抽离 `install_webui` 的临时工作区清理 helper
-- 第三十六刀再抽离 `install_webui` 的参数与目标解析 helper
-- 第三十七刀再抽离 `install_webui` 的临时工作区准备 helper
-- 第三十八刀再抽离 `install_project_sync` 的入参校验 helper
-- 第三十九刀再抽离 `install_project_sync` 的设置持久化 helper
-- 第四十刀再抽离 `disable_project_sync` 的设置重置 helper
-- 第四十一刀再抽离 `disable_project_sync` 的运行时清理 helper
-- 第四十二刀再抽离 `install_project_sync` 的 systemd 激活收尾 helper
-- 第四十三刀再抽离 `install_project_sync` 的成功提示收尾 helper
-- 第四十四刀再抽离 `write_manager_sync_units` 的 service unit 写入 helper
-- 第四十五刀再抽离 `write_manager_sync_units` 的 timer unit 写入 helper
-- 第四十六刀再抽离 `disable_project_sync` 的成功提示收尾 helper
-- 第四十七刀再抽离 `install_project` 的安装树复制与元数据清理 helper
-- 第四十八刀再抽离 `install_project` 的命令链接与成功提示收尾 helper
-- 第四十九刀再抽离 `finalize_project_install` 的命令链接写入 helper
-- 第五十刀再抽离 `finalize_project_install` 的可执行权限设置 helper
-- 第五十一刀再抽离 `finalize_project_install` 的成功提示 helper
-- 第五十二刀再抽离 `prepare_project_install_tree` 的目标目录重建与源码复制 helper
-- 第五十三刀再抽离 `prepare_project_install_tree` 的元数据清理 helper
-- 第五十四刀再抽离 `cleanup_project_install_tree_metadata` 的 VCS 元数据清理 helper
-- 第五十五刀再抽离 `cleanup_project_install_tree_metadata` 的 Python 缓存清理 helper
-- 第五十六刀再抽离 `cleanup_project_install_tree_metadata` 的备份垃圾清理 helper
-- 第五十七刀再抽离 `cleanup_project_sync_runtime` 的 unit 文件删除 helper
-- 第五十八刀再抽离 `activate_project_sync_runtime` / `cleanup_project_sync_runtime` 的 systemd reload helper
-- 第五十九刀再抽离 `cleanup_project_sync_runtime` 的 timer 停用 helper
-- 第六十刀再抽离 `activate_project_sync_runtime` 的 timer 启用 helper
-- 第六十一刀再抽离 `persist_project_sync_settings` 的 MANAGER_SYNC 三连写 helper
-- 第六十二刀再让 `reset_project_sync_settings` 复用 `write_manager_sync_settings`
-- 第六十三刀再抽离 `validate_project_sync_inputs` 的同步间隔校验 helper
-- 第六十四刀再抽离 `validate_project_sync_inputs` 的 git 工作树校验 helper
-- 第六十五刀再抽离 `validate_project_sync_inputs` 的源码入口校验 helper
-- 第六十六刀再抽离 `validate_project_sync_inputs` 的源码树校验 helper
-- 第六十七刀再抽离 `install_project_sync` 的安装与设置前置 helper
-- 第六十八刀再抽离 `install_project_sync` 的激活与成功提示收尾 helper
-- 第六十九刀先抽离 `disable_project_sync` 的重置前置 helper
-- 第七十刀再抽离 `disable_project_sync` 的清理与成功提示收尾 helper
-- 第七十一刀再抽离 `disable_project_sync` 的总编排 helper
-- 第七十二刀再抽离 `write_manager_sync_service_unit` 的 unit 内容 helper
-- 第七十三刀再抽离 `write_manager_sync_timer_unit` 的 unit 内容 helper
-- 第七十四刀再抽离 `write_manager_sync_units` 的 service/timer 写入编排 helper
-- 第七十五刀再抽离 `render_manager_sync_service_unit` 的 ConditionPathExists 内容 helper
-- 第七十六刀再抽离 `render_manager_sync_service_unit` 的 Service 段内容 helper
-- 第七十七刀再抽离 `render_manager_sync_timer_unit` 的 Timer 段内容 helper
-- 第七十八刀再抽离 `render_manager_sync_timer_unit` 的 Install 段内容 helper
-- 第七十九刀再抽离 manager sync unit 的通用文件写入 helper
-- 第八十刀再抽离 manager sync unit 的通用 Unit 头部 helper
-- 第八十一刀再抽离 `render_manager_sync_service_unit` 的 sections helper
-- 第八十二刀再抽离 `render_manager_sync_timer_unit` 的 sections helper
-- 第八十三刀再抽离 manager sync unit 的通用 render 包装 helper
-- 第八十四刀再抽离 manager sync unit 的通用 render+write 编排 helper
-- 第八十五刀再抽离 manager sync unit 的通用 sections helper，并先接入 service
-- 第八十六刀再让 `render_manager_sync_timer_unit` 复用通用 sections helper
-- 第八十七刀再抽离 `ConditionPathExists=` 的通用输出 helper
-- 第八十八刀再抽离 timer 静态设置 helper
-- 第八十九刀再抽离 timer 动态间隔行 helper
-- 第九十刀再抽离 `WorkingDirectory=` 行 helper
-- 第九十一刀再抽离 `ExecStart=` 行 helper
-- 第九十二刀再抽离 `OnBootSec=` 行 helper
-- 第九十三刀再抽离 `Unit=mihomo-manager-sync.service` 行 helper
-- 第九十四刀再抽离 timer 静态设置里的剩余静态行 helper
-- 第九十五刀再抽离 `[Service]` 标题行 helper
-- 第九十六刀再抽离 `Type=oneshot` 行 helper
-- 第九十七刀再抽离 `[Timer]` 标题行 helper
-- 第九十八刀再抽离 `[Install]` 标题行 helper
-- 第九十九刀再抽离 `WantedBy=timers.target` 行 helper
-- 第一百刀再抽离 `AccuracySec=15s` 行 helper
-- 第一百零一刀再抽离 `Persistent=true` 行 helper
-- 第一百零二刀再抽离 timer 静态设置组合 helper
-- 第一百零三刀再抽离 service body 组合 helper
-- 第一百零四刀先抽离 service conditions 组合 helper
-- 目标是降低重复逻辑，不改变用户可见输出
-- 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
+- 阶段 5 继续遵守“不改行为、先降复杂度”的原则，但默认推进粒度从单行 helper 抽取改为职责块收口
+- 当前已完成第一轮共用逻辑收口：
+  - 运行态与审计展示块：`status`、`runtime-audit`、`healthcheck`、`diagnose`、`audit_installation`
+  - 安装与同步块：`install_webui`、`install_project`、`install_project_sync`、`disable_project_sync`、`finalize_project_install`
+  - manager sync unit 渲染块：通用 render/write、sections、timer static settings、service body
+- 自本决策生效后，阶段 5 默认不再按“第 N 刀”或 manager sync unit 单行 helper 抽取推进
+- 后续优先级固定为：
+  - 先收口 `lib/render.sh` 的 `render_config` 块级边界
+  - 再收口 `mihomo` 主脚本中的长编排函数
+  - 最后为 `scripts/statectl.py` 退化成更小状态工具做准备
+- 只有当某个 helper 抽取能直接消除更大块重复逻辑时，才允许继续新增 helper
+- 目标是降低真实复杂度，而不是继续堆积形式上的更细拆分
 
-## 2026-04-25 codex 会话产物不进入版本控制
+## 2026-04-26 codex 会话产物不进入版本控制
 
-- `codex.log` 只保留最近三轮会话，不作为仓库真相文档
-- `.codex/` 与 `codex.log` 视为本地执行产物，默认不提交到 git
+- 会话落盘统一为 `codex.md`，只保留最近三轮会话，不作为仓库真相文档
+- `.codex/`、`codex.md` 与遗留 `codex.log` 视为本地执行产物，默认不提交到 git
