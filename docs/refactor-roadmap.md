@@ -305,6 +305,7 @@
 - `disable_project_sync` 的清理与成功提示收尾已抽到共用 helper
 - `disable_project_sync` 的总编排已抽到共用 helper
 - `write_manager_sync_service_unit` 的 unit 内容已抽到共用 helper
+- `write_manager_sync_timer_unit` 的 unit 内容已抽到共用 helper
 - `install_webui` 的解压失败告警已恢复为可见输出
 - 当前仍保持与重构前一致的输出文本与退化行为
 
