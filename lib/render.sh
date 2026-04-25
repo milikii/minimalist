@@ -969,15 +969,27 @@ validate_project_sync_inputs() {
   local src_root="$1"
   local interval_minutes="$2"
 
-  validate_project_sync_git_work_tree "$src_root"
-  [[ -x "${src_root}/mihomo" ]] || die "未找到源码入口: ${src_root}/mihomo"
+  validate_project_sync_source_tree "$src_root"
   validate_project_sync_interval "$interval_minutes"
+}
+
+validate_project_sync_source_tree() {
+  local src_root="$1"
+
+  validate_project_sync_git_work_tree "$src_root"
+  validate_project_sync_source_entry "$src_root"
 }
 
 validate_project_sync_git_work_tree() {
   local src_root="$1"
 
   [[ -d "${src_root}/.git" ]] || die "install-self-sync 只能从 git 工作树执行"
+}
+
+validate_project_sync_source_entry() {
+  local src_root="$1"
+
+  [[ -x "${src_root}/mihomo" ]] || die "未找到源码入口: ${src_root}/mihomo"
 }
 
 validate_project_sync_interval() {

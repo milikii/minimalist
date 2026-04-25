@@ -297,6 +297,8 @@
 - `reset_project_sync_settings` 已复用 `write_manager_sync_settings`
 - `validate_project_sync_inputs` 的同步间隔校验已抽到共用 helper
 - `validate_project_sync_inputs` 的 git 工作树校验已抽到共用 helper
+- `validate_project_sync_inputs` 的源码入口校验已抽到共用 helper
+- `validate_project_sync_inputs` 的源码树校验已抽到共用 helper
 - `install_webui` 的解压失败告警已恢复为可见输出
 - 当前仍保持与重构前一致的输出文本与退化行为
 

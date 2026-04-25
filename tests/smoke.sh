@@ -753,6 +753,32 @@ test_project_sync_validation_rejects_non_git_source_tree() {
   grep -q 'install-self-sync 只能从 git 工作树执行' /tmp/mh-sync-non-git.out
 }
 
+test_project_sync_validation_rejects_missing_source_entry() {
+  local source_root
+
+  setup_case
+  source_root="${TMPDIR_CASE}/source-tree"
+  mkdir -p "${source_root}/.git"
+
+  if (
+    export APP_ROOT="$ROOT"
+    export INSTALL_ROOT="${TMPDIR_CASE}/install-root"
+    export MIHOMO_BIN=/bin/true
+    export MANAGER_BIN="${TMPDIR_CASE}/mihomo"
+    export COMPAT_MANAGER_BIN="${TMPDIR_CASE}/mihomo-sidecar.sh"
+    # shellcheck disable=SC1091
+    source "${ROOT}/lib/common.sh"
+    # shellcheck disable=SC1091
+    source "${ROOT}/lib/render.sh"
+    validate_project_sync_inputs "${source_root}" 1
+  ) >/tmp/mh-sync-missing-entry.out 2>&1; then
+    echo "validate_project_sync_inputs should fail when mihomo entry is missing" >&2
+    exit 1
+  fi
+
+  grep -q "未找到源码入口: ${source_root}/mihomo" /tmp/mh-sync-missing-entry.out
+}
+
 test_usage_mentions_new_commands() {
   output="$(run_manager help)"
   assert_contains "$output" 'apply-default-template'
@@ -822,6 +848,7 @@ main() {
   test_nodes_list_hides_subscription_cache_nodes
   test_project_install_tree_cleanup_removes_install_artifacts
   test_project_sync_validation_rejects_non_git_source_tree
+  test_project_sync_validation_rejects_missing_source_entry
   test_usage_mentions_new_commands
   test_menu_mentions_new_buckets
   echo "smoke: ok"
