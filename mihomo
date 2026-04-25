@@ -720,20 +720,10 @@ show_status() {
   local version="未安装"
   local service_state="inactive"
   local service_enable="disabled"
-  local next_step sub_counts manual_counts provider_counts
-  local manual_enabled manual_total sub_enabled sub_total sub_ready
+  local next_step
   [[ -x "$MIHOMO_BIN" ]] && version="$("$MIHOMO_BIN" -v 2>/dev/null | head -n 1 || echo "$MIHOMO_BIN")"
   service_is_active && service_state="active"
   service_is_enabled && service_enable="enabled"
-  sub_counts="$(subscription_counts)"
-  manual_counts="$(manual_node_counts)"
-  provider_counts="$(subscription_provider_counts)"
-  manual_enabled="${manual_counts%%$'\t'*}"
-  manual_total="${manual_counts##*$'\t'}"
-  sub_enabled="${provider_counts%%$'\t'*}"
-  provider_counts="${provider_counts#*$'\t'}"
-  sub_total="${provider_counts%%$'\t'*}"
-  sub_ready="${provider_counts##*$'\t'}"
   controller_scope_summary
   echo
   echo "Mihomo 管理器 v${SCRIPT_VERSION}"
@@ -747,7 +737,7 @@ show_status() {
   print_status_access_entry_lines
   print_status_sync_and_port_lines
   print_network_access_lines status
-  next_step="$(status_next_step "$service_state" "$manual_enabled" "${sub_counts%%$'\t'*}" "$sub_enabled" "$sub_ready")"
+  next_step="$(status_next_step_for_service_state "$service_state")"
   echo "推荐下一步: ${next_step}"
   print_status_warnings_and_footer "${TEMPLATE_NAME:-$PROFILE_TEMPLATE}"
 }

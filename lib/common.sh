@@ -1111,6 +1111,24 @@ status_next_step() {
   fi
 }
 
+status_next_step_for_service_state() {
+  local service_state="${1:-inactive}"
+  local manual_counts subscription_summary provider_counts
+  local manual_enabled subscription_enabled provider_enabled provider_ready
+
+  manual_counts="$(manual_node_counts)"
+  subscription_summary="$(subscription_counts)"
+  provider_counts="$(subscription_provider_counts)"
+
+  manual_enabled="${manual_counts%%$'\t'*}"
+  subscription_enabled="${subscription_summary%%$'\t'*}"
+  provider_enabled="${provider_counts%%$'\t'*}"
+  provider_counts="${provider_counts#*$'\t'}"
+  provider_ready="${provider_counts##*$'\t'}"
+
+  status_next_step "$service_state" "$manual_enabled" "$subscription_enabled" "$provider_enabled" "$provider_ready"
+}
+
 print_status_warnings_and_footer() {
   local profile_name="${1:-}"
 

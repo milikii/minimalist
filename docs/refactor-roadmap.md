@@ -242,6 +242,7 @@
 - `status` 的警告与收尾展示已抽到共用 helper
 - `status` 的同步与端口展示已抽到共用 helper
 - `status` 的 WebUI / 控制面密钥入口展示已抽到共用 helper
+- `status` 推荐下一步所需的计数预处理已抽到共用 helper
 - 当前仍保持原有输出文本与退化行为不变
 
 任务：

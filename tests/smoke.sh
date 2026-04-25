@@ -554,6 +554,16 @@ test_status_recommends_start_when_nodes_ready_but_service_inactive() {
   assert_contains "$output" '推荐下一步: 启动服务: mihomo start'
 }
 
+test_status_recommends_start_when_subscription_provider_ready_but_service_inactive() {
+  setup_case
+  run_manager add-subscription demo https://subscription.example/list.txt 1 >/dev/null
+  sub_id="$(python3 "${STATECTL}" list-subscriptions "${TMPDIR_CASE}/state/subscriptions.json" | awk -F'\t' 'NR==1{print $2}')"
+  mkdir -p "${TMPDIR_CASE}/proxy_providers/subscriptions"
+  printf 'vless://demo\n' > "${TMPDIR_CASE}/proxy_providers/subscriptions/${sub_id}.txt"
+  output="$(run_manager status)"
+  assert_contains "$output" '推荐下一步: 启动服务: mihomo start'
+}
+
 test_status_shows_official_access_fields() {
   setup_case
   sed -i 's/PROXY_HOST_OUTPUT="0"/PROXY_HOST_OUTPUT="0"\nLAN_DISALLOWED_CIDRS="192.168.2.10\/32"\nPROXY_AUTH_CREDENTIALS="alice:secret bob:pass"\nSKIP_AUTH_PREFIXES="127.0.0.1\/32"/' "${TMPDIR_CASE}/router.env"
