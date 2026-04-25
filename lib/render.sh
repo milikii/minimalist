@@ -1058,7 +1058,7 @@ render_manager_sync_service_unit_body() {
 [Service]
 Type=oneshot
 $(render_manager_sync_working_directory_line "$src_root")
-ExecStart=${src_root}/mihomo install-self
+$(render_manager_sync_exec_start_line "$src_root")
 EOF
 }
 
@@ -1066,6 +1066,12 @@ render_manager_sync_working_directory_line() {
   local src_root="$1"
 
   printf 'WorkingDirectory=%s\n' "$src_root"
+}
+
+render_manager_sync_exec_start_line() {
+  local src_root="$1"
+
+  printf 'ExecStart=%s/mihomo install-self\n' "$src_root"
 }
 
 install_project_sync() {
