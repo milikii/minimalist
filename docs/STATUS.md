@@ -2,7 +2,7 @@
 
 ## 当前主线
 
-- 当前主线已进入阶段 5，已完成第五十二刀：`prepare_project_install_tree` 的目标目录重建与源码复制已抽到共用 helper。
+- 当前主线已进入阶段 5，已完成第五十三刀：`prepare_project_install_tree` 的元数据清理已抽到共用 helper。
 - 项目权威文档基线已补齐并生效：`STATUS.md`、`NEXT_STEP.md`、`DECISIONS.md`、`ARCHITECTURE.md`。
 
 ## 当前真相
@@ -90,6 +90,7 @@
   - `finalize_project_install` 的可执行权限设置已抽到共用 helper
   - `finalize_project_install` 的成功提示已抽到共用 helper
   - `prepare_project_install_tree` 的目标目录重建与源码复制已抽到共用 helper
+  - `prepare_project_install_tree` 的元数据清理已抽到共用 helper
   - `install_webui` 的解压失败告警输出已恢复，与重构前真相一致
   - 当前行为与输出文本保持与重构前真相一致
 
@@ -103,6 +104,6 @@
 
 ## 当前风险与限制
 
-- `prepare_project_install_tree` 的元数据清理仍在函数内联，阶段 5 后续可继续收口
+- `cleanup_project_install_tree_metadata` 的 VCS 元数据清理仍与缓存垃圾清理内联耦合，阶段 5 后续可继续收口
 - `scripts/statectl.py` 仍保留过渡期协议解析逻辑，尚未退化为更小的状态工具
 - `nas-single-lan-dualstack` 仅兼容保留，不代表项目已支持真双栈旁路由

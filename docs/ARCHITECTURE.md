@@ -104,5 +104,6 @@
 - 当前已抽离 `finalize_project_install` 的可执行权限设置 helper
 - 当前已抽离 `finalize_project_install` 的成功提示 helper
 - 当前已抽离 `prepare_project_install_tree` 的目标目录重建与源码复制 helper
-- 下一刀先抽离 `prepare_project_install_tree` 的元数据清理 helper
+- 当前已抽离 `prepare_project_install_tree` 的元数据清理 helper
+- 下一刀先抽离 `cleanup_project_install_tree_metadata` 的 VCS 元数据清理 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力
