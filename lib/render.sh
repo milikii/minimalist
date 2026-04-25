@@ -941,8 +941,14 @@ render_manager_sync_timer_unit_timer_block() {
 
   cat <<EOF
 [Timer]
-OnBootSec=1min
 OnUnitActiveSec=${interval_minutes}min
+$(render_manager_sync_timer_unit_static_settings)
+EOF
+}
+
+render_manager_sync_timer_unit_static_settings() {
+  cat <<'EOF'
+OnBootSec=1min
 AccuracySec=15s
 Persistent=true
 Unit=mihomo-manager-sync.service

@@ -139,5 +139,6 @@
 - 当前已抽离 manager sync unit 的通用 sections helper，并先接入 service
 - 当前已让 `render_manager_sync_timer_unit` 复用通用 sections helper
 - 当前已抽离 `ConditionPathExists=` 的通用输出 helper
-- 下一刀先抽离 timer 静态设置 helper
+- 当前已抽离 timer 静态设置 helper
+- 下一刀先抽离 timer 动态间隔行 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

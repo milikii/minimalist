@@ -131,7 +131,8 @@
 - 第八十五刀再抽离 manager sync unit 的通用 sections helper，并先接入 service
 - 第八十六刀再让 `render_manager_sync_timer_unit` 复用通用 sections helper
 - 第八十七刀再抽离 `ConditionPathExists=` 的通用输出 helper
-- 第八十八刀先抽离 timer 静态设置 helper
+- 第八十八刀再抽离 timer 静态设置 helper
+- 第八十九刀先抽离 timer 动态间隔行 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 
