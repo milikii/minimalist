@@ -1186,6 +1186,30 @@ print_status_overview_lines() {
   echo "开机自启: ${service_enable}"
 }
 
+print_runtime_audit_overview_lines() {
+  local active_state="${1:-unknown}"
+  local sub_state="${2:-unknown}"
+  local enabled_state="${3:-unknown}"
+  local main_pid="${4:-0}"
+  local active_since="${5:-unknown}"
+  local n_restarts="${6:-0}"
+  local memory_current="${7:-0}"
+  local memory_peak="${8:-0}"
+  local cpu_nsec="${9:-0}"
+
+  echo "== 运行审计 =="
+  echo "服务状态: ${active_state}"
+  echo "运行子状态: ${sub_state}"
+  echo "开机自启: ${enabled_state}"
+  echo "主进程 PID: ${main_pid}"
+  echo "本次启动时间: ${active_since}"
+  echo "自 systemd 接管后的重启次数: ${n_restarts}"
+  echo "当前内存占用(字节): ${memory_current}"
+  echo "历史峰值内存(字节): ${memory_peak}"
+  echo "累计 CPU 时间(ns): ${cpu_nsec}"
+  echo "端口监听: mixed=${MIXED_PORT} tproxy=${TPROXY_PORT} dns=${DNS_PORT} controller=${CONTROLLER_PORT}"
+}
+
 print_runtime_audit_probe_lines() {
   local proxy_probe="${1:-fail}"
   local controller_probe="${2:-fail}"

@@ -1299,17 +1299,16 @@ runtime_audit() {
     lan_activity_summary="当前未观测到局域网旁路由命中包；若你刚切好网关/DNS，可再从局域网设备发起一次请求"
   fi
 
-  echo "== 运行审计 =="
-  echo "服务状态: ${active_state:-unknown}"
-  echo "运行子状态: ${sub_state:-unknown}"
-  echo "开机自启: ${enabled_state:-unknown}"
-  echo "主进程 PID: ${main_pid:-0}"
-  echo "本次启动时间: ${active_since:-unknown}"
-  echo "自 systemd 接管后的重启次数: ${n_restarts:-0}"
-  echo "当前内存占用(字节): ${memory_current:-0}"
-  echo "历史峰值内存(字节): ${memory_peak:-0}"
-  echo "累计 CPU 时间(ns): ${cpu_nsec:-0}"
-  echo "端口监听: mixed=${MIXED_PORT} tproxy=${TPROXY_PORT} dns=${DNS_PORT} controller=${CONTROLLER_PORT}"
+  print_runtime_audit_overview_lines \
+    "${active_state:-unknown}" \
+    "${sub_state:-unknown}" \
+    "${enabled_state:-unknown}" \
+    "${main_pid:-0}" \
+    "${active_since:-unknown}" \
+    "${n_restarts:-0}" \
+    "${memory_current:-0}" \
+    "${memory_peak:-0}" \
+    "${cpu_nsec:-0}"
   print_runtime_summary_lines
   print_profile_summary_lines audit
   print_count_summary_lines audit

@@ -59,6 +59,7 @@
 - 第十三刀再抽离 `runtime-audit` 的探测与流量摘要展示 helper
 - 第十四刀再抽离 `runtime-audit` 的告警与定时器展示 helper
 - 第十五刀再抽离 `runtime-audit` 的基础概览展示 helper
+- 第十六刀再抽离 `runtime-audit` 的基础状态采集 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 

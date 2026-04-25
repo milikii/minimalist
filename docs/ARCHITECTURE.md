@@ -66,5 +66,6 @@
 - 当前已抽离 `status` 的基础状态采集 helper
 - 当前已抽离 `runtime-audit` 的探测与流量摘要展示 helper
 - 当前已抽离 `runtime-audit` 的告警与定时器展示 helper
-- 下一刀先抽离 `runtime-audit` 的基础概览展示 helper
+- 当前已抽离 `runtime-audit` 的基础概览展示 helper
+- 下一刀先抽离 `runtime-audit` 的基础状态采集 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

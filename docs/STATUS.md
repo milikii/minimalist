@@ -2,7 +2,7 @@
 
 ## 当前主线
 
-- 当前主线已进入阶段 5，已完成第十四刀：`runtime-audit` 的告警与定时器展示已抽到共用 helper。
+- 当前主线已进入阶段 5，已完成第十五刀：`runtime-audit` 的基础概览展示已抽到共用 helper。
 - 项目权威文档基线已补齐并生效：`STATUS.md`、`NEXT_STEP.md`、`DECISIONS.md`、`ARCHITECTURE.md`。
 
 ## 当前真相
@@ -52,8 +52,9 @@
   - `status` 的基础状态采集已抽到共用 helper
   - `runtime-audit` 的探测与流量摘要展示已抽到共用 helper
   - `runtime-audit` 的告警与定时器展示已抽到共用 helper
+  - `runtime-audit` 的基础概览展示已抽到共用 helper
   - 当前行为与输出文本保持不变
-  - `runtime-audit` 的基础概览展示仍在函数内联，尚未继续收口
+  - `runtime-audit` 的基础状态采集仍在函数内联，尚未继续收口
 
 ## 质量状态
 
@@ -65,6 +66,6 @@
 
 ## 当前风险与限制
 
-- `runtime-audit` 的基础概览展示仍在函数内联，阶段 5 后续可继续收口
+- `runtime-audit` 的基础状态采集仍在函数内联，阶段 5 后续可继续收口
 - `scripts/statectl.py` 仍保留过渡期协议解析逻辑，尚未退化为更小的状态工具
 - `nas-single-lan-dualstack` 仅兼容保留，不代表项目已支持真双栈旁路由
