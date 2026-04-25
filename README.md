@@ -24,30 +24,9 @@
 
 如果你是第一次看这个项目，先看这张总览图；更细的环节图见 [docs/README_FLOWS.md](docs/README_FLOWS.md)。
 
-```mermaid
-flowchart LR
-    A[管理员执行 mihomo CLI] --> B[settings.env / router.env]
-    A --> C[state/*.json]
-    B --> D[scripts/statectl.py / scripts/rulepreset.py]
-    C --> D
-    D --> E[proxy_providers/*.txt]
-    D --> F[ruleset/*.rules]
-    E --> G[lib/render.sh]
-    F --> G
-    B --> G
-    G --> H[config.yaml]
-    H --> I[systemd: mihomo.service]
-    I --> J[mihomo-core]
-
-    K[局域网设备<br/>网关 + DNS 指向 NAS] --> J
-    L[宿主机应用<br/>显式代理 127.0.0.1:7890] --> J
-    M[控制面 / WebUI<br/>127.0.0.1:19090] --> J
-
-    N[mihomo status / runtime-audit / healthcheck] --> O[systemd / ss / journalctl / iptables]
-    N --> P[Mihomo REST API]
-    N --> B
-    N --> H
-```
+<p align="center">
+  <img src="docs/images/readme-overview.svg" alt="Mihomo NAS 项目总览图" width="100%">
+</p>
 
 ## 推荐入口
 - `mihomo menu`：默认操作入口；主菜单只保留宿主机旁路由主路径。

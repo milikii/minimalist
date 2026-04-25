@@ -9,32 +9,9 @@
 
 ## 1. 项目总览
 
-```mermaid
-flowchart LR
-    A[管理员执行 mihomo CLI] --> B[settings.env / router.env]
-    A --> C[state/*.json]
-    B --> D[scripts/statectl.py / scripts/rulepreset.py]
-    C --> D
-    D --> E[proxy_providers/*.txt]
-    D --> F[ruleset/*.rules]
-    B --> G[lib/render.sh]
-    E --> G
-    F --> G
-    G --> H[config.yaml]
-    H --> I[systemd: mihomo.service]
-    I --> J[mihomo-core]
-
-    K[局域网设备<br/>网关 + DNS 指向 NAS] --> J
-    L[宿主机应用<br/>显式代理 127.0.0.1:7890] --> J
-    M[控制面 / WebUI<br/>127.0.0.1:19090] --> J
-
-    N[mihomo status / runtime-audit / healthcheck] --> O[systemd / ss / journalctl / iptables]
-    N --> P[Mihomo REST API<br/>/configs /proxies /version]
-    N --> B
-    N --> H
-    O --> N
-    P --> N
-```
+<p align="center">
+  <img src="images/readme-overview.svg" alt="Mihomo NAS 项目总览图" width="100%">
+</p>
 
 ## 2. 首次部署与使用闭环
 
