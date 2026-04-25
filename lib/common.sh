@@ -1110,3 +1110,19 @@ status_next_step() {
     echo "宿主机默认直连；局域网设备把网关和 DNS 指向 NAS 后即可走旁路由"
   fi
 }
+
+print_status_warnings_and_footer() {
+  local profile_name="${1:-}"
+
+  if template_is_deprecated "$profile_name"; then
+    warn "当前模板仅兼容保留；本项目当前只承诺 Debian NAS 的 IPv4 旁路由。"
+  fi
+  if [[ "${CONTROLLER_SCOPE:-仅宿主机}" != "仅宿主机" ]]; then
+    warn "控制面当前已开放到局域网；更推荐保持 CONTROLLER_BIND_ADDRESS=127.0.0.1。"
+  fi
+  if [[ "${PROXY_HOST_OUTPUT:-0}" == "1" ]]; then
+    warn "当前已接管宿主机外连；这可能影响 tailscaled、cloudflared、SSH 反向隧道等守护进程。"
+  fi
+  echo "定时重启: ${RESTART_INTERVAL_HOURS:-0}h"
+  echo "Alpha 自动更新: $([[ "${ALPHA_AUTO_UPDATE:-0}" == "1" ]] && echo "${ALPHA_UPDATE_ONCALENDAR}" || echo '关闭')"
+}

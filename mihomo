@@ -756,17 +756,7 @@ show_status() {
   print_network_access_lines status
   next_step="$(status_next_step "$service_state" "$manual_enabled" "${sub_counts%%$'\t'*}" "$sub_enabled" "$sub_ready")"
   echo "推荐下一步: ${next_step}"
-  if template_is_deprecated "${TEMPLATE_NAME:-$PROFILE_TEMPLATE}"; then
-    warn "当前模板仅兼容保留；本项目当前只承诺 Debian NAS 的 IPv4 旁路由。"
-  fi
-  if [[ "$CONTROLLER_SCOPE" != "仅宿主机" ]]; then
-    warn "控制面当前已开放到局域网；更推荐保持 CONTROLLER_BIND_ADDRESS=127.0.0.1。"
-  fi
-  if [[ "$PROXY_HOST_OUTPUT" == "1" ]]; then
-    warn "当前已接管宿主机外连；这可能影响 tailscaled、cloudflared、SSH 反向隧道等守护进程。"
-  fi
-  echo "定时重启: ${RESTART_INTERVAL_HOURS:-0}h"
-  echo "Alpha 自动更新: $([[ "${ALPHA_AUTO_UPDATE:-0}" == "1" ]] && echo "${ALPHA_UPDATE_ONCALENDAR}" || echo '关闭')"
+  print_status_warnings_and_footer "${TEMPLATE_NAME:-$PROFILE_TEMPLATE}"
 }
 
 repair_command() {

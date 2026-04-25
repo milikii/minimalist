@@ -513,6 +513,8 @@ test_status_readonly() {
   assert_contains "$output" '本机源码同步: 关闭'
   assert_contains "$output" '宿主机流量: 默认直连；按需显式代理 http://127.0.0.1:7890'
   assert_contains "$output" '控制面密钥: 已隐藏；如需查看执行: mihomo show-secret'
+  assert_contains "$output" '定时重启: 0h'
+  assert_contains "$output" 'Alpha 自动更新: 关闭'
 }
 
 test_status_warns_on_host_output_proxy() {
@@ -521,6 +523,13 @@ test_status_warns_on_host_output_proxy() {
   output="$(run_manager status)"
   assert_contains "$output" '宿主机流量: 透明接管(高风险)'
   assert_contains "$output" 'tailscaled、cloudflared'
+}
+
+test_status_warns_when_controller_exposed_to_lan() {
+  setup_case
+  sed -i 's/CONTROLLER_BIND_ADDRESS="127.0.0.1"/CONTROLLER_BIND_ADDRESS="0.0.0.0"/' "${TMPDIR_CASE}/router.env"
+  output="$(run_manager status)"
+  assert_contains "$output" '控制面当前已开放到局域网；更推荐保持 CONTROLLER_BIND_ADDRESS=127.0.0.1。'
 }
 
 test_status_recommends_import_when_no_nodes_or_subscriptions() {
