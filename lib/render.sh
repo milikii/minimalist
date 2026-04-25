@@ -980,10 +980,14 @@ render_manager_sync_timer_target_unit_line() {
 }
 
 render_manager_sync_timer_unit_install_block() {
-  cat <<'EOF'
-[Install]
+  cat <<EOF
+$(render_manager_sync_install_header_line)
 WantedBy=timers.target
 EOF
+}
+
+render_manager_sync_install_header_line() {
+  printf '%s\n' '[Install]'
 }
 
 write_manager_sync_service_unit() {

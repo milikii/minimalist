@@ -3,12 +3,12 @@
 ## 当前阶段
 
 - 下一闭环进入阶段 5：代码结构收口。
-- 当前已完成第九十七刀：`[Timer]` 标题行已抽到共用 helper。
+- 当前已完成第九十八刀：`[Install]` 标题行已抽到共用 helper。
 - 目标不是扩功能，而是在不改变行为的前提下，继续消除 `render_manager_sync_service_unit` / `render_manager_sync_timer_unit` 周边的结构重复逻辑。
 
 ## 下一最小闭环
 
-- 提取 `[Install]` 标题行 helper
+- 提取 `WantedBy=timers.target` 行 helper
 - 保持现有输出文本、顺序与退化行为不变
 - 补 focused tests，确保重构不改变行为
 - 文档同步切到阶段 5 当前真相
@@ -22,7 +22,7 @@
 
 ## 退出条件
 
-- `[Install]` 标题行不再内联在 install block 中
+- `WantedBy=timers.target` 行不再内联在 install block 中
 - 现有 `status` 输出文本、顺序与入口展示行为保持不变
 - 相关 smoke / service-mock 回归通过
 - 文档同步更新当前阶段结论
