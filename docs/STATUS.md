@@ -2,7 +2,7 @@
 
 ## 当前主线
 
-- 当前主线已进入阶段 5，已完成第六十一刀：`persist_project_sync_settings` 的 MANAGER_SYNC 三连写已抽到共用 helper。
+- 当前主线已进入阶段 5，已完成第六十二刀：`reset_project_sync_settings` 已复用 `write_manager_sync_settings`。
 - 项目权威文档基线已补齐并生效：`STATUS.md`、`NEXT_STEP.md`、`DECISIONS.md`、`ARCHITECTURE.md`。
 
 ## 当前真相
@@ -99,6 +99,7 @@
   - `cleanup_project_sync_runtime` 的 timer 停用已抽到共用 helper
   - `activate_project_sync_runtime` 的 timer 启用已抽到共用 helper
   - `persist_project_sync_settings` 的 MANAGER_SYNC 三连写已抽到共用 helper
+  - `reset_project_sync_settings` 已复用 `write_manager_sync_settings`
   - `install_webui` 的解压失败告警输出已恢复，与重构前真相一致
   - 当前行为与输出文本保持与重构前真相一致
 
@@ -112,6 +113,6 @@
 
 ## 当前风险与限制
 
-- `reset_project_sync_settings` 的 MANAGER_SYNC 三连重置仍内联在主函数中，阶段 5 后续可继续收口
+- `validate_project_sync_inputs` 的同步间隔校验仍内联在主函数中，阶段 5 后续可继续收口
 - `scripts/statectl.py` 仍保留过渡期协议解析逻辑，尚未退化为更小的状态工具
 - `nas-single-lan-dualstack` 仅兼容保留，不代表项目已支持真双栈旁路由

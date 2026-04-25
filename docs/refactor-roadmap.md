@@ -294,6 +294,7 @@
 - `cleanup_project_sync_runtime` 的 timer 停用已抽到共用 helper
 - `activate_project_sync_runtime` 的 timer 启用已抽到共用 helper
 - `persist_project_sync_settings` 的 MANAGER_SYNC 三连写已抽到共用 helper
+- `reset_project_sync_settings` 已复用 `write_manager_sync_settings`
 - `install_webui` 的解压失败告警已恢复为可见输出
 - 当前仍保持与重构前一致的输出文本与退化行为
 

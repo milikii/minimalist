@@ -983,9 +983,7 @@ persist_project_sync_settings() {
 }
 
 reset_project_sync_settings() {
-  upsert_env_var "$SETTINGS_ENV" "MANAGER_SYNC_ENABLED" "0"
-  upsert_env_var "$SETTINGS_ENV" "MANAGER_SYNC_INTERVAL_MINUTES" "1"
-  upsert_env_var "$SETTINGS_ENV" "MANAGER_SYNC_SOURCE" ""
+  write_manager_sync_settings "0" "1" ""
 }
 
 write_manager_sync_settings() {

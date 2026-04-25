@@ -105,7 +105,8 @@
 - 第五十九刀再抽离 `cleanup_project_sync_runtime` 的 timer 停用 helper
 - 第六十刀再抽离 `activate_project_sync_runtime` 的 timer 启用 helper
 - 第六十一刀再抽离 `persist_project_sync_settings` 的 MANAGER_SYNC 三连写 helper
-- 第六十二刀先让 `reset_project_sync_settings` 复用 `write_manager_sync_settings`
+- 第六十二刀再让 `reset_project_sync_settings` 复用 `write_manager_sync_settings`
+- 第六十三刀先抽离 `validate_project_sync_inputs` 的同步间隔校验 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 
