@@ -976,3 +976,40 @@ print_runtime_summary_lines() {
   echo "运行态策略组: ${runtime_policy_groups}"
   echo "控制面运行态: ${controller_runtime_summary_text}"
 }
+
+print_controller_static_lines() {
+  echo "外部 UI 名称: ${EXTERNAL_UI_NAME:-未设置}"
+  echo "外部 UI 地址: ${EXTERNAL_UI_URL:-未设置}"
+  echo "控制面 CORS Origins: $([[ -n "${CONTROLLER_CORS_ALLOW_ORIGINS:-}" ]] && echo "${CONTROLLER_CORS_ALLOW_ORIGINS}" || echo '未设置')"
+  echo "控制面 CORS Private-Network: $([[ "${CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK:-0}" == "1" ]] && echo '启用' || echo '关闭')"
+  echo "控制面范围: ${CONTROLLER_SCOPE}"
+}
+
+print_network_access_lines() {
+  local mode="${1:-status}"
+  local dns_hijack_value
+  local host_output_label
+  local host_output_value
+
+  if [[ "$mode" == "audit" ]]; then
+    dns_hijack_value="$([[ "${DNS_HIJACK_ENABLED}" == "1" ]] && echo "${DNS_HIJACK_INTERFACES:-未配置}" || echo '关闭')"
+    host_output_label="宿主机流量模式"
+    host_output_value="$([[ "${PROXY_HOST_OUTPUT}" == "1" ]] && echo '透明接管(高风险)' || echo '默认直连 + localhost 显式代理')"
+  else
+    dns_hijack_value="$([[ "${DNS_HIJACK_ENABLED}" == "1" ]] && echo "${DNS_HIJACK_INTERFACES}" || echo '关闭')"
+    host_output_label="宿主机流量"
+    host_output_value="$([[ "$PROXY_HOST_OUTPUT" == "1" ]] && echo '透明接管(高风险)' || echo "默认直连；按需显式代理 http://127.0.0.1:${MIXED_PORT}")"
+  fi
+
+  echo "局域网旁路由入口: ${PROXY_INGRESS_INTERFACES:-未配置}"
+  echo "局域网网段: ${LAN_CIDRS:-未设置}"
+  echo "局域网禁止网段: ${LAN_DISALLOWED_CIDRS:-无}"
+  echo "DNS 劫持入口: ${dns_hijack_value}"
+  echo "${host_output_label}: ${host_output_value}"
+  echo "显式代理认证: $([[ -n "${PROXY_AUTH_CREDENTIALS:-}" ]] && echo "启用 (${#PROXY_AUTH_CREDENTIALS_ARR[@]} 组账号)" || echo '关闭')"
+  echo "显式代理免认证网段: $([[ -n "${SKIP_AUTH_PREFIXES:-}" ]] && echo "${SKIP_AUTH_PREFIXES}" || echo '无')"
+
+  if [[ "$mode" != "audit" ]]; then
+    echo "容器直连名单: ${BYPASS_CONTAINER_NAMES:-无}"
+  fi
+}

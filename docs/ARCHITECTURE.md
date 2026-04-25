@@ -53,5 +53,7 @@
 
 - 阶段 5 进入“代码结构收口”
 - 当前已抽离 `status` / `runtime-audit` 共用的运行态摘要 helper
-- 下一刀先抽离 `status` / `runtime-audit` 共用的控制面静态信息展示 helper
+- 当前已抽离 `status` / `runtime-audit` 共用的控制面静态信息展示 helper
+- 当前已抽离 `status` / `runtime-audit` 共用的网络与访问静态信息展示 helper
+- 下一刀先抽离 `status` / `runtime-audit` 共用的模板/规则预设/IPv6 展示 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

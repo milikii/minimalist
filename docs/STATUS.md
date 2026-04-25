@@ -2,7 +2,7 @@
 
 ## 当前主线
 
-- 当前主线已进入阶段 5，已完成第一刀：`status` / `runtime-audit` 已共享同一份运行态摘要 helper。
+- 当前主线已进入阶段 5，已完成第三刀：`status` / `runtime-audit` 已共享控制面与网络访问静态信息展示 helper。
 - 项目权威文档基线已补齐并生效：`STATUS.md`、`NEXT_STEP.md`、`DECISIONS.md`、`ARCHITECTURE.md`。
 
 ## 当前真相
@@ -39,8 +39,10 @@
   - 控制面不可达时，`status` / `runtime-audit` 的控制面运行态摘要会显示“未获取”
 - 阶段 5：已开始
   - `status` / `runtime-audit` 的运行态摘要拼装逻辑已抽到共用 helper
+  - `status` / `runtime-audit` 的控制面静态信息展示已抽到共用 helper
+  - `status` / `runtime-audit` 的网络与访问静态信息展示已抽到共用 helper
   - 当前行为与输出文本保持不变
-  - 其余控制面与静态信息展示仍存在重复逻辑，尚未继续收口
+  - 模板/规则预设/IPv6 这组展示字段仍存在重复逻辑，尚未继续收口
 
 ## 质量状态
 
@@ -52,6 +54,6 @@
 
 ## 当前风险与限制
 
-- `status` / `runtime-audit` 仍存在控制面静态信息与展示顺序上的重复逻辑，阶段 5 后续仍需继续收口
+- `status` / `runtime-audit` 仍存在模板/规则预设/IPv6 展示上的重复逻辑，阶段 5 后续仍需继续收口
 - `scripts/statectl.py` 仍保留过渡期协议解析逻辑，尚未退化为更小的状态工具
 - `nas-single-lan-dualstack` 仅兼容保留，不代表项目已支持真双栈旁路由
