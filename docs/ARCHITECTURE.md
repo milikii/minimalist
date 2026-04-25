@@ -86,5 +86,6 @@
 - 当前已抽离 `install_webui` 的解压与源码目录识别 helper
 - 当前已抽离 `install_webui` 的部署与持久化收尾 helper
 - 当前已抽离 `install_webui` 的失败收尾 helper
-- 下一刀先抽离 `install_webui` 的临时工作区清理 helper
+- 当前已抽离 `install_webui` 的临时工作区清理 helper
+- 下一刀先抽离 `install_webui` 的参数与目标解析 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

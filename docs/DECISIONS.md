@@ -79,6 +79,7 @@
 - 第三十三刀再抽离 `install_webui` 的部署与持久化收尾 helper
 - 第三十四刀再抽离 `install_webui` 的失败收尾 helper
 - 第三十五刀再抽离 `install_webui` 的临时工作区清理 helper
+- 第三十六刀再抽离 `install_webui` 的参数与目标解析 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 

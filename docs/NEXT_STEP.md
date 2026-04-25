@@ -3,12 +3,12 @@
 ## 当前阶段
 
 - 下一闭环进入阶段 5：代码结构收口。
-- 当前已完成第三十四刀：`install_webui` 的失败收尾已抽到共用 helper。
+- 当前已完成第三十五刀：`install_webui` 的临时工作区清理已抽到共用 helper。
 - 目标不是扩功能，而是在不改变行为的前提下，继续消除 `install_webui` 周边的结构重复逻辑。
 
 ## 下一最小闭环
 
-- 提取 `install_webui` 的临时工作区清理 helper
+- 提取 `install_webui` 的参数与目标解析 helper
 - 保持现有输出文本、顺序与退化行为不变
 - 补 focused tests，确保重构不改变行为
 - 文档同步切到阶段 5 当前真相
@@ -22,7 +22,7 @@
 
 ## 退出条件
 
-- `install_webui` 的临时工作区清理不再在主函数内联重复
+- `install_webui` 的参数与目标解析不再在主函数内联重复
 - 现有 `status` 输出文本、顺序与入口展示行为保持不变
 - 相关 smoke / service-mock 回归通过
 - 文档同步更新当前阶段结论

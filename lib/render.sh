@@ -750,7 +750,7 @@ install_webui() {
     return 1
   }
   deploy_webui_files "$src" "$ui_target_dir" "$ui_name" "$ui_url"
-  rm -rf "$tmp"
+  cleanup_webui_install_workspace "$tmp"
   trap - RETURN
 }
 
@@ -804,6 +804,12 @@ extract_webui_archive() {
 }
 
 finalize_webui_install_failure() {
+  local tmp="$1"
+
+  cleanup_webui_install_workspace "$tmp"
+}
+
+cleanup_webui_install_workspace() {
   local tmp="$1"
 
   rm -rf "$tmp"
