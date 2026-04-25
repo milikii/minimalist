@@ -82,6 +82,7 @@
 - 第三十六刀再抽离 `install_webui` 的参数与目标解析 helper
 - 第三十七刀再抽离 `install_webui` 的临时工作区准备 helper
 - 第三十八刀再抽离 `install_project_sync` 的入参校验 helper
+- 第三十九刀再抽离 `install_project_sync` 的设置持久化 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 

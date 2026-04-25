@@ -890,10 +890,7 @@ install_project_sync() {
   require_root
   local src_root="$1"
   local interval_minutes="${2:-1}"
-  [[ -d "${src_root}/.git" ]] || die "install-self-sync 只能从 git 工作树执行"
-  [[ -x "${src_root}/mihomo" ]] || die "未找到源码入口: ${src_root}/mihomo"
-  [[ "$interval_minutes" =~ ^[0-9]+$ ]] || die "同步间隔必须是正整数分钟"
-  [[ "$interval_minutes" -gt 0 ]] || die "同步间隔必须大于 0 分钟"
+  validate_project_sync_inputs "$src_root" "$interval_minutes"
 
   ensure_settings
   install_project "$src_root"
@@ -916,6 +913,16 @@ disable_project_sync() {
   rm -f "$MANAGER_SYNC_SERVICE_UNIT" "$MANAGER_SYNC_TIMER_UNIT"
   systemctl_cmd daemon-reload
   ok "已关闭本机源码自动同步"
+}
+
+validate_project_sync_inputs() {
+  local src_root="$1"
+  local interval_minutes="$2"
+
+  [[ -d "${src_root}/.git" ]] || die "install-self-sync 只能从 git 工作树执行"
+  [[ -x "${src_root}/mihomo" ]] || die "未找到源码入口: ${src_root}/mihomo"
+  [[ "$interval_minutes" =~ ^[0-9]+$ ]] || die "同步间隔必须是正整数分钟"
+  [[ "$interval_minutes" -gt 0 ]] || die "同步间隔必须大于 0 分钟"
 }
 
 delete_jump() {

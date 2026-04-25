@@ -89,5 +89,6 @@
 - 当前已抽离 `install_webui` 的临时工作区清理 helper
 - 当前已抽离 `install_webui` 的参数与目标解析 helper
 - 当前已抽离 `install_webui` 的临时工作区准备 helper
-- 下一刀先抽离 `install_project_sync` 的入参校验 helper
+- 当前已抽离 `install_project_sync` 的入参校验 helper
+- 下一刀先抽离 `install_project_sync` 的设置持久化 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

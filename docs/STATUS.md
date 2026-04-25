@@ -2,7 +2,7 @@
 
 ## 当前主线
 
-- 当前主线已进入阶段 5，已完成第三十七刀：`install_webui` 的临时工作区准备已抽到共用 helper。
+- 当前主线已进入阶段 5，已完成第三十八刀：`install_project_sync` 的入参校验已抽到共用 helper。
 - 项目权威文档基线已补齐并生效：`STATUS.md`、`NEXT_STEP.md`、`DECISIONS.md`、`ARCHITECTURE.md`。
 
 ## 当前真相
@@ -75,6 +75,7 @@
   - `install_webui` 的临时工作区清理已抽到共用 helper
   - `install_webui` 的参数与目标解析已抽到共用 helper
   - `install_webui` 的临时工作区准备已抽到共用 helper
+  - `install_project_sync` 的入参校验已抽到共用 helper
   - `install_webui` 的解压失败告警输出已恢复，与重构前真相一致
   - 当前行为与输出文本保持与重构前真相一致
 
@@ -88,6 +89,6 @@
 
 ## 当前风险与限制
 
-- `install_project_sync` 的入参校验仍在主函数内联，阶段 5 后续可继续收口
+- `install_project_sync` 的设置持久化仍在主函数内联，阶段 5 后续可继续收口
 - `scripts/statectl.py` 仍保留过渡期协议解析逻辑，尚未退化为更小的状态工具
 - `nas-single-lan-dualstack` 仅兼容保留，不代表项目已支持真双栈旁路由

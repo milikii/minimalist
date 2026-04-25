@@ -720,6 +720,16 @@ test_install_self_sync_writes_units_and_status() {
   grep -q "本机源码同步: 启用；每 5 分钟从 ${ROOT} 同步" <<<"$output"
 }
 
+test_install_self_sync_rejects_invalid_interval() {
+  setup_case
+  if run_manager install-self-sync invalid >/tmp/mh-install-self-sync-invalid.out 2>&1; then
+    echo "install-self-sync should fail when interval is non-numeric" >&2
+    exit 1
+  fi
+  grep -q '同步间隔必须是正整数分钟' /tmp/mh-install-self-sync-invalid.out
+  [[ ! -f "${TMPDIR_CASE}/settings.env" ]]
+}
+
 test_disable_self_sync_removes_units() {
   setup_case
   run_manager install-self-sync 2 >/dev/null
@@ -868,6 +878,7 @@ main() {
   test_healthcheck_ignores_ss_pipefail_false_negative
   test_menu_survives_failed_healthcheck
   test_install_self_sync_writes_units_and_status
+  test_install_self_sync_rejects_invalid_interval
   test_disable_self_sync_removes_units
   test_install_geosite_downloads_official_asset
   test_install_webui_persists_external_ui_source
