@@ -744,19 +744,11 @@ install_webui() {
     trap - RETURN
     return 1
   fi
-  if ! unzip -q "${tmp}/ui.zip" -d "$tmp" >/dev/null 2>&1; then
-    warn "WebUI 解压失败: ${tmp}/ui.zip"
+  src="$(extract_webui_archive "$tmp")" || {
     rm -rf "$tmp"
     trap - RETURN
     return 1
-  fi
-  src="$(find "$tmp" -maxdepth 1 -mindepth 1 -type d | head -n 1)"
-  if [[ -z "$src" ]]; then
-    warn "未找到解压后的 WebUI 目录"
-    rm -rf "$tmp"
-    trap - RETURN
-    return 1
-  fi
+  }
   find "$ui_target_dir" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
   cp -a "${src}/." "$ui_target_dir/"
   chown -R "${MIHOMO_USER}:${MIHOMO_USER}" "$ui_target_dir"
@@ -782,6 +774,24 @@ download_webui_archive() {
   fi
 
   return 0
+}
+
+extract_webui_archive() {
+  local tmp="$1"
+  local src
+
+  if ! unzip -q "${tmp}/ui.zip" -d "$tmp" >/dev/null 2>&1; then
+    warn "WebUI 解压失败: ${tmp}/ui.zip"
+    return 1
+  fi
+
+  src="$(find "$tmp" -maxdepth 1 -mindepth 1 -type d | head -n 1)"
+  if [[ -z "$src" ]]; then
+    warn "未找到解压后的 WebUI 目录"
+    return 1
+  fi
+
+  printf '%s\n' "$src"
 }
 
 install_project() {

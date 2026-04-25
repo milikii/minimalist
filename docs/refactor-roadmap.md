@@ -264,6 +264,7 @@
 - `audit_installation` 的成功收尾已抽到共用 helper
 - `install_geosite_dat` 的成功安装收尾已抽到共用 helper
 - `install_webui` 的下载阶段已抽到共用 helper
+- `install_webui` 的解压与源码目录识别已抽到共用 helper
 - 当前仍保持原有输出文本与退化行为不变
 
 任务：

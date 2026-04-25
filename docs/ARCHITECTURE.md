@@ -83,5 +83,6 @@
 - 当前已抽离 `audit_installation` 的成功收尾 helper
 - 当前已抽离 `install_geosite_dat` 的成功安装收尾 helper
 - 当前已抽离 `install_webui` 的下载阶段 helper
-- 下一刀先抽离 `install_webui` 的解压与源码目录识别 helper
+- 当前已抽离 `install_webui` 的解压与源码目录识别 helper
+- 下一刀先抽离 `install_webui` 的部署与持久化收尾 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力
