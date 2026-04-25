@@ -115,5 +115,6 @@
 - 当前已抽离 `persist_project_sync_settings` 的 MANAGER_SYNC 三连写 helper
 - 当前已让 `reset_project_sync_settings` 复用 `write_manager_sync_settings`
 - 当前已抽离 `validate_project_sync_inputs` 的同步间隔校验 helper
-- 下一刀先抽离 `validate_project_sync_inputs` 的 git 工作树校验 helper
+- 当前已抽离 `validate_project_sync_inputs` 的 git 工作树校验 helper
+- 下一刀先抽离 `validate_project_sync_inputs` 的源码入口校验 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力
