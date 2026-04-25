@@ -717,13 +717,9 @@ show_status() {
   require_root
   load_settings_readonly
   load_router_env_readonly
-  local version="未安装"
-  local service_state="inactive"
-  local service_enable="disabled"
+  local version service_state service_enable
   local next_step
-  [[ -x "$MIHOMO_BIN" ]] && version="$("$MIHOMO_BIN" -v 2>/dev/null | head -n 1 || echo "$MIHOMO_BIN")"
-  service_is_active && service_state="active"
-  service_is_enabled && service_enable="enabled"
+  IFS=$'\t' read -r version service_state service_enable < <(status_overview_snapshot)
   controller_scope_summary
   print_status_overview_lines "$version" "$service_state" "$service_enable"
   print_runtime_summary_lines

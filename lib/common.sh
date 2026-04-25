@@ -1162,6 +1162,18 @@ print_status_access_entry_lines() {
   echo "控制面密钥: 已隐藏；如需查看执行: mihomo show-secret"
 }
 
+status_overview_snapshot() {
+  local version="未安装"
+  local service_state="inactive"
+  local service_enable="disabled"
+
+  [[ -x "$MIHOMO_BIN" ]] && version="$("$MIHOMO_BIN" -v 2>/dev/null | head -n 1 || echo "$MIHOMO_BIN")"
+  [[ -n "$version" ]] || version="未安装"
+  service_is_active && service_state="active"
+  service_is_enabled && service_enable="enabled"
+  printf '%s\t%s\t%s\n' "$version" "$service_state" "$service_enable"
+}
+
 print_status_overview_lines() {
   local version="${1:-未安装}"
   local service_state="${2:-inactive}"

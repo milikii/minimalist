@@ -397,6 +397,8 @@ EOF
 {"meta":true,"version":"Mihomo Meta v1.19.10"}
 EOF
   output="$(run_manager status)"
+  grep -q '服务状态: active' <<<"$output"
+  grep -q '开机自启: enabled' <<<"$output"
   grep -q '当前模式: global' <<<"$output"
   grep -q '当前模式来源: Mihomo REST API' <<<"$output"
   grep -q '本地配置模式: rule' <<<"$output"
