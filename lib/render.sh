@@ -927,7 +927,14 @@ render_manager_sync_timer_unit() {
 
   cat <<EOF
 $(render_manager_sync_unit_header "Periodic Mihomo Manager Working Tree Sync Timer")
+$(render_manager_sync_timer_unit_sections "$interval_minutes")
+EOF
+}
 
+render_manager_sync_timer_unit_sections() {
+  local interval_minutes="$1"
+
+  cat <<EOF
 $(render_manager_sync_timer_unit_timer_block "$interval_minutes")
 
 $(render_manager_sync_timer_unit_install_block)
