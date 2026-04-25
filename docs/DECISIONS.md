@@ -66,6 +66,7 @@
 - 第二十刀再抽离 `healthcheck` 的端口监听检查 helper
 - 第二十一刀再抽离 `healthcheck` 的探测检查 helper
 - 第二十二刀再抽离 `diagnose` 的配置摘要展示 helper
+- 第二十三刀再抽离 `diagnose` 的 systemd / listeners / logs 分段展示 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 

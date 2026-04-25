@@ -1280,3 +1280,9 @@ print_runtime_audit_alert_lines() {
   echo "下次 Alpha 自动更新: ${trigger_update}"
   echo "下次定时重启: ${trigger_restart}"
 }
+
+print_diagnose_config_summary_lines() {
+  printf 'mode=%s\n' "$(awk '/^mode:/ {print $2; exit}' "$CONFIG_FILE" 2>/dev/null || echo unknown)"
+  printf 'enabled_nodes=%s\n' "$(node_enabled_count)"
+  printf 'core_channel=%s\n' "${CORE_CHANNEL:-alpha}"
+}

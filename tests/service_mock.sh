@@ -569,6 +569,16 @@ EOCURL
   grep -q 'webui: unavailable' /tmp/mh-healthcheck-webui.out
 }
 
+test_diagnose_outputs_config_summary() {
+  setup_case
+  run_manager render-config >/dev/null
+  output="$(run_manager diagnose)"
+  grep -q '== config summary ==' <<<"$output"
+  grep -q '^mode=rule$' <<<"$output"
+  grep -q '^enabled_nodes=0$' <<<"$output"
+  grep -q '^core_channel=alpha$' <<<"$output"
+}
+
 test_menu_survives_failed_healthcheck() {
   setup_case
   run_manager render-config >/dev/null

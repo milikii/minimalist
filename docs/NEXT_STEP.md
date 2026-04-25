@@ -3,12 +3,12 @@
 ## 当前阶段
 
 - 下一闭环进入阶段 5：代码结构收口。
-- 当前已完成第二十一刀：`healthcheck` 的探测检查已抽到共用 helper。
+- 当前已完成第二十二刀：`diagnose` 的配置摘要展示已抽到共用 helper。
 - 目标不是扩功能，而是在不改变行为的前提下，继续消除展示层重复逻辑。
 
 ## 下一最小闭环
 
-- 提取 `diagnose` 的配置摘要展示 helper
+- 提取 `diagnose` 的 systemd / listeners / logs 分段展示 helper
 - 保持现有输出文本、顺序与退化行为不变
 - 补 focused tests，确保重构不改变行为
 - 文档同步切到阶段 5 当前真相
@@ -22,7 +22,7 @@
 
 ## 退出条件
 
-- `diagnose` 的配置摘要展示逻辑不再以内联形式存在
+- `diagnose` 的 systemd / listeners / logs 分段展示逻辑不再以内联形式存在
 - 现有 `status` 输出文本、顺序与入口展示行为保持不变
 - 相关 smoke / service-mock 回归通过
 - 文档同步更新当前阶段结论

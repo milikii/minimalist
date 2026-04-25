@@ -254,6 +254,7 @@
 - `runtime-audit` 的告警与定时器状态采集已抽到共用 helper
 - `healthcheck` 的端口监听检查已抽到共用 helper
 - `healthcheck` 的探测检查已抽到共用 helper
+- `diagnose` 的配置摘要展示已抽到共用 helper
 - 当前仍保持原有输出文本与退化行为不变
 
 任务：

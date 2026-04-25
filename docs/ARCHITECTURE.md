@@ -73,5 +73,6 @@
 - 当前已抽离 `runtime-audit` 的告警与定时器状态采集 helper
 - 当前已抽离 `healthcheck` 的端口监听检查 helper
 - 当前已抽离 `healthcheck` 的探测检查 helper
-- 下一刀先抽离 `diagnose` 的配置摘要展示 helper
+- 当前已抽离 `diagnose` 的配置摘要展示 helper
+- 下一刀先抽离 `diagnose` 的 systemd / listeners / logs 分段展示 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

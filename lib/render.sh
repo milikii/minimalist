@@ -1173,9 +1173,7 @@ diagnose() {
   ss_cmd -lntup 2>/dev/null | grep -E "[:.](${MIXED_PORT}|${TPROXY_PORT}|${DNS_PORT}|${CONTROLLER_PORT})[[:space:]]" || true
   echo
   echo "== config summary =="
-  printf 'mode=%s\n' "$(awk '/^mode:/ {print $2; exit}' "$CONFIG_FILE" 2>/dev/null || echo unknown)"
-  printf 'enabled_nodes=%s\n' "$(node_enabled_count)"
-  printf 'core_channel=%s\n' "${CORE_CHANNEL:-alpha}"
+  print_diagnose_config_summary_lines
   echo
   echo "== recent logs =="
   journalctl_cmd -u mihomo -n 60 --no-pager || true
