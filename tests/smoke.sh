@@ -896,6 +896,24 @@ test_manager_sync_render_and_write_helper_persists_unit() {
   grep -q '^ExecStart=/bin/true$' "${TMPDIR_CASE}/helper.unit"
 }
 
+test_manager_sync_timer_static_settings_render_expected_lines() {
+  setup_case
+
+  (
+    export APP_ROOT="$ROOT"
+    # shellcheck disable=SC1091
+    source "${ROOT}/lib/common.sh"
+    # shellcheck disable=SC1091
+    source "${ROOT}/lib/render.sh"
+    render_manager_sync_timer_unit_static_settings
+  ) >/tmp/mh-timer-static.out
+
+  grep -q '^OnBootSec=1min$' /tmp/mh-timer-static.out
+  grep -q '^AccuracySec=15s$' /tmp/mh-timer-static.out
+  grep -q '^Persistent=true$' /tmp/mh-timer-static.out
+  grep -q '^Unit=mihomo-manager-sync.service$' /tmp/mh-timer-static.out
+}
+
 test_usage_mentions_new_commands() {
   output="$(run_manager help)"
   assert_contains "$output" 'apply-default-template'
@@ -971,6 +989,7 @@ main() {
   test_manager_sync_unit_writer_outputs_both_unit_files
   test_manager_sync_unit_file_writer_persists_rendered_content
   test_manager_sync_render_and_write_helper_persists_unit
+  test_manager_sync_timer_static_settings_render_expected_lines
   test_usage_mentions_new_commands
   test_menu_mentions_new_buckets
   echo "smoke: ok"

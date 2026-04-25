@@ -145,5 +145,6 @@
 - 当前已抽离 `ExecStart=` 行 helper
 - 当前已抽离 `OnBootSec=` 行 helper
 - 当前已抽离 `Unit=mihomo-manager-sync.service` 行 helper
-- 下一刀先抽离 timer 静态设置里的剩余静态行 helper
+- 当前已抽离 timer 静态设置里的剩余静态行 helper
+- 下一刀先抽离 `[Service]` 标题行 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力
