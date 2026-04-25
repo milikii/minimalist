@@ -862,6 +862,22 @@ test_manager_sync_unit_writer_outputs_both_unit_files() {
   grep -q '^Unit=mihomo-manager-sync.service$' "${TMPDIR_CASE}/mihomo-manager-sync.timer"
 }
 
+test_manager_sync_unit_file_writer_persists_rendered_content() {
+  setup_case
+
+  (
+    export APP_ROOT="$ROOT"
+    # shellcheck disable=SC1091
+    source "${ROOT}/lib/common.sh"
+    # shellcheck disable=SC1091
+    source "${ROOT}/lib/render.sh"
+    write_rendered_manager_sync_unit_file "${TMPDIR_CASE}/demo.unit" printf '%s\n' '[Unit]' 'Description=demo'
+  )
+
+  grep -q '^\[Unit\]$' "${TMPDIR_CASE}/demo.unit"
+  grep -q '^Description=demo$' "${TMPDIR_CASE}/demo.unit"
+}
+
 test_usage_mentions_new_commands() {
   output="$(run_manager help)"
   assert_contains "$output" 'apply-default-template'
@@ -935,6 +951,7 @@ main() {
   test_project_sync_installation_prelude_prepares_units_and_settings
   test_project_sync_disablement_prelude_resets_settings
   test_manager_sync_unit_writer_outputs_both_unit_files
+  test_manager_sync_unit_file_writer_persists_rendered_content
   test_usage_mentions_new_commands
   test_menu_mentions_new_buckets
   echo "smoke: ok"

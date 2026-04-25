@@ -919,7 +919,7 @@ perform_manager_sync_unit_writes() {
 write_manager_sync_timer_unit() {
   local interval_minutes="$1"
 
-  render_manager_sync_timer_unit "$interval_minutes" >"$MANAGER_SYNC_TIMER_UNIT"
+  write_rendered_manager_sync_unit_file "$MANAGER_SYNC_TIMER_UNIT" render_manager_sync_timer_unit "$interval_minutes"
 }
 
 render_manager_sync_timer_unit() {
@@ -958,7 +958,14 @@ EOF
 write_manager_sync_service_unit() {
   local src_root="$1"
 
-  render_manager_sync_service_unit "$src_root" >"$MANAGER_SYNC_SERVICE_UNIT"
+  write_rendered_manager_sync_unit_file "$MANAGER_SYNC_SERVICE_UNIT" render_manager_sync_service_unit "$src_root"
+}
+
+write_rendered_manager_sync_unit_file() {
+  local unit_path="$1"
+  shift
+
+  "$@" >"$unit_path"
 }
 
 render_manager_sync_service_unit() {

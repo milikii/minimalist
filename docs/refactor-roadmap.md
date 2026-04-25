@@ -311,6 +311,7 @@
 - `render_manager_sync_service_unit` 的 Service 段内容已抽到共用 helper
 - `render_manager_sync_timer_unit` 的 Timer 段内容已抽到共用 helper
 - `render_manager_sync_timer_unit` 的 Install 段内容已抽到共用 helper
+- manager sync unit 的通用文件写入已抽到共用 helper
 - `install_webui` 的解压失败告警已恢复为可见输出
 - 当前仍保持与重构前一致的输出文本与退化行为
 
