@@ -276,6 +276,7 @@
 - `disable_project_sync` 的运行时清理已抽到共用 helper
 - `install_project_sync` 的 systemd 激活收尾已抽到共用 helper
 - `install_project_sync` 的成功提示收尾已抽到共用 helper
+- `write_manager_sync_units` 的 service unit 写入已抽到共用 helper
 - `install_webui` 的解压失败告警已恢复为可见输出
 - 当前仍保持与重构前一致的输出文本与退化行为
 

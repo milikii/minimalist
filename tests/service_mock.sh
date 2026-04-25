@@ -717,6 +717,8 @@ test_install_self_sync_writes_units_and_status() {
   grep -q "^MANAGER_SYNC_SOURCE=\"${ROOT}\"$" "${TMPDIR_CASE}/settings.env"
   grep -Fq 'daemon-reload' "${TMPDIR_CASE}/systemctl.log"
   grep -Fq 'enable --now mihomo-manager-sync.timer' "${TMPDIR_CASE}/systemctl.log"
+  grep -Fq "ConditionPathExists=${ROOT}/.git" "${TMPDIR_CASE}/mihomo-manager-sync.service"
+  grep -Fq "WorkingDirectory=${ROOT}" "${TMPDIR_CASE}/mihomo-manager-sync.service"
   grep -Fq "ExecStart=${ROOT}/mihomo install-self" "${TMPDIR_CASE}/mihomo-manager-sync.service"
   grep -q '^OnUnitActiveSec=5min$' "${TMPDIR_CASE}/mihomo-manager-sync.timer"
   grep -q "已启用本机源码自动同步: 每 5 分钟从 ${ROOT} 同步到 ${TMPDIR_CASE}/install-root" <<<"$output"
