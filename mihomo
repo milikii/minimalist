@@ -720,7 +720,7 @@ show_status() {
   local version="未安装"
   local service_state="inactive"
   local service_enable="disabled"
-  local controller_url next_step sub_counts manual_counts provider_counts
+  local next_step sub_counts manual_counts provider_counts
   local manual_enabled manual_total sub_enabled sub_total sub_ready
   [[ -x "$MIHOMO_BIN" ]] && version="$("$MIHOMO_BIN" -v 2>/dev/null | head -n 1 || echo "$MIHOMO_BIN")"
   service_is_active && service_state="active"
@@ -735,7 +735,6 @@ show_status() {
   sub_total="${provider_counts%%$'\t'*}"
   sub_ready="${provider_counts##*$'\t'}"
   controller_scope_summary
-  controller_url="http://${CONTROLLER_HOST}:${CONTROLLER_PORT}/ui/"
   echo
   echo "Mihomo 管理器 v${SCRIPT_VERSION}"
   echo "核心版本: ${version}"
@@ -744,9 +743,8 @@ show_status() {
   print_runtime_summary_lines
   print_profile_summary_lines status
   print_count_summary_lines status
-  echo "WebUI: ${controller_url}"
   print_controller_static_lines
-  echo "控制面密钥: 已隐藏；如需查看执行: mihomo show-secret"
+  print_status_access_entry_lines
   print_status_sync_and_port_lines
   print_network_access_lines status
   next_step="$(status_next_step "$service_state" "$manual_enabled" "${sub_counts%%$'\t'*}" "$sub_enabled" "$sub_ready")"

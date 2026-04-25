@@ -2,7 +2,7 @@
 
 ## 当前主线
 
-- 当前主线已进入阶段 5，已完成第八刀：`status` 的同步与端口展示已抽到共用 helper。
+- 当前主线已进入阶段 5，已完成第九刀：`status` 的 WebUI / 控制面密钥入口展示已抽到共用 helper。
 - 项目权威文档基线已补齐并生效：`STATUS.md`、`NEXT_STEP.md`、`DECISIONS.md`、`ARCHITECTURE.md`。
 
 ## 当前真相
@@ -46,8 +46,9 @@
   - `status` 的推荐下一步判断已抽到共用 helper
   - `status` 的警告与收尾展示已抽到共用 helper
   - `status` 的同步与端口展示已抽到共用 helper
+  - `status` 的 WebUI / 控制面密钥入口展示已抽到共用 helper
   - 当前行为与输出文本保持不变
-  - `status` 的 WebUI / 控制面密钥入口展示仍为内联逻辑，尚未继续收口
+  - `status` 为推荐下一步预计算的计数解析仍在函数内联，尚未继续收口
 
 ## 质量状态
 
@@ -59,6 +60,6 @@
 
 ## 当前风险与限制
 
-- `status` 的 WebUI / 控制面密钥入口展示仍为内联逻辑，阶段 5 后续可继续收口
+- `status` 为推荐下一步预计算的计数解析仍在函数内联，阶段 5 后续可继续收口
 - `scripts/statectl.py` 仍保留过渡期协议解析逻辑，尚未退化为更小的状态工具
 - `nas-single-lan-dualstack` 仅兼容保留，不代表项目已支持真双栈旁路由

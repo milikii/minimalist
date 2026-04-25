@@ -1135,3 +1135,11 @@ print_status_sync_and_port_lines() {
   fi
   echo "Mixed/TProxy/DNS: ${MIXED_PORT}/${TPROXY_PORT}/${DNS_PORT}"
 }
+
+print_status_access_entry_lines() {
+  local controller_url
+
+  controller_url="http://${CONTROLLER_HOST}:${CONTROLLER_PORT}/ui/"
+  echo "WebUI: ${controller_url}"
+  echo "控制面密钥: 已隐藏；如需查看执行: mihomo show-secret"
+}

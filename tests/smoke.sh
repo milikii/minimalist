@@ -507,6 +507,7 @@ test_status_readonly() {
   assert_contains "$output" '控制面 CORS Origins: 未设置'
   assert_contains "$output" '控制面 CORS Private-Network: 关闭'
   assert_contains "$output" '控制面运行态: 未获取'
+  assert_contains "$output" 'WebUI: http://127.0.0.1:19090/ui/'
   assert_contains "$output" '局域网禁止网段: 无'
   assert_contains "$output" '显式代理认证: 关闭'
   assert_contains "$output" '显式代理免认证网段: 无'
