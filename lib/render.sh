@@ -862,7 +862,7 @@ prepare_project_install_tree() {
 finalize_project_install() {
   ensure_project_install_binaries_executable
   write_project_command_links
-  ok "已安装管理命令到 ${MANAGER_BIN}"
+  print_project_install_success
 }
 
 ensure_project_install_binaries_executable() {
@@ -872,6 +872,10 @@ ensure_project_install_binaries_executable() {
 write_project_command_links() {
   ln -sf "$INSTALL_ROOT/mihomo" "$MANAGER_BIN"
   ln -sf "$INSTALL_ROOT/mihomo" "$COMPAT_MANAGER_BIN"
+}
+
+print_project_install_success() {
+  ok "已安装管理命令到 ${MANAGER_BIN}"
 }
 
 write_manager_sync_units() {

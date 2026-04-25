@@ -283,6 +283,7 @@
 - `install_project` 的命令链接与成功提示收尾已抽到共用 helper
 - `finalize_project_install` 的命令链接写入已抽到共用 helper
 - `finalize_project_install` 的可执行权限设置已抽到共用 helper
+- `finalize_project_install` 的成功提示已抽到共用 helper
 - `install_webui` 的解压失败告警已恢复为可见输出
 - 当前仍保持与重构前一致的输出文本与退化行为
 
