@@ -955,6 +955,10 @@ install_project_sync() {
 
 disable_project_sync() {
   require_root
+  perform_project_sync_disablement
+}
+
+perform_project_sync_disablement() {
   prepare_project_sync_disablement
   finalize_project_sync_disablement
 }

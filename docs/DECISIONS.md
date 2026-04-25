@@ -114,7 +114,8 @@
 - 第六十八刀再抽离 `install_project_sync` 的激活与成功提示收尾 helper
 - 第六十九刀先抽离 `disable_project_sync` 的重置前置 helper
 - 第七十刀再抽离 `disable_project_sync` 的清理与成功提示收尾 helper
-- 第七十一刀先抽离 `disable_project_sync` 的总编排 helper
+- 第七十一刀再抽离 `disable_project_sync` 的总编排 helper
+- 第七十二刀先抽离 `write_manager_sync_service_unit` 的 unit 内容 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 
