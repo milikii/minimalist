@@ -20,6 +20,35 @@
 - 已接入官方 `external-controller-cors` 字段；当前支持 `allow-origins` 和 `allow-private-network`，尚未进入控制面 TLS 证书管理。
 - 重构判断与后续路线见 [docs/refactor-roadmap.md](docs/refactor-roadmap.md)。
 
+## 项目总览图
+
+如果你是第一次看这个项目，先看这张总览图；更细的环节图见 [docs/README_FLOWS.md](docs/README_FLOWS.md)。
+
+```mermaid
+flowchart LR
+    A[管理员执行 mihomo CLI] --> B[settings.env / router.env]
+    A --> C[state/*.json]
+    B --> D[scripts/statectl.py / scripts/rulepreset.py]
+    C --> D
+    D --> E[proxy_providers/*.txt]
+    D --> F[ruleset/*.rules]
+    E --> G[lib/render.sh]
+    F --> G
+    B --> G
+    G --> H[config.yaml]
+    H --> I[systemd: mihomo.service]
+    I --> J[mihomo-core]
+
+    K[局域网设备<br/>网关 + DNS 指向 NAS] --> J
+    L[宿主机应用<br/>显式代理 127.0.0.1:7890] --> J
+    M[控制面 / WebUI<br/>127.0.0.1:19090] --> J
+
+    N[mihomo status / runtime-audit / healthcheck] --> O[systemd / ss / journalctl / iptables]
+    N --> P[Mihomo REST API]
+    N --> B
+    N --> H
+```
+
 ## 推荐入口
 - `mihomo menu`：默认操作入口；主菜单只保留宿主机旁路由主路径。
 - `mihomo status`：查看当前运行定位、入口接口、规则预设、宿主机流量模式和容器直连名单；当前模式、最小策略组摘要和最小控制面运行态摘要优先读取运行态，控制面不可达时回退或显示未获取。
