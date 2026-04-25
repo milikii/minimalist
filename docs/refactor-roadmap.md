@@ -240,6 +240,7 @@
 - `status` / `runtime-audit` 的计数类与节点统计展示已抽到共用 helper
 - `status` 的推荐下一步判断已抽到共用 helper
 - `status` 的警告与收尾展示已抽到共用 helper
+- `status` 的同步与端口展示已抽到共用 helper
 - 当前仍保持原有输出文本与退化行为不变
 
 任务：

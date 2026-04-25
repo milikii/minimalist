@@ -511,6 +511,7 @@ test_status_readonly() {
   assert_contains "$output" '显式代理认证: 关闭'
   assert_contains "$output" '显式代理免认证网段: 无'
   assert_contains "$output" '本机源码同步: 关闭'
+  assert_contains "$output" 'Mixed/TProxy/DNS: 7890/7893/1053'
   assert_contains "$output" '宿主机流量: 默认直连；按需显式代理 http://127.0.0.1:7890'
   assert_contains "$output" '控制面密钥: 已隐藏；如需查看执行: mihomo show-secret'
   assert_contains "$output" '定时重启: 0h'

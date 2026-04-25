@@ -747,12 +747,7 @@ show_status() {
   echo "WebUI: ${controller_url}"
   print_controller_static_lines
   echo "控制面密钥: 已隐藏；如需查看执行: mihomo show-secret"
-  if [[ "${MANAGER_SYNC_ENABLED:-0}" == "1" ]]; then
-    echo "本机源码同步: 启用；每 ${MANAGER_SYNC_INTERVAL_MINUTES:-1} 分钟从 ${MANAGER_SYNC_SOURCE:-未知来源} 同步"
-  else
-    echo "本机源码同步: 关闭"
-  fi
-  echo "Mixed/TProxy/DNS: ${MIXED_PORT}/${TPROXY_PORT}/${DNS_PORT}"
+  print_status_sync_and_port_lines
   print_network_access_lines status
   next_step="$(status_next_step "$service_state" "$manual_enabled" "${sub_counts%%$'\t'*}" "$sub_enabled" "$sub_ready")"
   echo "推荐下一步: ${next_step}"

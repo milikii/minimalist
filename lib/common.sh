@@ -1126,3 +1126,12 @@ print_status_warnings_and_footer() {
   echo "定时重启: ${RESTART_INTERVAL_HOURS:-0}h"
   echo "Alpha 自动更新: $([[ "${ALPHA_AUTO_UPDATE:-0}" == "1" ]] && echo "${ALPHA_UPDATE_ONCALENDAR}" || echo '关闭')"
 }
+
+print_status_sync_and_port_lines() {
+  if [[ "${MANAGER_SYNC_ENABLED:-0}" == "1" ]]; then
+    echo "本机源码同步: 启用；每 ${MANAGER_SYNC_INTERVAL_MINUTES:-1} 分钟从 ${MANAGER_SYNC_SOURCE:-未知来源} 同步"
+  else
+    echo "本机源码同步: 关闭"
+  fi
+  echo "Mixed/TProxy/DNS: ${MIXED_PORT}/${TPROXY_PORT}/${DNS_PORT}"
+}

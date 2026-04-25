@@ -59,5 +59,6 @@
 - 当前已抽离 `status` / `runtime-audit` 共用的计数类与节点统计展示 helper
 - 当前已抽离 `status` 的推荐下一步判断 helper
 - 当前已抽离 `status` 的警告与收尾展示 helper
-- 下一刀先抽离 `status` 的同步与端口展示 helper
+- 当前已抽离 `status` 的同步与端口展示 helper
+- 下一刀先抽离 `status` 的 WebUI / 控制面密钥入口展示 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力
