@@ -131,5 +131,6 @@
 - 当前已抽离 `render_manager_sync_timer_unit` 的 Timer 段内容 helper
 - 当前已抽离 `render_manager_sync_timer_unit` 的 Install 段内容 helper
 - 当前已抽离 manager sync unit 的通用文件写入 helper
-- 下一刀先抽离 manager sync unit 的通用 Unit 头部 helper
+- 当前已抽离 manager sync unit 的通用 Unit 头部 helper
+- 下一刀先抽离 `render_manager_sync_service_unit` 的 sections helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

@@ -123,7 +123,8 @@
 - 第七十七刀再抽离 `render_manager_sync_timer_unit` 的 Timer 段内容 helper
 - 第七十八刀再抽离 `render_manager_sync_timer_unit` 的 Install 段内容 helper
 - 第七十九刀再抽离 manager sync unit 的通用文件写入 helper
-- 第八十刀先抽离 manager sync unit 的通用 Unit 头部 helper
+- 第八十刀再抽离 manager sync unit 的通用 Unit 头部 helper
+- 第八十一刀先抽离 `render_manager_sync_service_unit` 的 sections helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 
