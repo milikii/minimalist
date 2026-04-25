@@ -1028,9 +1028,15 @@ render_manager_sync_service_unit_conditions() {
   local src_root="$1"
 
   cat <<EOF
-ConditionPathExists=${src_root}/.git
-ConditionPathExists=${src_root}/mihomo
+$(render_manager_sync_condition_path_exists "${src_root}/.git")
+$(render_manager_sync_condition_path_exists "${src_root}/mihomo")
 EOF
+}
+
+render_manager_sync_condition_path_exists() {
+  local path="$1"
+
+  printf 'ConditionPathExists=%s\n' "$path"
 }
 
 render_manager_sync_service_unit_body() {
