@@ -1316,10 +1316,7 @@ runtime_audit() {
   print_controller_static_lines
   print_network_access_lines audit
   print_runtime_audit_probe_lines "$proxy_probe" "$controller_probe" "$tproxy_packets" "$dns_hijack_packets" "$lan_activity_summary"
-  echo "过去 24 小时 warning 数: ${warn_count:-0}"
-  echo "过去 24 小时 error 数: ${err_count:-0}"
-  echo "下次 Alpha 自动更新: ${trigger_update:-disabled}"
-  echo "下次定时重启: ${trigger_restart:-disabled}"
+  print_runtime_audit_alert_lines "${warn_count:-0}" "${err_count:-0}" "${trigger_update:-disabled}" "${trigger_restart:-disabled}"
   echo
   echo "== 健康摘要 =="
   healthcheck || true

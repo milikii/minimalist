@@ -246,6 +246,7 @@
 - `status` 的基础概览展示已抽到共用 helper
 - `status` 的基础状态采集已抽到共用 helper
 - `runtime-audit` 的探测与流量摘要展示已抽到共用 helper
+- `runtime-audit` 的告警与定时器展示已抽到共用 helper
 - 当前仍保持原有输出文本与退化行为不变
 
 任务：

@@ -1199,3 +1199,15 @@ print_runtime_audit_probe_lines() {
   echo "DNS 劫持命中包数: ${dns_hijack_packets}"
   echo "旁路由流量摘要: ${lan_activity_summary}"
 }
+
+print_runtime_audit_alert_lines() {
+  local warn_count="${1:-0}"
+  local err_count="${2:-0}"
+  local trigger_update="${3:-disabled}"
+  local trigger_restart="${4:-disabled}"
+
+  echo "过去 24 小时 warning 数: ${warn_count}"
+  echo "过去 24 小时 error 数: ${err_count}"
+  echo "下次 Alpha 自动更新: ${trigger_update}"
+  echo "下次定时重启: ${trigger_restart}"
+}
