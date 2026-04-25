@@ -725,11 +725,7 @@ show_status() {
   service_is_active && service_state="active"
   service_is_enabled && service_enable="enabled"
   controller_scope_summary
-  echo
-  echo "Mihomo 管理器 v${SCRIPT_VERSION}"
-  echo "核心版本: ${version}"
-  echo "服务状态: ${service_state}"
-  echo "开机自启: ${service_enable}"
+  print_status_overview_lines "$version" "$service_state" "$service_enable"
   print_runtime_summary_lines
   print_profile_summary_lines status
   print_count_summary_lines status

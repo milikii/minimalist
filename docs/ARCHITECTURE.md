@@ -62,5 +62,6 @@
 - 当前已抽离 `status` 的同步与端口展示 helper
 - 当前已抽离 `status` 的 WebUI / 控制面密钥入口展示 helper
 - 当前已抽离 `status` 推荐下一步所需的计数预处理 helper
-- 下一刀先抽离 `status` 的基础概览展示 helper
+- 当前已抽离 `status` 的基础概览展示 helper
+- 下一刀先抽离 `status` 的基础状态采集 helper
 - 不在该阶段顺手重构脚本结构或扩展更多控制面能力

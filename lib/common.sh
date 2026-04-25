@@ -1161,3 +1161,15 @@ print_status_access_entry_lines() {
   echo "WebUI: ${controller_url}"
   echo "控制面密钥: 已隐藏；如需查看执行: mihomo show-secret"
 }
+
+print_status_overview_lines() {
+  local version="${1:-未安装}"
+  local service_state="${2:-inactive}"
+  local service_enable="${3:-disabled}"
+
+  echo
+  echo "Mihomo 管理器 v${SCRIPT_VERSION}"
+  echo "核心版本: ${version}"
+  echo "服务状态: ${service_state}"
+  echo "开机自启: ${service_enable}"
+}

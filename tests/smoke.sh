@@ -491,6 +491,9 @@ test_rules_repo_find_command() {
 test_status_readonly() {
   setup_case
   output="$(run_manager status)"
+  assert_contains "$output" '核心版本: 未安装'
+  assert_contains "$output" '服务状态: inactive'
+  assert_contains "$output" '开机自启: disabled'
   assert_contains "$output" '当前模式: rule'
   assert_contains "$output" '当前模式来源: 本地配置回退'
   assert_contains "$output" '本地配置模式: rule'
