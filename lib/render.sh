@@ -896,8 +896,7 @@ install_project_sync() {
   install_project "$src_root"
   write_manager_sync_units "$src_root" "$interval_minutes"
   persist_project_sync_settings "$src_root" "$interval_minutes"
-  systemctl_cmd daemon-reload
-  systemctl_cmd enable --now mihomo-manager-sync.timer
+  activate_project_sync_runtime
   ok "已启用本机源码自动同步: 每 ${interval_minutes} 分钟从 ${src_root} 同步到 ${INSTALL_ROOT}"
 }
 
@@ -938,6 +937,11 @@ cleanup_project_sync_runtime() {
   systemctl_cmd disable --now mihomo-manager-sync.timer >/dev/null 2>&1 || true
   rm -f "$MANAGER_SYNC_SERVICE_UNIT" "$MANAGER_SYNC_TIMER_UNIT"
   systemctl_cmd daemon-reload
+}
+
+activate_project_sync_runtime() {
+  systemctl_cmd daemon-reload
+  systemctl_cmd enable --now mihomo-manager-sync.timer
 }
 
 delete_jump() {
