@@ -140,7 +140,8 @@
 - 第九十四刀再抽离 timer 静态设置里的剩余静态行 helper
 - 第九十五刀再抽离 `[Service]` 标题行 helper
 - 第九十六刀再抽离 `Type=oneshot` 行 helper
-- 第九十七刀先抽离 `[Timer]` 标题行 helper
+- 第九十七刀再抽离 `[Timer]` 标题行 helper
+- 第九十八刀先抽离 `[Install]` 标题行 helper
 - 目标是降低重复逻辑，不改变用户可见输出
 - 后续仍按“更小、更保守、可验证”的顺序继续抽离共用展示块，不直接做大拆分
 
