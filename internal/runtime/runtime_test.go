@@ -7,8 +7,223 @@ import (
 	"testing"
 
 	"minimalist/internal/config"
+	"minimalist/internal/rulesrepo"
 	"minimalist/internal/state"
 )
+
+func TestEnsureLayoutCreatesAllExpectedDirectories(t *testing.T) {
+	root := t.TempDir()
+	paths := Paths{
+		ConfigDir:   filepath.Join(root, "etc"),
+		DataDir:     filepath.Join(root, "var"),
+		RuntimeDir:  filepath.Join(root, "runtime"),
+		InstallDir:  filepath.Join(root, "install"),
+		BinPath:     filepath.Join(root, "bin", "minimalist"),
+		ServiceUnit: filepath.Join(root, "systemd", "minimalist.service"),
+		SysctlPath:  filepath.Join(root, "sysctl", "99-minimalist-router.conf"),
+	}
+	if err := EnsureLayout(paths); err != nil {
+		t.Fatalf("ensure layout: %v", err)
+	}
+	for _, dir := range []string{
+		paths.ConfigDir,
+		paths.DataDir,
+		paths.RuntimeDir,
+		paths.InstallDir,
+		paths.ProviderDir(),
+		paths.SubscriptionDir(),
+		paths.RulesDir(),
+		paths.UIPath(),
+		filepath.Dir(paths.ServiceUnit),
+		filepath.Dir(paths.SysctlPath),
+	} {
+		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+			t.Fatalf("expected directory %s to exist: %v", dir, err)
+		}
+	}
+}
+
+func TestDefaultPathsUseEnvironmentOverrides(t *testing.T) {
+	t.Setenv("MINIMALIST_CONFIG_DIR", "/custom/etc")
+	t.Setenv("MINIMALIST_DATA_DIR", "/custom/var")
+	t.Setenv("MINIMALIST_RUNTIME_DIR", "/custom/runtime")
+	t.Setenv("MINIMALIST_INSTALL_DIR", "/custom/install")
+	t.Setenv("MINIMALIST_BIN_PATH", "/custom/bin/minimalist")
+	t.Setenv("MINIMALIST_SERVICE_UNIT", "/custom/systemd/minimalist.service")
+	t.Setenv("MINIMALIST_SYSCTL_PATH", "/custom/sysctl/99-minimalist-router.conf")
+	paths := DefaultPaths()
+	for _, tc := range []struct {
+		got  string
+		want string
+	}{
+		{paths.ConfigDir, "/custom/etc"},
+		{paths.DataDir, "/custom/var"},
+		{paths.RuntimeDir, "/custom/runtime"},
+		{paths.InstallDir, "/custom/install"},
+		{paths.BinPath, "/custom/bin/minimalist"},
+		{paths.ServiceUnit, "/custom/systemd/minimalist.service"},
+		{paths.SysctlPath, "/custom/sysctl/99-minimalist-router.conf"},
+	} {
+		if tc.got != tc.want {
+			t.Fatalf("expected %s, got %s", tc.want, tc.got)
+		}
+	}
+}
+
+func TestPathsResolveExpectedArtifacts(t *testing.T) {
+	paths := Paths{
+		ConfigDir:   "/etc/minimalist",
+		DataDir:     "/var/lib/minimalist",
+		RuntimeDir:  "/var/lib/minimalist/mihomo",
+		InstallDir:  "/usr/local/lib/minimalist",
+		BinPath:     "/usr/local/bin/minimalist",
+		ServiceUnit: "/etc/systemd/system/minimalist.service",
+		SysctlPath:  "/etc/sysctl.d/99-minimalist-router.conf",
+	}
+	for _, tc := range []struct {
+		got  string
+		want string
+	}{
+		{paths.ConfigPath(), "/etc/minimalist/config.yaml"},
+		{paths.StatePath(), "/var/lib/minimalist/state.json"},
+		{paths.RulesRepoPath(), "/etc/minimalist/rules-repo/default/manifest.yaml"},
+		{paths.ProviderDir(), "/var/lib/minimalist/mihomo/proxy_providers"},
+		{paths.RulesDir(), "/var/lib/minimalist/mihomo/ruleset"},
+		{paths.UIPath(), "/var/lib/minimalist/mihomo/ui"},
+		{paths.ManualProvider(), "/var/lib/minimalist/mihomo/proxy_providers/manual.txt"},
+		{paths.BuiltinRules(), "/var/lib/minimalist/mihomo/ruleset/builtin.rules"},
+		{paths.CustomRules(), "/var/lib/minimalist/mihomo/ruleset/custom.rules"},
+		{paths.ACLRules(), "/var/lib/minimalist/mihomo/ruleset/acl.rules"},
+		{paths.RuntimeConfig(), "/var/lib/minimalist/mihomo/config.yaml"},
+		{paths.SubscriptionDir(), "/var/lib/minimalist/mihomo/proxy_providers/subscriptions"},
+		{paths.SubscriptionFile("sub-1"), "/var/lib/minimalist/mihomo/proxy_providers/subscriptions/sub-1.txt"},
+		{paths.SubscriptionRelPath("sub-1"), "./proxy_providers/subscriptions/sub-1.txt"},
+	} {
+		if tc.got != tc.want {
+			t.Fatalf("expected %s, got %s", tc.want, tc.got)
+		}
+	}
+}
+
+func TestSubscriptionProviderNameDerivesStablePrefix(t *testing.T) {
+	paths := Paths{}
+	for _, tc := range []struct {
+		id   string
+		want string
+	}{
+		{"sub-1", "subscription-sub"},
+		{"demo", "subscription-demo"},
+		{"", "subscription-"},
+	} {
+		if got := paths.SubscriptionProviderName(tc.id); got != tc.want {
+			t.Fatalf("id=%q expected %s, got %s", tc.id, tc.want, got)
+		}
+	}
+}
+
+func TestSubscriptionFileAndRelPathUseSameID(t *testing.T) {
+	paths := Paths{RuntimeDir: "/var/lib/minimalist/mihomo"}
+	if paths.SubscriptionFile("sub-1") != "/var/lib/minimalist/mihomo/proxy_providers/subscriptions/sub-1.txt" {
+		t.Fatalf("unexpected subscription file path: %s", paths.SubscriptionFile("sub-1"))
+	}
+	if paths.SubscriptionRelPath("sub-1") != "./proxy_providers/subscriptions/sub-1.txt" {
+		t.Fatalf("unexpected subscription rel path: %s", paths.SubscriptionRelPath("sub-1"))
+	}
+}
+
+func TestWriteRulesRejectsUnsupportedKind(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "rules.txt")
+	err := writeRules(path, []state.Rule{{Kind: "unknown", Pattern: "x", Target: "DIRECT"}})
+	if err == nil || !strings.Contains(err.Error(), "unsupported rule kind: unknown") {
+		t.Fatalf("expected unsupported kind error, got %v", err)
+	}
+}
+
+func TestWriteRulesMapsSupportedKinds(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "rules.txt")
+	rules := []state.Rule{
+		{Kind: "domain", Pattern: "example.com", Target: "DIRECT"},
+		{Kind: "suffix", Pattern: "example.org", Target: "DIRECT"},
+		{Kind: "keyword", Pattern: "google", Target: "PROXY"},
+		{Kind: "src-cidr", Pattern: "192.168.2.10/32", Target: "DIRECT"},
+		{Kind: "ip-cidr", Pattern: "10.0.0.0/24", Target: "DIRECT"},
+		{Kind: "port", Pattern: "443", Target: "DIRECT"},
+		{Kind: "geoip", Pattern: "CN", Target: "DIRECT"},
+		{Kind: "geosite", Pattern: "private", Target: "DIRECT"},
+		{Kind: "ruleset", Pattern: "custom", Target: "PROXY"},
+	}
+	if err := writeRules(path, rules); err != nil {
+		t.Fatalf("write rules: %v", err)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read rules file: %v", err)
+	}
+	text := string(body)
+	for _, needle := range []string{
+		"DOMAIN,example.com,DIRECT\n",
+		"DOMAIN-SUFFIX,example.org,DIRECT\n",
+		"DOMAIN-KEYWORD,google,PROXY\n",
+		"SRC-IP-CIDR,192.168.2.10/32,DIRECT\n",
+		"IP-CIDR,10.0.0.0/24,DIRECT\n",
+		"DST-PORT,443,DIRECT\n",
+		"GEOIP,CN,DIRECT\n",
+		"GEOSITE,private,DIRECT\n",
+		"RULE-SET,custom,PROXY\n",
+	} {
+		if !strings.Contains(text, needle) {
+			t.Fatalf("missing %q in rules file:\n%s", needle, text)
+		}
+	}
+}
+
+func TestRenderFilesWritesAllRuntimeArtifacts(t *testing.T) {
+	paths := Paths{
+		ConfigDir:   filepath.Join(t.TempDir(), "etc"),
+		DataDir:     filepath.Join(t.TempDir(), "var"),
+		RuntimeDir:  filepath.Join(t.TempDir(), "runtime"),
+		InstallDir:  filepath.Join(t.TempDir(), "install"),
+		BinPath:     filepath.Join(t.TempDir(), "bin", "minimalist"),
+		ServiceUnit: filepath.Join(t.TempDir(), "systemd", "minimalist.service"),
+		SysctlPath:  filepath.Join(t.TempDir(), "sysctl", "99-minimalist-router.conf"),
+	}
+	if err := rulesrepo.InitDefaultRepo(filepath.Dir(paths.RulesRepoPath())); err != nil {
+		t.Fatalf("init rules repo: %v", err)
+	}
+	cfg := config.Default()
+	st := state.Empty()
+	st.Nodes = []state.Node{{
+		ID:         "1",
+		Name:       "manual-1",
+		Enabled:    true,
+		URI:        "trojan://password@example.org:443?security=tls#manual-1",
+		ImportedAt: state.NowISO(),
+		Source:     state.Source{Kind: "manual"},
+	}}
+	if err := RenderFiles(paths, cfg, st); err != nil {
+		t.Fatalf("render files: %v", err)
+	}
+	for _, file := range []string{
+		paths.ManualProvider(),
+		paths.BuiltinRules(),
+		paths.RuntimeConfig(),
+		paths.CustomRules(),
+		paths.ACLRules(),
+	} {
+		if _, err := os.Stat(file); err != nil {
+			t.Fatalf("expected artifact %s: %v", file, err)
+		}
+	}
+	body, err := os.ReadFile(paths.RuntimeConfig())
+	if err != nil {
+		t.Fatalf("read runtime config: %v", err)
+	}
+	for _, needle := range []string{"proxy-groups:", "rules:", "manual:"} {
+		if !strings.Contains(string(body), needle) {
+			t.Fatalf("missing %q in runtime config:\n%s", needle, string(body))
+		}
+	}
+}
 
 func TestBuildRuntimeConfigFallsBackToDefaultSecret(t *testing.T) {
 	paths := Paths{

@@ -494,6 +494,62 @@ func TestRunDispatchesRulesRepoSummary(t *testing.T) {
 	}
 }
 
+func TestRunDispatchesStatusThroughRun(t *testing.T) {
+	setCLIPathsEnv(t)
+	output := captureStdout(t, func() {
+		if err := Run([]string{"status"}); err != nil {
+			t.Fatalf("run status: %v", err)
+		}
+	})
+	for _, needle := range []string{"项目: minimalist", "服务状态:"} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in status output:\n%s", needle, output)
+		}
+	}
+}
+
+func TestRunDispatchesHealthcheckThroughRun(t *testing.T) {
+	setCLIPathsEnv(t)
+	output := captureStdout(t, func() {
+		if err := Run([]string{"healthcheck"}); err != nil {
+			t.Fatalf("run healthcheck: %v", err)
+		}
+	})
+	for _, needle := range []string{"mixed-port=7890", "controller-port=19090"} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in healthcheck output:\n%s", needle, output)
+		}
+	}
+}
+
+func TestRunDispatchesRuntimeAuditThroughRun(t *testing.T) {
+	setCLIPathsEnv(t)
+	output := captureStdout(t, func() {
+		if err := Run([]string{"runtime-audit"}); err != nil {
+			t.Fatalf("run runtime-audit: %v", err)
+		}
+	})
+	for _, needle := range []string{"alerts:", "providers-ready="} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in runtime audit output:\n%s", needle, output)
+		}
+	}
+}
+
+func TestRunDispatchesImportLinksThroughRun(t *testing.T) {
+	setCLIPathsEnv(t)
+	withStdinFile(t, "trojan://password@example.org:443?security=tls#run-import\n", func() {
+		output := captureStdout(t, func() {
+			if err := Run([]string{"import-links"}); err != nil {
+				t.Fatalf("run import-links: %v", err)
+			}
+		})
+		if !strings.Contains(output, "已处理 1 条节点") {
+			t.Fatalf("unexpected import-links output:\n%s", output)
+		}
+	})
+}
+
 func TestRunDispatchesNodesList(t *testing.T) {
 	setCLIPathsEnv(t)
 	a := app.New()

@@ -37,6 +37,7 @@
 - `BuildServiceUnit` 与 `BuildSysctl` 的输出当前也已被 focused tests 固定到当前真相
 - provider 的 `health-check` 默认段落、`AUTO` 组参数和 `rules` 渲染顺序当前也已被 focused tests 固定
 - 认证段落的省略条件、service unit 的 install/依赖/core bin 输出当前也已被 focused tests 固定
+- `DefaultPaths`、`EnsureLayout`、`RenderFiles`、`writeRules` 的当前输出与路径真相也已被 focused tests 固定
 - 顶层 `minimalist rules|acl|subscriptions|rules-repo ...` 当前都已直接分发到同一组底层 CLI helper
 
 ## 节点与订阅

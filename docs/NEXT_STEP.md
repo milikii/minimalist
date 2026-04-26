@@ -16,7 +16,7 @@
 ## 下一最小闭环
 
 - 继续为 `runtime` / `cli` focused tests 做最小去重和命名收口
-- 为 `render-config` 补更多 `rules` 尾段与 provider 组合 focused assertions
+- 为 `status` / `healthcheck` / `runtime-audit` 顶层分发与输出补更多 focused assertions
 - 继续把 README / flows 文档收口到 `minimalist` 当前命令真相
 
 ## 本轮不做
