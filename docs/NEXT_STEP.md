@@ -15,9 +15,9 @@
 
 ## 下一最小闭环
 
-- 为 `start`、`restart`、`healthcheck`、`runtime-audit` 补更细的 command mock tests
-- 为 `render-config`、`subscriptions update` 补更细的 golden/integration assertions
-- 明确 `minimalist` 的开发入口与发布方式文档
+- 为 `menu`、`router-wizard`、`rules-repo` CLI 补 focused tests
+- 为 `render-config` 补更多规则目标与 provider 组合断言
+- 继续把 README / flows 文档收口到 `minimalist` 当前命令真相
 
 ## 本轮不做
 

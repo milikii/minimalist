@@ -29,6 +29,14 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
+func textResponse(status int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: status,
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Header:     make(http.Header),
+	}
+}
+
 func (f fakeRunner) Run(name string, args ...string) error {
 	if f.runFn != nil {
 		return f.runFn(name, args...)
@@ -180,7 +188,7 @@ func TestSetupWithoutProvidersDoesNotEnableService(t *testing.T) {
 		t.Fatalf("unexpected sysctl content:\n%s", string(sysctlBody))
 	}
 	output := app.Stdout.(*bytes.Buffer).String()
-	if !strings.Contains(output, "部署完成，请先 import-links 或 update-subscriptions 后再启动服务") {
+	if !strings.Contains(output, "部署完成，请先 import-links 或 subscriptions update 后再启动服务") {
 		t.Fatalf("unexpected setup output:\n%s", output)
 	}
 }
@@ -223,6 +231,198 @@ func TestSetupWithProvidersEnablesService(t *testing.T) {
 	output := app.Stdout.(*bytes.Buffer).String()
 	if !strings.Contains(output, "部署完成，服务已启用") {
 		t.Fatalf("unexpected setup output:\n%s", output)
+	}
+}
+
+func TestStartRendersConfigAndEnablesService(t *testing.T) {
+	app, _ := newTestApp(t)
+	var calls []commandCall
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", nil
+		},
+	}
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#start-node\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable node: %v", err)
+	}
+	if err := app.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if !hasRecordedCall(calls, "systemctl", "enable", "--now", "minimalist.service") {
+		t.Fatalf("expected start to enable service, calls=%#v", calls)
+	}
+	body, err := os.ReadFile(app.Paths.RuntimeConfig())
+	if err != nil {
+		t.Fatalf("read runtime config: %v", err)
+	}
+	if !strings.Contains(string(body), "proxy-groups:") {
+		t.Fatalf("unexpected runtime config:\n%s", string(body))
+	}
+}
+
+func TestRestartRendersConfigAndRestartsService(t *testing.T) {
+	app, _ := newTestApp(t)
+	var calls []commandCall
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", nil
+		},
+	}
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#restart-node\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable node: %v", err)
+	}
+	if err := app.Restart(); err != nil {
+		t.Fatalf("restart: %v", err)
+	}
+	if hasRecordedCall(calls, "systemctl", "enable", "--now", "minimalist.service") {
+		t.Fatalf("restart should not enable service, calls=%#v", calls)
+	}
+	if !hasRecordedCall(calls, "systemctl", "restart", "minimalist.service") {
+		t.Fatalf("expected restart to restart service, calls=%#v", calls)
+	}
+	body, err := os.ReadFile(app.Paths.RuntimeConfig())
+	if err != nil {
+		t.Fatalf("read runtime config: %v", err)
+	}
+	if !strings.Contains(string(body), "manual:") {
+		t.Fatalf("unexpected runtime config:\n%s", string(body))
+	}
+}
+
+func TestHealthcheckReportsControllerSummary(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path != "/version" {
+				t.Fatalf("unexpected request path: %s", req.URL.Path)
+			}
+			if got := req.Header.Get("Authorization"); got == "" {
+				t.Fatalf("expected authorization header")
+			}
+			return textResponse(http.StatusOK, "Mihomo Meta v1.0.0\n"), nil
+		}),
+	}
+	if err := app.Healthcheck(); err != nil {
+		t.Fatalf("healthcheck: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"mixed-port=7890",
+		"tproxy-port=7893",
+		"dns-port=1053",
+		"controller-port=19090",
+		"Mihomo Meta v1.0.0",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in healthcheck output:\n%s", needle, output)
+		}
+	}
+}
+
+func TestRuntimeAuditCountsAlertsAndReportsRuntimeSummary(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			if name == "systemctl" && len(args) >= 2 && args[0] == "is-active" {
+				return nil
+			}
+			if name == "systemctl" && len(args) >= 2 && args[0] == "is-enabled" {
+				return nil
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			if name == "journalctl" {
+				return "INFO booted\nWARN slow-provider\nERROR dial failed\n", "", nil
+			}
+			return "", "", errors.New("unavailable")
+		},
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.Path {
+			case "/configs":
+				return textResponse(http.StatusOK, `{"mode":"global"}`), nil
+			case "/version":
+				return textResponse(http.StatusOK, "Mihomo Meta v1.0.1\n"), nil
+			default:
+				t.Fatalf("unexpected request path: %s", req.URL.Path)
+				return nil, nil
+			}
+		}),
+	}
+	if err := app.RuntimeAudit(); err != nil {
+		t.Fatalf("runtime audit: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"当前模式: global (runtime)",
+		"服务状态: active=true enabled=true",
+		"alerts: warn=1 error=1",
+		"providers-ready=false",
+		"runtime: Mihomo Meta v1.0.1",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in runtime audit output:\n%s", needle, output)
+		}
+	}
+}
+
+func TestRenderConfigIncludesSubscriptionProviderAfterUpdate(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#sub-node\n"), nil
+		}),
+	}
+	if err := app.AddSubscription("demo-sub", "https://subscription.example.com/sub.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
+	}
+	if err := app.RenderConfig(); err != nil {
+		t.Fatalf("render config: %v", err)
+	}
+	stateBody, err := os.ReadFile(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("read state: %v", err)
+	}
+	stateText := string(stateBody)
+	if strings.Count(stateText, `"kind": "subscription"`) != 1 {
+		t.Fatalf("unexpected subscription node count in state:\n%s", stateText)
+	}
+	configBody, err := os.ReadFile(app.Paths.RuntimeConfig())
+	if err != nil {
+		t.Fatalf("read runtime config: %v", err)
+	}
+	configText := string(configBody)
+	for _, needle := range []string{
+		"proxy-providers:",
+		"subscription-",
+		"path: ./proxy_providers/subscriptions/",
+		`- name: "AUTO"`,
+		`MATCH,PROXY`,
+	} {
+		if !strings.Contains(configText, needle) {
+			t.Fatalf("missing %q in runtime config:\n%s", needle, configText)
+		}
 	}
 }
 
