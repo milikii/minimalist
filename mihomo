@@ -387,6 +387,21 @@ remove_subscription_command() {
   ok "订阅已删除"
 }
 
+record_subscription_refresh_success() {
+  local sub_id="$1"
+  local name="$2"
+  local tmp_file="$3"
+  local provider_file
+  local enumerated_count
+
+  provider_file="$(subscription_provider_file "$sub_id")"
+  install -D -m 0640 "$tmp_file" "$provider_file"
+  chown root:"$MIHOMO_USER" "$provider_file"
+  enumerated_count="$(python3 "$STATECTL" count-supported-uris "$tmp_file")"
+  python3 "$STATECTL" mark-subscription-success "$SUBSCRIPTIONS_STATE_FILE" "$sub_id" "$enumerated_count" >/dev/null
+  ok "订阅 provider 缓存已更新: ${name} (可枚举 ${enumerated_count} 节点)"
+}
+
 update_subscriptions_command() {
   require_root
   require_statectl
@@ -400,20 +415,14 @@ update_subscriptions_command() {
   local url
   local enabled
   local last_success
-  local enumerated_count
+  local last_enumerated_count
   local last_error
-  local provider_file
   snapshot_before_change "update-subscriptions"
-  while IFS=$'\t' read -r idx sub_id name url enabled last_success enumerated_count last_error; do
+  while IFS=$'\t' read -r idx sub_id name url enabled last_success last_enumerated_count last_error; do
     [[ "$enabled" == "1" ]] || continue
     tmp="$(mktemp)"
     if curl_cmd -fsSL "$url" -o "$tmp"; then
-      provider_file="$(subscription_provider_file "$sub_id")"
-      install -D -m 0640 "$tmp" "$provider_file"
-      chown root:"$MIHOMO_USER" "$provider_file"
-      enumerated_count="$(python3 "$STATECTL" count-supported-uris "$tmp")"
-      python3 "$STATECTL" mark-subscription-success "$SUBSCRIPTIONS_STATE_FILE" "$sub_id" "$enumerated_count" >/dev/null
-      ok "订阅 provider 缓存已更新: ${name} (可枚举 ${enumerated_count} 节点)"
+      record_subscription_refresh_success "$sub_id" "$name" "$tmp"
       updated=$((updated + 1))
     else
       python3 "$STATECTL" mark-subscription-error "$SUBSCRIPTIONS_STATE_FILE" "$sub_id" "curl failed for ${url}" >/dev/null
