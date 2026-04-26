@@ -4,7 +4,7 @@
 
 - 项目已经开始从 `mihomo` shell/Python 版本切换到 Go 版 **`minimalist`**。
 - 当前仓库里已经落下新的 Go 模块、主 CLI、配置/状态真相、rules-repo 资产、provider 渲染和基础测试。
-- 旧 shell / Python 代码当前仍保留在仓库中作参考，但旧 `mihomo` 命令入口已删除，不再作为当前主实现。
+- 旧 shell / Python 主实现已从主树中清理，当前仓库只保留 Go 版 `minimalist` 主线。
 
 ## 当前真相
 
@@ -46,6 +46,12 @@
 - Go 版已实现命令编排与菜单入口：
   - `internal/app`
   - `internal/cli`
+- Go 版已补最小测试护栏：
+  - `internal/config` round-trip
+  - `internal/provider` scan / render
+  - `internal/rulesrepo` render / search
+  - `internal/app` import-links / render-config / subscriptions update
+  - `internal/system` command runner
 
 ## 质量状态
 
@@ -54,6 +60,6 @@
 
 ## 当前风险与限制
 
-- 旧 shell / Python 参考代码仍在仓库中，尚未做第二轮物理清理
-- 当前 Go 测试主要覆盖配置 round-trip、rules-repo 渲染和 provider 基础渲染，系统命令 mock 还不完整
+- 当前 Go 测试已覆盖配置、provider、rules-repo、app 主路径和 system runner，但 `setup` / `apply-rules` 的系统编排仍缺更细粒度 mock
+- `docs/images/readme-overview.svg` 已移除，后续若需要项目总览图应按 `minimalist` 当前架构重画
 - 旧版本 `settings.env` / `router.env` / `state/*.json` 不兼容，不做迁移

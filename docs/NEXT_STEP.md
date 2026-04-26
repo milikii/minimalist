@@ -10,12 +10,12 @@
   - rules-repo 默认资产
   - systemd/sysctl 文本生成
   - 基础单元测试
+  - `app` / `system` 的最小命令与集成护栏
 
 ## 下一最小闭环
 
-- 清理仓库中的旧 shell / Python 参考实现
-- 为 `internal/app` / `internal/system` 补 command mock tests
-- 为 `render-config`、`import-links`、`subscriptions update` 补更细的 golden/integration tests
+- 为 `setup`、`apply-rules`、`clear-rules` 补更细的 command mock tests
+- 为 `render-config`、`subscriptions update` 补更细的 golden/integration tests
 - 明确 `minimalist` 的开发入口与发布方式文档
 
 ## 本轮不做
@@ -27,6 +27,6 @@
 
 ## 退出条件
 
-- 旧主入口和旧主实现已不再残留为默认可执行路径
+- 旧主入口和旧主实现已不再残留在主树中
 - `go test ./...` 覆盖核心命令与系统编排关键路径
 - README 与权威文档只描述 `minimalist` 当前真相
