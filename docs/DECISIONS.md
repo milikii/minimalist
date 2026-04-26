@@ -94,6 +94,14 @@
 - 下一优先级确定为 `router_wizard`
 - 原因是它仍保留当前配置展示、多个输入字段校验和集中 env 写盘，是当前交互链里剩余最大的长编排块
 
+## 2026-04-26 router_wizard 收口后优先转向 main
+
+- `router_wizard` 当前已收口为“展示当前配置 + 收集输入 + snapshot + 写基础 env + 处理派生网段 + 写 bypass + 状态收尾”的编排入口
+- `smoke` 已补到 `router-wizard` 的 stdin 成功更新、入口网段识别失败保留现值和非法宿主机接管值失败分支
+- 下一优先级确定为 `main`
+- 原因是 `main` 仍保留 CLI 参数分发、interactive fallback 和 alpha/stable update 的内联 snapshot 分支，是 `mihomo` 主脚本剩余最集中的入口编排热点
+- `router_wizard` 收口后，继续优先处理单文件内剩余热点，比提前切到 `scripts/statectl.py` 更保守、更易验证
+
 ## 2026-04-26 codex 会话产物不进入版本控制
 
 - 会话落盘统一为 `codex.md`，只保留最近三轮会话，不作为仓库真相文档

@@ -66,12 +66,15 @@
   - 订阅刷新编排块：single subscription refresh、refresh success/failure recording、update-subscriptions orchestration
 - 当前已完成第八类块级收口：
   - 交互导入编排块：input source selection、URI collection、manual node append、scan result processing
+- 当前已完成第九类块级收口：
+  - 交互网络向导编排块：current config intro、core input collection、core env writes、detected lan cidrs、bypass env flow
 - `render_config` 当前已退回为编排入口，负责状态准备、调用职责块和配置文件权限收尾
 - `prepare_runtime_assets` 当前已退回为“根检查 + 节点检查 + 调用职责块 + config test”的编排入口
 - `full_setup` 当前已退回为“上下文准备 + 核心保障 + 运行时资产 + WebUI + 定时维护 + 服务状态收尾”的编排入口
 - `repair_command` 当前已退回为“上下文准备 + 运行时资产 + WebUI 修复 + 配置测试”的编排入口
 - `update_subscriptions_command` 当前已退回为“遍历启用订阅 + 结果统计 + 状态收尾”的编排入口
 - `import_links` 当前已退回为“准备输入源 + 收集 URI + scan + 处理结果 + 状态收尾”的编排入口
-- 下一闭环优先转向 `mihomo` 的交互式网络向导编排
-  - 优先 `router_wizard`
+- `router_wizard` 当前已退回为“展示当前配置 + 收集输入 + snapshot + 写基础 env + 处理派生网段 + 写 bypass + 状态收尾”的编排入口
+- 下一闭环优先转向 `mihomo` 的 CLI 分发编排
+  - 优先 `main`
 - 不在该阶段顺手扩更多控制面能力，也不继续围绕 manager sync unit 做单行 helper 级拆分
