@@ -68,6 +68,7 @@ func EnsureLayout(paths Paths) error {
 		paths.DataDir,
 		paths.RuntimeDir,
 		paths.InstallDir,
+		filepath.Dir(paths.BinPath),
 		paths.ProviderDir(),
 		paths.SubscriptionDir(),
 		paths.RulesDir(),
