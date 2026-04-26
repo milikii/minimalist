@@ -167,6 +167,28 @@ test_protocol_renderers() {
   grep -q 'name: "vmess-node"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
 }
 
+test_protocol_renderers_keep_transport_specific_options() {
+  setup_case
+  run_manager render-config >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://uuid@example.com:443?encryption=none&security=reality&sni=www.microsoft.com&fp=chrome&pbk=PUBLIC_KEY&sid=abcd&type=tcp#vless-node' vless-node 1 >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'trojan://password@example.org:443?security=tls&sni=www.apple.com&type=ws&host=www.apple.com&path=%2Fws#trojan-node' trojan-node 1 >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'ss://YWVzLTI1Ni1nY206c2VjcmV0QGV4YW1wbGUubmV0OjQ0Mw==?plugin=obfs-local%3Bobfs%3Dhttp%3Bobfs-host%3Dcdn.example.com#ss-plugin-node' ss-plugin-node 1 >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'vmess://eyJhZGQiOiJ2bWVzcy5leGFtcGxlLmNvbSIsInBvcnQiOiI0NDMiLCJpZCI6IjEyMzQ1Njc4LTEyMzQtMTIzNC0xMjM0LTEyMzQ1Njc4OTBhYiIsImFpZCI6IjAiLCJuZXQiOiJ3cyIsInR5cGUiOiJub25lIiwiaG9zdCI6Ind3dy5naXRodWIuY29tIiwicGF0aCI6Ii92bWVzcyIsInRscyI6InRscyIsInNuaSI6Ind3dy5naXRodWIuY29tIiwicHMiOiJ2bWVzcy1ub2RlIn0=' vmess-node 1 >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://12345678-1234-1234-1234-1234567890ab@example.com:443?encryption=none&security=tls&type=xhttp&path=%2Fxhttp&host=cdn.example.com&mode=auto&sni=www.microsoft.com&extra=%7B%22downloadSettings%22%3A%7B%22address%22%3A%22download.example.com%22%2C%22port%22%3A8443%2C%22security%22%3A%22tls%22%2C%22serverName%22%3A%22download.example.com%22%2C%22fingerprint%22%3A%22chrome%22%2C%22xhttpSettings%22%3A%7B%22path%22%3A%22%2Fmirror%22%2C%22host%22%3A%22cache.example.com%22%2C%22mode%22%3A%22auto%22%7D%7D%7D#xhttp-node' xhttp-node 1 >/dev/null
+  run_manager render-config >/dev/null
+  grep -q 'reality-opts:' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'public-key: "PUBLIC_KEY"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'ws-opts:' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'Host: "www.apple.com"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'Host: "www.github.com"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'plugin: "obfs-local"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'obfs-host: "cdn.example.com"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'network: "xhttp"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'download-settings:' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'server: "download.example.com"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'client-fingerprint: "chrome"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+}
+
 test_acl_rules_are_rendered() {
   setup_case
   run_manager render-config >/dev/null
@@ -1349,6 +1371,7 @@ main() {
   test_syntax
   test_render_empty
   test_protocol_renderers
+  test_protocol_renderers_keep_transport_specific_options
   test_acl_rules_are_rendered
   test_auto_without_node_fails
   test_scan_marks_unsupported_scheme
