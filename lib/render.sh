@@ -85,6 +85,78 @@ render_rules_block() {
   return 0
 }
 
+render_access_controller_block() {
+  local config_file="$1"
+  local lan_allowed_cidrs_name="$2"
+  local config_mode="$3"
+  local enable_ipv6="$4"
+  local secret="$5"
+  local allowed_cidr
+  local denied_cidr
+  local cors_origin
+  local -n lan_allowed_cidrs_ref="$lan_allowed_cidrs_name"
+
+  cat >"$config_file" <<EOF
+mixed-port: ${MIXED_PORT}
+tproxy-port: ${TPROXY_PORT}
+allow-lan: true
+bind-address: "*"
+lan-allowed-ips:
+EOF
+  for allowed_cidr in "${lan_allowed_cidrs_ref[@]}"; do
+    printf '  - %s\n' "$allowed_cidr" >>"$config_file"
+  done
+  if [[ ${#LAN_DISALLOWED_CIDRS_ARR[@]} -gt 0 ]]; then
+    cat >>"$config_file" <<'EOF'
+lan-disallowed-ips:
+EOF
+    for denied_cidr in "${LAN_DISALLOWED_CIDRS_ARR[@]}"; do
+      [[ -n "$denied_cidr" ]] || continue
+      printf '  - %s\n' "$denied_cidr" >>"$config_file"
+    done
+  fi
+  cat >>"$config_file" <<EOF
+mode: ${config_mode}
+log-level: info
+ipv6: $([[ "$enable_ipv6" == "1" ]] && echo true || echo false)
+unified-delay: true
+tcp-concurrent: true
+find-process-mode: off
+geodata-mode: false
+geo-auto-update: false
+geo-update-interval: 24
+geox-url:
+  mmdb: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb"
+  geoip: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
+  geosite: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
+
+external-controller: ${CONTROLLER_BIND_ADDRESS}:${CONTROLLER_PORT}
+secret: "${secret}"
+external-ui: ${UI_DIR}
+EOF
+  if [[ ${#CONTROLLER_CORS_ALLOW_ORIGINS_ARR[@]} -gt 0 || "${CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK:-0}" == "1" ]]; then
+    cat >>"$config_file" <<'EOF'
+external-controller-cors:
+EOF
+    if [[ ${#CONTROLLER_CORS_ALLOW_ORIGINS_ARR[@]} -gt 0 ]]; then
+      cat >>"$config_file" <<'EOF'
+  allow-origins:
+EOF
+      for cors_origin in "${CONTROLLER_CORS_ALLOW_ORIGINS_ARR[@]}"; do
+        [[ -n "$cors_origin" ]] || continue
+        printf '    - %s\n' "$(printf '%s' "$cors_origin" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()).strip())')" >>"$config_file"
+      done
+    fi
+    printf '  allow-private-network: %s\n' "$([[ "${CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK:-0}" == "1" ]] && echo true || echo false)" >>"$config_file"
+  fi
+  if [[ -n "${EXTERNAL_UI_NAME:-}" ]]; then
+    printf 'external-ui-name: %s\n' "$(printf '%s' "$EXTERNAL_UI_NAME" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()).strip())')" >>"$config_file"
+  fi
+  if [[ -n "${EXTERNAL_UI_URL:-}" ]]; then
+    printf 'external-ui-url: %s\n' "$(printf '%s' "$EXTERNAL_UI_URL" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()).strip())')" >>"$config_file"
+  fi
+}
+
 render_config() {
   require_root
   ensure_layout
@@ -103,11 +175,8 @@ render_config() {
   local active_provider_count=0
   local lan_cidrs
   local config_mode
-  local allowed_cidr
-  local denied_cidr
   local auth_entry
   local skip_auth_prefix
-  local cors_origin
   local enable_ipv6
   local explicit_proxy_only=0
   local sub_idx
@@ -145,65 +214,7 @@ render_config() {
     active_provider_count=$((active_provider_count + 1))
   done < <(subscription_list_tsv || true)
 
-  cat >"$CONFIG_FILE" <<EOF
-mixed-port: ${MIXED_PORT}
-tproxy-port: ${TPROXY_PORT}
-allow-lan: true
-bind-address: "*"
-lan-allowed-ips:
-EOF
-  for allowed_cidr in "${lan_allowed_cidrs_arr[@]}"; do
-    printf '  - %s\n' "$allowed_cidr" >>"$CONFIG_FILE"
-  done
-  if [[ ${#LAN_DISALLOWED_CIDRS_ARR[@]} -gt 0 ]]; then
-    cat >>"$CONFIG_FILE" <<'EOF'
-lan-disallowed-ips:
-EOF
-    for denied_cidr in "${LAN_DISALLOWED_CIDRS_ARR[@]}"; do
-      [[ -n "$denied_cidr" ]] || continue
-      printf '  - %s\n' "$denied_cidr" >>"$CONFIG_FILE"
-    done
-  fi
-  cat >>"$CONFIG_FILE" <<EOF
-mode: ${config_mode}
-log-level: info
-ipv6: $([[ "$enable_ipv6" == "1" ]] && echo true || echo false)
-unified-delay: true
-tcp-concurrent: true
-find-process-mode: off
-geodata-mode: false
-geo-auto-update: false
-geo-update-interval: 24
-geox-url:
-  mmdb: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb"
-  geoip: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
-  geosite: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
-
-external-controller: ${CONTROLLER_BIND_ADDRESS}:${CONTROLLER_PORT}
-secret: "${secret}"
-external-ui: ${UI_DIR}
-EOF
-  if [[ ${#CONTROLLER_CORS_ALLOW_ORIGINS_ARR[@]} -gt 0 || "${CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK:-0}" == "1" ]]; then
-    cat >>"$CONFIG_FILE" <<'EOF'
-external-controller-cors:
-EOF
-    if [[ ${#CONTROLLER_CORS_ALLOW_ORIGINS_ARR[@]} -gt 0 ]]; then
-      cat >>"$CONFIG_FILE" <<'EOF'
-  allow-origins:
-EOF
-      for cors_origin in "${CONTROLLER_CORS_ALLOW_ORIGINS_ARR[@]}"; do
-        [[ -n "$cors_origin" ]] || continue
-        printf '    - %s\n' "$(printf '%s' "$cors_origin" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()).strip())')" >>"$CONFIG_FILE"
-      done
-    fi
-    printf '  allow-private-network: %s\n' "$([[ "${CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK:-0}" == "1" ]] && echo true || echo false)" >>"$CONFIG_FILE"
-  fi
-  if [[ -n "${EXTERNAL_UI_NAME:-}" ]]; then
-    printf 'external-ui-name: %s\n' "$(printf '%s' "$EXTERNAL_UI_NAME" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()).strip())')" >>"$CONFIG_FILE"
-  fi
-  if [[ -n "${EXTERNAL_UI_URL:-}" ]]; then
-    printf 'external-ui-url: %s\n' "$(printf '%s' "$EXTERNAL_UI_URL" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()).strip())')" >>"$CONFIG_FILE"
-  fi
+  render_access_controller_block "$CONFIG_FILE" lan_allowed_cidrs_arr "$config_mode" "$enable_ipv6" "$secret"
   cat >>"$CONFIG_FILE" <<EOF
 profile:
   store-selected: true

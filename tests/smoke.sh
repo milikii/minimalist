@@ -353,6 +353,63 @@ EOF
   grep -q '^  allow-private-network: true$' "${TMPDIR_CASE}/config.yaml"
 }
 
+test_render_config_keeps_access_block_order() {
+  setup_case
+  cat > "${TMPDIR_CASE}/settings.env" <<'EOF'
+CONFIG_MODE="rule"
+CORE_CHANNEL="alpha"
+ALPHA_AUTO_UPDATE="0"
+ALPHA_UPDATE_ONCALENDAR="daily"
+RESTART_INTERVAL_HOURS="0"
+RULESET_PRESET="default"
+EXTERNAL_UI_NAME="metacubexd"
+EXTERNAL_UI_URL="https://example.com/ui.zip"
+EOF
+  cat > "${TMPDIR_CASE}/router.env" <<'EOF'
+TEMPLATE_NAME="nas-single-lan-v4"
+ENABLE_IPV6="0"
+LAN_INTERFACES="bridge1"
+LAN_CIDRS="192.168.2.0/24"
+LAN_DISALLOWED_CIDRS="192.168.2.10/32"
+PROXY_INGRESS_INTERFACES="bridge1"
+DNS_HIJACK_ENABLED="1"
+DNS_HIJACK_INTERFACES="bridge1"
+PROXY_AUTH_CREDENTIALS=""
+SKIP_AUTH_PREFIXES=""
+CONTROLLER_CORS_ALLOW_ORIGINS="http://192.168.2.10:3000"
+CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK="1"
+PROXY_HOST_OUTPUT="0"
+BYPASS_CONTAINER_NAMES=""
+BYPASS_SRC_CIDRS=""
+BYPASS_DST_CIDRS=""
+BYPASS_UIDS=""
+MIXED_PORT="7890"
+TPROXY_PORT="7893"
+DNS_PORT="1053"
+CONTROLLER_PORT="19090"
+CONTROLLER_BIND_ADDRESS="0.0.0.0"
+ROUTE_MARK="0x2333"
+ROUTE_MASK="0xffffffff"
+ROUTE_TABLE="233"
+ROUTE_PRIORITY="100"
+EOF
+  run_manager render-config >/dev/null
+
+  lan_disallowed_line="$(grep -n '^lan-disallowed-ips:$' "${TMPDIR_CASE}/config.yaml" | cut -d: -f1)"
+  mode_line="$(grep -n '^mode: rule$' "${TMPDIR_CASE}/config.yaml" | cut -d: -f1)"
+  cors_line="$(grep -n '^external-controller-cors:$' "${TMPDIR_CASE}/config.yaml" | cut -d: -f1)"
+  ui_name_line="$(grep -n '^external-ui-name: "metacubexd"$' "${TMPDIR_CASE}/config.yaml" | cut -d: -f1)"
+  ui_url_line="$(grep -n '^external-ui-url: "https://example.com/ui.zip"$' "${TMPDIR_CASE}/config.yaml" | cut -d: -f1)"
+  profile_line="$(grep -n '^profile:$' "${TMPDIR_CASE}/config.yaml" | cut -d: -f1)"
+  dns_line="$(grep -n '^dns:$' "${TMPDIR_CASE}/config.yaml" | cut -d: -f1)"
+
+  [[ -n "$lan_disallowed_line" && -n "$mode_line" && "$lan_disallowed_line" -lt "$mode_line" ]]
+  [[ -n "$cors_line" && -n "$ui_name_line" && "$cors_line" -lt "$ui_name_line" ]]
+  [[ -n "$ui_name_line" && -n "$ui_url_line" && "$ui_name_line" -lt "$ui_url_line" ]]
+  [[ -n "$ui_url_line" && -n "$profile_line" && "$ui_url_line" -lt "$profile_line" ]]
+  [[ -n "$profile_line" && -n "$dns_line" && "$profile_line" -lt "$dns_line" ]]
+}
+
 test_default_rule_preset_is_rendered() {
   setup_case
   run_manager set-rule-preset default >/dev/null
@@ -974,6 +1031,7 @@ main() {
   test_render_config_renders_official_access_fields
   test_render_config_renders_external_ui_fields
   test_render_config_renders_controller_cors_fields
+  test_render_config_keeps_access_block_order
   test_default_rule_preset_is_rendered
   test_apply_default_template_command
   test_rules_repo_command
