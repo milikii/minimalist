@@ -411,11 +411,27 @@ record_subscription_refresh_failure() {
   warn "订阅更新失败: ${name}"
 }
 
+refresh_subscription_provider_cache() {
+  local sub_id="$1"
+  local name="$2"
+  local url="$3"
+  local tmp
+
+  tmp="$(mktemp)"
+  if curl_cmd -fsSL "$url" -o "$tmp"; then
+    record_subscription_refresh_success "$sub_id" "$name" "$tmp"
+    rm -f "$tmp"
+    return 0
+  fi
+  record_subscription_refresh_failure "$sub_id" "$name" "$url"
+  rm -f "$tmp"
+  return 1
+}
+
 update_subscriptions_command() {
   require_root
   require_statectl
   ensure_layout
-  local tmp
   local updated=0
   local failed=0
   local idx
@@ -429,15 +445,11 @@ update_subscriptions_command() {
   snapshot_before_change "update-subscriptions"
   while IFS=$'\t' read -r idx sub_id name url enabled last_success last_enumerated_count last_error; do
     [[ "$enabled" == "1" ]] || continue
-    tmp="$(mktemp)"
-    if curl_cmd -fsSL "$url" -o "$tmp"; then
-      record_subscription_refresh_success "$sub_id" "$name" "$tmp"
+    if refresh_subscription_provider_cache "$sub_id" "$name" "$url"; then
       updated=$((updated + 1))
     else
-      record_subscription_refresh_failure "$sub_id" "$name" "$url"
       failed=$((failed + 1))
     fi
-    rm -f "$tmp"
   done < <(subscription_list_tsv)
 
   if [[ "$updated" -gt 0 ]]; then
