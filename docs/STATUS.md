@@ -53,10 +53,10 @@
   - `internal/app` import-links / render-config / subscriptions update / setup / start / restart / healthcheck / runtime-audit / menu / router-wizard / clear-rules / apply-rules
   - `internal/cli` top-level `Run(args)` / rules-repo / nodes / subscriptions / rules / acl helper / usage error / index error / unknown subcommand
   - `internal/system` command runner
-  - `internal/runtime` secret fallback / external-ui / nameserver-policy / DNS 默认静态段落 / profile / fallback-filter / proxy-server-nameserver / nameserver / geox-url / dns.listen
+  - `internal/runtime` secret fallback / external-ui / nameserver-policy / DNS 默认静态段落 / profile / fallback-filter / proxy-server-nameserver / nameserver / geox-url / dns.listen / allow-lan / bind-address / log-level / ipv6 / geo flags / DNS behavior flags
   - `subscriptions update -> render-config` 的最小集成断言
   - `render-config` 的规则目标与 provider 组合断言
-  - `render-config` 的“无 provider / auth+cors / 仅显式代理 / bind address / LAN 禁止网段 / external-ui / nameserver-policy / default-nameserver / direct-nameserver / fake-ip-filter / profile / fallback-filter / proxy-server-nameserver / nameserver / geox-url / dns.listen” 边界断言
+  - `render-config` 的“无 provider / auth+cors / 仅显式代理 / bind address / LAN 禁止网段 / external-ui / nameserver-policy / default-nameserver / direct-nameserver / fake-ip-filter / profile / fallback-filter / proxy-server-nameserver / nameserver / geox-url / dns.listen / allow-lan / bind-address / log-level / ipv6 / geo flags / DNS behavior flags” 边界断言
 
 ## 质量状态
 
@@ -65,6 +65,6 @@
 
 ## 当前风险与限制
 
-- 当前 Go 测试已覆盖配置、provider、rules-repo、核心 app 路径、top-level CLI、主要 CLI helper、runtime 文本生成和 system runner，但顶层 `Run(args)` 到 `rules` / `acl` 分发与少量 `render-config` DNS 细项仍缺 focused tests
+- 当前 Go 测试已覆盖配置、provider、rules-repo、核心 app 路径、top-level CLI、主要 CLI helper、runtime 文本生成和 system runner，但顶层 `Run(args)` 到 `rules` / `acl` 分发与少量 `render-config` 杂项静态段落仍缺 focused tests
 - `docs/images/readme-overview.svg` 已移除，后续若需要项目总览图应按 `minimalist` 当前架构重画
 - 旧版本 `settings.env` / `router.env` / `state/*.json` 不兼容，不做迁移

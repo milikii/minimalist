@@ -476,6 +476,46 @@ func TestRunDispatchesNodesList(t *testing.T) {
 	}
 }
 
+func TestRunDispatchesRulesUnknownSubcommand(t *testing.T) {
+	setCLIPathsEnv(t)
+	err := Run([]string{"rules", "unknown"})
+	if err == nil || !strings.Contains(err.Error(), "unknown rules command: unknown") {
+		t.Fatalf("expected rules unknown subcommand error, got %v", err)
+	}
+}
+
+func TestRunDispatchesACLUnknownSubcommand(t *testing.T) {
+	setCLIPathsEnv(t)
+	err := Run([]string{"acl", "unknown"})
+	if err == nil || !strings.Contains(err.Error(), "unknown acl command: unknown") {
+		t.Fatalf("expected acl unknown subcommand error, got %v", err)
+	}
+}
+
+func TestRunDispatchesNodesUnknownSubcommand(t *testing.T) {
+	setCLIPathsEnv(t)
+	err := Run([]string{"nodes", "unknown"})
+	if err == nil || !strings.Contains(err.Error(), "unknown nodes command: unknown") {
+		t.Fatalf("expected nodes unknown subcommand error, got %v", err)
+	}
+}
+
+func TestRunDispatchesSubscriptionsUnknownSubcommand(t *testing.T) {
+	setCLIPathsEnv(t)
+	err := Run([]string{"subscriptions", "unknown"})
+	if err == nil || !strings.Contains(err.Error(), "unknown subscriptions command: unknown") {
+		t.Fatalf("expected subscriptions unknown subcommand error, got %v", err)
+	}
+}
+
+func TestRunDispatchesRulesRepoUnknownSubcommand(t *testing.T) {
+	setCLIPathsEnv(t)
+	err := Run([]string{"rules-repo", "unknown"})
+	if err == nil || !strings.Contains(err.Error(), "unknown rules-repo command: unknown") {
+		t.Fatalf("expected rules-repo unknown subcommand error, got %v", err)
+	}
+}
+
 func TestRunWithAppOnTTYWithoutArgsEntersMenu(t *testing.T) {
 	a, stdout := newCLIApp(t)
 	a.Stdin = strings.NewReader("0\n")
