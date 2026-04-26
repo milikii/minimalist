@@ -18,8 +18,8 @@
 
 ## 下一最小闭环
 
-- 在 `scripts/statectl.py` 收口 provider 传输层选项 shaping 块
-- 优先围绕 `apply_network_opts`、`apply_common_tls_fields`、`xhttp_download_settings_from_mapping` 的协议选项组合和尾段收口职责块
+- 在 `scripts/statectl.py` 收口 provider 组装尾段
+- 优先围绕 `build_vless_provider_item` 与 `render_vless_xhttp_opts` 的剩余耦合
 - 保持现有 provider YAML 字段、协议支持范围和渲染输出不变
 - 优先复用现有 `smoke` 的 `test_protocol_renderers` / `render-config` 回归，必要时只补最小 focused tests
 - 文档同步切到阶段 5 当前真相

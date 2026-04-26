@@ -731,10 +731,7 @@ def reality_opts_from_query(query: dict[str, list[str]]) -> dict:
     return result
 
 
-def xhttp_download_settings_from_mapping(mapping: dict | None) -> dict:
-    if not isinstance(mapping, dict):
-        return {}
-    result: dict[str, object] = {}
+def xhttp_download_settings_common_fields(result: dict[str, object], mapping: dict) -> None:
     xhttp_settings = object_value(mapping, "xhttpSettings", "xhttp-settings")
     path = string_value(xhttp_settings, "path")
     host = string_value(xhttp_settings, "host")
@@ -752,6 +749,9 @@ def xhttp_download_settings_from_mapping(mapping: dict | None) -> dict:
         result["server"] = server
     if port is not None:
         result["port"] = port
+
+
+def xhttp_download_settings_security_fields(result: dict[str, object], mapping: dict, security: str) -> None:
     if security in {"tls", "reality"}:
         result["tls"] = True
     if security == "reality":
@@ -772,56 +772,98 @@ def xhttp_download_settings_from_mapping(mapping: dict | None) -> dict:
             result["servername"] = server_name
         if fingerprint:
             result["client-fingerprint"] = fingerprint
+
+
+def xhttp_download_settings_from_mapping(mapping: dict | None) -> dict:
+    if not isinstance(mapping, dict):
+        return {}
+    result: dict[str, object] = {}
+    xhttp_download_settings_common_fields(result, mapping)
+    security = string_value(mapping, "security").lower()
+    xhttp_download_settings_security_fields(result, mapping, security)
     return result
 
 
-def apply_common_tls_fields(item: dict[str, object], info: dict) -> None:
+def apply_common_tls_string_fields(item: dict[str, object], info: dict) -> None:
     if info.get("alpn"):
         item["alpn"] = info["alpn"]
     if info.get("servername"):
         item["servername"] = info["servername"]
     if info.get("fingerprint"):
         item["client-fingerprint"] = info["fingerprint"]
+
+
+def apply_common_tls_skip_cert_verify(item: dict[str, object], info: dict) -> None:
     if info.get("skip_cert_verify") is not None:
         item["skip-cert-verify"] = info["skip_cert_verify"]
+
+
+def apply_common_tls_fields(item: dict[str, object], info: dict) -> None:
+    apply_common_tls_string_fields(item, info)
+    apply_common_tls_skip_cert_verify(item, info)
+
+
+def apply_ws_network_opts(item: dict[str, object], info: dict) -> None:
+    opts: dict[str, object] = {}
+    path = str(info.get("path", "") or "")
+    host = str(info.get("host", "") or "")
+    if path:
+        opts["path"] = path
+    if host:
+        opts["headers"] = {"Host": host}
+    if opts:
+        item["ws-opts"] = opts
+
+
+def apply_grpc_network_opts(item: dict[str, object], info: dict) -> None:
+    service_name = str(info.get("service_name", "") or "")
+    if service_name:
+        item["grpc-opts"] = {"grpc-service-name": service_name}
+
+
+def apply_httpupgrade_network_opts(item: dict[str, object], info: dict) -> None:
+    opts: dict[str, object] = {}
+    path = str(info.get("path", "") or "")
+    host = str(info.get("host", "") or "")
+    if path:
+        opts["path"] = path
+    if host:
+        opts["host"] = host
+    if opts:
+        item["http-upgrade-opts"] = opts
+
+
+def apply_h2_network_opts(item: dict[str, object], info: dict) -> None:
+    opts: dict[str, object] = {}
+    host = str(info.get("host", "") or "")
+    path = str(info.get("path", "") or "")
+    if host:
+        opts["host"] = [host]
+    if path:
+        opts["path"] = path
+    if opts:
+        item["h2-opts"] = opts
+
+
+def apply_tcp_header_network_opts(item: dict[str, object], info: dict) -> None:
+    header_type = str(info.get("header_type", "") or "")
+    if header_type:
+        item["header"] = {"type": header_type}
 
 
 def apply_network_opts(item: dict[str, object], info: dict) -> None:
     network = str(info.get("network", "tcp") or "tcp").lower()
     item["network"] = network
-    path = str(info.get("path", "") or "")
-    host = str(info.get("host", "") or "")
-    service_name = str(info.get("service_name", "") or "")
-    header_type = str(info.get("header_type", "") or "")
     if network == "ws":
-        opts: dict[str, object] = {}
-        if path:
-            opts["path"] = path
-        if host:
-            opts["headers"] = {"Host": host}
-        if opts:
-            item["ws-opts"] = opts
+        apply_ws_network_opts(item, info)
     elif network == "grpc":
-        if service_name:
-            item["grpc-opts"] = {"grpc-service-name": service_name}
+        apply_grpc_network_opts(item, info)
     elif network == "httpupgrade":
-        opts = {}
-        if path:
-            opts["path"] = path
-        if host:
-            opts["host"] = host
-        if opts:
-            item["http-upgrade-opts"] = opts
+        apply_httpupgrade_network_opts(item, info)
     elif network in {"http", "h2"}:
-        opts = {}
-        if host:
-            opts["host"] = [host]
-        if path:
-            opts["path"] = path
-        if opts:
-            item["h2-opts"] = opts
-    elif network == "tcp" and header_type:
-        item["header"] = {"type": header_type}
+        apply_h2_network_opts(item, info)
+    elif network == "tcp":
+        apply_tcp_header_network_opts(item, info)
 
 
 def render_vless_xhttp_opts(info: dict) -> dict:

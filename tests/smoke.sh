@@ -189,6 +189,31 @@ test_protocol_renderers_keep_transport_specific_options() {
   grep -q 'client-fingerprint: "chrome"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
 }
 
+test_protocol_renderers_keep_tls_and_transport_variants() {
+  setup_case
+  run_manager render-config >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://uuid@example.com:443?encryption=none&security=tls&type=grpc&serviceName=grpc.backend.example.com&alpn=h2%2Chttp%2F1.1&insecure=true#grpc-vless' grpc-vless 1 >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'trojan://password@example.org:443?security=tls&type=httpupgrade&host=up.example.com&path=%2Fup&alpn=h2&allowInsecure=1#httpupgrade-trojan' httpupgrade-trojan 1 >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://uuid@example.com:443?encryption=none&security=tls&type=h2&host=h2.example.com&path=%2Fh2&alpn=h2%2Chttp%2F1.1&skip-cert-verify=1#h2-vless' h2-vless 1 >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'vmess://eyJhZGQiOiJ2bWVzcy5leGFtcGxlLmNvbSIsInBvcnQiOiI0NDMiLCJpZCI6IjEyMzQ1Njc4LTEyMzQtMTIzNC0xMjM0LTEyMzQ1Njc4OTBhYiIsImFpZCI6IjAiLCJuZXQiOiJ0Y3AiLCJ0eXBlIjoiaHR0cCIsImhvc3QiOiJ3d3cuZXhhbXBsZS5jb20iLCJwYXRoIjoiL3RjcCIsInRscyI6InRscyIsInNuaSI6Ind3dy5leGFtcGxlLmNvbSIsImFscG4iOiJoMixodHRwLzEuMSIsImFsbG93SW5zZWN1cmUiOiJ0cnVlIn0=#vmess-tcp' vmess-tcp 1 >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://12345678-1234-1234-1234-1234567890ab@example.com:443?encryption=none&security=tls&type=xhttp&path=%2Fxhttp&host=cdn.example.com&mode=auto&sni=www.microsoft.com&extra=%7B%22downloadSettings%22%3A%7B%22address%22%3A%22download.example.com%22%2C%22port%22%3A8443%2C%22security%22%3A%22reality%22%2C%22serverName%22%3A%22download.example.com%22%2C%22fingerprint%22%3A%22chrome%22%2C%22realitySettings%22%3A%7B%22serverName%22%3A%22download.example.com%22%2C%22fingerprint%22%3A%22chrome%22%2C%22shortId%22%3A%22abcd%22%2C%22publicKey%22%3A%22PUBLIC_KEY%22%7D%2C%22xhttpSettings%22%3A%7B%22path%22%3A%22/mirror%22%2C%22host%22%3A%22cache.example.com%22%2C%22mode%22%3A%22auto%22%7D%7D%7D#xhttp-node-reality' xhttp-node-reality 1 >/dev/null
+  run_manager render-config >/dev/null
+  grep -q 'grpc-opts:' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'skip-cert-verify: true' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q '      - "h2"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'http-upgrade-opts:' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'path: "/up"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'h2-opts:' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'h2.example.com' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'header:' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'type: "http"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'download-settings:' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'reality-opts:' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -A10 'download-settings:' "${TMPDIR_CASE}/proxy_providers/manual.txt" | grep -q 'tls: true'
+  grep -A10 'download-settings:' "${TMPDIR_CASE}/proxy_providers/manual.txt" | grep -q 'servername: "download.example.com"'
+  grep -A10 'download-settings:' "${TMPDIR_CASE}/proxy_providers/manual.txt" | grep -q 'client-fingerprint: "chrome"'
+}
+
 test_acl_rules_are_rendered() {
   setup_case
   run_manager render-config >/dev/null
@@ -1372,6 +1397,7 @@ main() {
   test_render_empty
   test_protocol_renderers
   test_protocol_renderers_keep_transport_specific_options
+  test_protocol_renderers_keep_tls_and_transport_variants
   test_acl_rules_are_rendered
   test_auto_without_node_fails
   test_scan_marks_unsupported_scheme

@@ -113,6 +113,11 @@
     - vmess 渲染段已独立
     - 协议 renderer 分发段已独立
     - `provider_item_from_node` 已退回为“parse URI + 选择 renderer + 调用 renderer”的编排入口
+  - `scripts/statectl.py` 的 provider 传输层选项 helper 已完成当前最小收口：
+    - `apply_common_tls_fields` 已拆成字符串字段与 `skip-cert-verify` 两段
+    - `apply_network_opts` 已拆成 `ws` / `grpc` / `httpupgrade` / `h2` / `tcp header` 分支 helper
+    - `xhttp_download_settings_from_mapping` 已拆成 common 字段与 security/reality 尾段
+    - 相关 focused tests 已覆盖 `grpc` / `httpupgrade` / `h2` / `tcp header` / `xhttp reality` 分支
   - `smoke` 已补到 provider 渲染的 reality/ws/plugin/xhttp download-settings 输出分支
   - `install_webui` 的解压失败告警输出已恢复，与重构前真相一致
   - 当前行为与输出文本保持与重构前真相一致
@@ -127,6 +132,6 @@
 
 ## 当前风险与限制
 
-- `scripts/statectl.py` 仍保留 `apply_network_opts`、`apply_common_tls_fields` 与 `xhttp_download_settings_from_mapping` 的传输层选项组合耦合，当前下一优先级已转向 provider 传输层选项链
+- `scripts/statectl.py` 的传输层选项组合已完成当前最小收口，后续若继续推进优先看 `build_vless_provider_item` 与 `render_vless_xhttp_opts` 的剩余尾段
 - manager sync unit 周边已出现低收益单行 helper 粒度，后续默认不再沿该方向继续细拆
 - `nas-single-lan-dualstack` 仅兼容保留，不代表项目已支持真双栈旁路由

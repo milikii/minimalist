@@ -127,13 +127,14 @@
 - 原因不是调整 provider 真相，而是该函数仍集中承担多协议 YAML 渲染和 xhttp/download-settings 收尾，是 `scripts/statectl.py` 剩余最显眼的协议热点
 - 当前已有 `smoke` 的协议渲染与 `render-config` 回归基础，先收口 provider 渲染链比继续下钻命名/去重 helper 更保守
 
-## 2026-04-26 provider_item_from_node 收口后转向 provider 传输层选项 helper
+## 2026-04-26 provider 传输层选项 helper 收口后转向 provider 组装尾段
 
 - `provider_item_from_node` 当前已收口为“parse URI + 选择 renderer + 调用 renderer”的编排入口
 - vless/trojan/ss/vmess 协议渲染段以及 xhttp download-settings 收尾段已独立
-- 下一优先级确定为 `apply_network_opts`、`apply_common_tls_fields` 与 `xhttp_download_settings_from_mapping`
-- 原因不是扩协议，而是 provider 输出链当前剩余的复杂度已主要集中在 TLS/network/xhttp 选项组合
-- 当前已有 `smoke` 的 reality/ws/plugin/xhttp download-settings 渲染护栏，先收口这些 helper 比继续拆 `render_provider` 更保守
+- `apply_common_tls_fields`、`apply_network_opts` 与 `xhttp_download_settings_from_mapping` 已完成当前最小收口
+- 下一优先级确定为 `build_vless_provider_item` 与 `render_vless_xhttp_opts`
+- 原因不是扩协议，而是 provider 输出链当前剩余的复杂度已主要集中在 VLESS 组装尾段
+- 当前已有 `smoke` 的 reality/ws/plugin/xhttp download-settings 渲染护栏，先收口这些尾段比继续拆 `render_provider` 更保守
 
 ## 2026-04-26 codex 会话产物不进入版本控制
 
