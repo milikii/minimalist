@@ -26,6 +26,7 @@ import (
 type App struct {
 	Paths  runtime.Paths
 	Runner system.CommandRunner
+	Client *http.Client
 	Stdout io.Writer
 	Stderr io.Writer
 	Stdin  io.Reader
@@ -35,6 +36,7 @@ func New() *App {
 	return &App{
 		Paths:  runtime.DefaultPaths(),
 		Runner: system.NewRunner(),
+		Client: &http.Client{Timeout: 30 * time.Second},
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 		Stdin:  os.Stdin,
@@ -552,8 +554,7 @@ func (a *App) updateSubscription(sub *state.Subscription, st *state.State) error
 		sub.Cache.LastError = err.Error()
 		return err
 	}
-	client := http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := a.httpClient().Do(req)
 	if err != nil {
 		sub.Cache.LastError = err.Error()
 		return err
@@ -811,6 +812,13 @@ func (a *App) requireRoot() error {
 	return nil
 }
 
+func (a *App) httpClient() *http.Client {
+	if a.Client != nil {
+		return a.Client
+	}
+	return &http.Client{Timeout: 30 * time.Second}
+}
+
 func (a *App) hasReadyProviders(st state.State) bool {
 	if a.hasEnabledManualNodes(st) {
 		return true
@@ -877,7 +885,7 @@ func (a *App) controllerRuntimeSummary(cfg config.Config) (string, error) {
 	if cfg.Controller.Secret != "" {
 		req.Header.Set("Authorization", "Bearer "+cfg.Controller.Secret)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := a.httpClient().Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -898,7 +906,7 @@ func (a *App) controllerConfigMode(cfg config.Config) (string, error) {
 	if cfg.Controller.Secret != "" {
 		req.Header.Set("Authorization", "Bearer "+cfg.Controller.Secret)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := a.httpClient().Do(req)
 	if err != nil {
 		return "", err
 	}
