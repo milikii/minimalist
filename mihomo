@@ -790,6 +790,16 @@ configure_setup_maintenance() {
   configure_alpha_update "${ALPHA_AUTO_UPDATE:-0}" "${ALPHA_UPDATE_ONCALENDAR:-daily}"
 }
 
+finalize_setup_service_state() {
+  if [[ "$(node_enabled_count)" -gt 0 ]]; then
+    systemctl_cmd enable --now mihomo
+    ok "部署完成并已启动"
+  else
+    systemctl_cmd disable --now mihomo >/dev/null 2>&1 || true
+    warn "部署已完成，但当前没有启用中的节点，未启动 mihomo。导入并启用节点后执行: mihomo start"
+  fi
+}
+
 prepare_runtime_assets() {
   require_root
   ensure_layout
@@ -1075,13 +1085,7 @@ full_setup() {
   install_setup_webui
   configure_setup_maintenance
   config_test
-  if [[ "$(node_enabled_count)" -gt 0 ]]; then
-    systemctl_cmd enable --now mihomo
-    ok "部署完成并已启动"
-  else
-    systemctl_cmd disable --now mihomo >/dev/null 2>&1 || true
-    warn "部署已完成，但当前没有启用中的节点，未启动 mihomo。导入并启用节点后执行: mihomo start"
-  fi
+  finalize_setup_service_state
 }
 
 install_self() {

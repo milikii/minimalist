@@ -1069,6 +1069,23 @@ test_setup_applies_configured_maintenance_timers() {
   grep -q '已启用 Alpha 自动更新: weekly' <<<"$output"
 }
 
+test_setup_disables_service_when_no_enabled_nodes() {
+  setup_case
+  touch "${TMPDIR_CASE}/unzip-ok"
+  output="$(run_manager setup 2>&1)"
+  grep -Fxq 'disable --now mihomo' "${TMPDIR_CASE}/systemctl.log"
+  grep -q '部署已完成，但当前没有启用中的节点，未启动 mihomo。导入并启用节点后执行: mihomo start' <<<"$output"
+}
+
+test_setup_starts_service_when_enabled_nodes_present() {
+  setup_case
+  touch "${TMPDIR_CASE}/unzip-ok"
+  python3 "${ROOT}/scripts/statectl.py" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://uuid@example.com:443?encryption=none&security=reality&sni=www.microsoft.com&fp=chrome&pbk=PUBLIC_KEY&sid=abcd&type=tcp#setup-node' setup-node 1 >/dev/null
+  output="$(run_manager setup 2>&1)"
+  grep -Fxq 'enable --now mihomo' "${TMPDIR_CASE}/systemctl.log"
+  grep -q '部署完成并已启动' <<<"$output"
+}
+
 test_update_subscriptions_refreshes_provider_cache() {
   setup_case
   run_manager add-subscription demo https://subscription.example/list.txt 1 >/dev/null
@@ -1131,6 +1148,8 @@ main() {
   test_repair_skips_webui_install_when_ui_present
   test_repair_warns_when_webui_reinstall_fails
   test_setup_applies_configured_maintenance_timers
+  test_setup_disables_service_when_no_enabled_nodes
+  test_setup_starts_service_when_enabled_nodes_present
   test_update_subscriptions_refreshes_provider_cache
   test_rollback_config_restores_template
   echo "service-mock: ok"
