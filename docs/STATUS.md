@@ -51,10 +51,11 @@
   - `internal/provider` scan / render
   - `internal/rulesrepo` render / search
   - `internal/app` import-links / render-config / subscriptions update / setup / start / restart / healthcheck / runtime-audit / menu / router-wizard / clear-rules / apply-rules
-  - `internal/cli` rules-repo helper
+  - `internal/cli` rules-repo / nodes / subscriptions / rules / acl helper
   - `internal/system` command runner
   - `subscriptions update -> render-config` 的最小集成断言
   - `render-config` 的规则目标与 provider 组合断言
+  - `render-config` 的“无 provider / auth+cors / 仅显式代理” 边界断言
 
 ## 质量状态
 
@@ -63,6 +64,6 @@
 
 ## 当前风险与限制
 
-- 当前 Go 测试已覆盖配置、provider、rules-repo、核心 app 路径、`rules-repo` CLI helper 和 system runner，但 `nodes` / `subscriptions` / `rules` / `acl` CLI 仍缺 focused tests
+- 当前 Go 测试已覆盖配置、provider、rules-repo、核心 app 路径、主要 CLI helper 和 system runner，但顶层 `Run(args)` 分发与帮助输出仍缺 focused tests
 - `docs/images/readme-overview.svg` 已移除，后续若需要项目总览图应按 `minimalist` 当前架构重画
 - 旧版本 `settings.env` / `router.env` / `state/*.json` 不兼容，不做迁移

@@ -15,8 +15,8 @@
 
 ## 下一最小闭环
 
-- 为 `nodes`、`subscriptions`、`rules`、`acl` CLI 补 focused tests
-- 为 `render-config` 补更多“仅显式代理 / 无 provider / auth+cors” 断言
+- 为顶层 `Run(args)` 分发、usage error、`--help` 输出补 focused tests
+- 为 `render-config` 补更多控制面 bind / secret fallback / LAN 禁止网段断言
 - 继续把 README / flows 文档收口到 `minimalist` 当前命令真相
 
 ## 本轮不做

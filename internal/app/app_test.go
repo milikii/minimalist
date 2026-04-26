@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"minimalist/internal/config"
 	"minimalist/internal/runtime"
 )
 
@@ -559,6 +560,93 @@ func TestRenderConfigIncludesCustomRuleTargetsAndProviderMix(t *testing.T) {
 		if !strings.Contains(configText, needle) {
 			t.Fatalf("missing %q in runtime config:\n%s", needle, configText)
 		}
+	}
+}
+
+func TestRenderConfigWithoutProvidersUsesDirectOnlyProxyGroup(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.RenderConfig(); err != nil {
+		t.Fatalf("render config: %v", err)
+	}
+	configBody, err := os.ReadFile(app.Paths.RuntimeConfig())
+	if err != nil {
+		t.Fatalf("read runtime config: %v", err)
+	}
+	configText := string(configBody)
+	if strings.Contains(configText, "proxy-providers:") {
+		t.Fatalf("did not expect proxy-providers section:\n%s", configText)
+	}
+	if !strings.Contains(configText, `- name: "PROXY"`) || !strings.Contains(configText, "      - DIRECT") {
+		t.Fatalf("expected direct-only proxy group:\n%s", configText)
+	}
+	if strings.Contains(configText, `- name: "AUTO"`) {
+		t.Fatalf("did not expect AUTO group without providers:\n%s", configText)
+	}
+}
+
+func TestRenderConfigIncludesAuthenticationAndCORSSections(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg, err := config.Ensure(app.Paths.ConfigPath())
+	if err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	cfg.Access.Authentication = []string{"user:pass"}
+	cfg.Access.SkipAuthPrefixes = []string{"192.168.2."}
+	cfg.Controller.CORSAllowOrigins = []string{"https://panel.example"}
+	cfg.Controller.CORSAllowPrivateNetwork = true
+	if err := config.Save(app.Paths.ConfigPath(), cfg); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	if err := app.RenderConfig(); err != nil {
+		t.Fatalf("render config: %v", err)
+	}
+	configBody, err := os.ReadFile(app.Paths.RuntimeConfig())
+	if err != nil {
+		t.Fatalf("read runtime config: %v", err)
+	}
+	configText := string(configBody)
+	for _, needle := range []string{
+		"authentication:",
+		`  - "user:pass"`,
+		"skip-auth-prefixes:",
+		"  - 192.168.2.",
+		"external-controller-cors:",
+		`    - "https://panel.example"`,
+		"  allow-private-network: true",
+	} {
+		if !strings.Contains(configText, needle) {
+			t.Fatalf("missing %q in runtime config:\n%s", needle, configText)
+		}
+	}
+}
+
+func TestRenderConfigSupportsExplicitProxyOnlyConfig(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg, err := config.Ensure(app.Paths.ConfigPath())
+	if err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	cfg.Network.ProxyIngressInterfaces = nil
+	cfg.Network.DNSHijackEnabled = false
+	cfg.Network.DNSHijackInterfaces = nil
+	cfg.Network.ProxyHostOutput = false
+	cfg.Network.LANCIDRs = []string{"10.10.0.0/24"}
+	if err := config.Save(app.Paths.ConfigPath(), cfg); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	if err := app.RenderConfig(); err != nil {
+		t.Fatalf("render config: %v", err)
+	}
+	configBody, err := os.ReadFile(app.Paths.RuntimeConfig())
+	if err != nil {
+		t.Fatalf("read runtime config: %v", err)
+	}
+	configText := string(configBody)
+	if !strings.Contains(configText, "lan-allowed-ips:\n  - 10.10.0.0/24\n  - 127.0.0.0/8") {
+		t.Fatalf("expected updated LAN CIDRs:\n%s", configText)
+	}
+	if strings.Contains(configText, "proxy-providers:") {
+		t.Fatalf("did not expect providers for explicit-proxy-only config:\n%s", configText)
 	}
 }
 

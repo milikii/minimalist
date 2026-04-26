@@ -24,6 +24,11 @@
    - `/var/lib/minimalist/mihomo/ruleset/*.rules`
 4. `minimalist.service` 通过 `mihomo-core` 读取运行目录启动
 
+补充当前真相：
+
+- 即使当前没有手动节点或订阅 provider，`render-config` 仍会生成仅含 `DIRECT` 的 `PROXY` 组
+- 开启显式代理认证或控制面 CORS 时，对应段落直接写入运行时 `config.yaml`
+
 ## 节点与订阅
 
 - `import-links` 导入的是手动节点真相，默认 `disabled`
