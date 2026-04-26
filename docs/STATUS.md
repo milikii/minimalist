@@ -67,6 +67,13 @@
     - 成功/失败记账与提示输出段已独立
     - `update-subscriptions` 已退回为“遍历启用订阅 + 结果统计 + 状态收尾”的编排入口
   - 服务侧 focused tests 已补到 `update-subscriptions` 的成功刷新、无启用订阅和 curl 失败记账分支
+  - `mihomo` 的交互导入编排已完成当前最小收口：
+    - 输入源 fd 选择与 stdin fallback 已独立并修正
+    - URI 收集段已独立
+    - 支持节点提示/追加段已独立
+    - 不支持协议告警与 scan 结果循环已独立
+    - `import-links` 已退回为“准备输入源 + 收集 URI + scan + 处理结果 + 状态收尾”的编排入口
+  - `smoke` 已补到 `import-links` 的 stdin 成功导入、协议跳过和无有效节点失败分支
   - `install_webui` 的解压失败告警输出已恢复，与重构前真相一致
   - 当前行为与输出文本保持与重构前真相一致
 
@@ -80,7 +87,7 @@
 
 ## 当前风险与限制
 
-- `mihomo` 中的交互式长编排仍有剩余热点，当前下一优先级已转向 `import_links`
+- `mihomo` 中的交互式长编排仍有剩余热点，当前下一优先级已转向 `router_wizard`
 - manager sync unit 周边已出现低收益单行 helper 粒度，后续默认不再沿该方向继续细拆
 - `scripts/statectl.py` 仍保留过渡期协议解析逻辑，尚未退化为更小的状态工具
 - `nas-single-lan-dualstack` 仅兼容保留，不代表项目已支持真双栈旁路由

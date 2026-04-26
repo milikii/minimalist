@@ -86,6 +86,14 @@
 - 原因是 `import_links` 已具备 `/dev/stdin` fallback，并且复用 `scan-uris` 与 `append-node` 既有能力，更容易先补 focused tests 再做职责块收口
 - `router_wizard` 继续排在其后，待 `import_links` 收口后再处理网络参数采集与 env 写入编排
 
+## 2026-04-26 import_links 收口后优先转向 router_wizard
+
+- `import_links` 当前已收口为“准备输入源 + 收集 URI + scan + 处理结果 + 状态收尾”的编排入口
+- 本轮顺手修正了非 TTY 下的 stdin fallback 真相，避免 `import-links` 在管道输入场景错误读取 `/dev/tty` 或误消费 scan 结果文件
+- `smoke` 已补到 `import-links` 的 stdin 成功导入、协议跳过和无有效节点失败分支，当前交互导入链已有最小回归护栏
+- 下一优先级确定为 `router_wizard`
+- 原因是它仍保留当前配置展示、多个输入字段校验和集中 env 写盘，是当前交互链里剩余最大的长编排块
+
 ## 2026-04-26 codex 会话产物不进入版本控制
 
 - 会话落盘统一为 `codex.md`，只保留最近三轮会话，不作为仓库真相文档
