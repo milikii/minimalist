@@ -486,6 +486,40 @@ func TestBuildRuntimeConfigIncludesManualProviderWhenNodesEnabled(t *testing.T) 
 	}
 }
 
+func TestBuildRuntimeConfigIncludesManualProviderHealthCheck(t *testing.T) {
+	paths := Paths{
+		ConfigDir:  t.TempDir(),
+		DataDir:    t.TempDir(),
+		RuntimeDir: t.TempDir(),
+	}
+	cfg := config.Default()
+	st := state.Empty()
+	st.Nodes = []state.Node{{
+		ID:         "1",
+		Name:       "manual-1",
+		Enabled:    true,
+		URI:        "trojan://password@example.org:443?security=tls#manual-1",
+		ImportedAt: state.NowISO(),
+		Source:     state.Source{Kind: "manual"},
+	}}
+	text, err := buildRuntimeConfig(paths, cfg, st, nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	for _, needle := range []string{
+		"  manual:\n    type: file\n    path: ./proxy_providers/manual.txt\n    health-check:\n",
+		"      enable: true\n",
+		"      url: \"https://cp.cloudflare.com/generate_204\"\n",
+		"      interval: 300\n",
+		"      timeout: 5000\n",
+		"      lazy: true\n",
+	} {
+		if !strings.Contains(text, needle) {
+			t.Fatalf("missing %q in runtime config:\n%s", needle, text)
+		}
+	}
+}
+
 func TestBuildServiceUnitIncludesLifecycleCommands(t *testing.T) {
 	paths := Paths{
 		RuntimeDir:  filepath.Join(t.TempDir(), "runtime"),
@@ -687,5 +721,143 @@ func TestBuildRuntimeConfigUsesRuntimeUIPath(t *testing.T) {
 	}
 	if !strings.Contains(text, "external-ui: "+paths.UIPath()+"\n") {
 		t.Fatalf("expected runtime-specific ui path:\n%s", text)
+	}
+}
+
+func TestBuildRuntimeConfigIncludesSubscriptionProviderHealthCheck(t *testing.T) {
+	paths := Paths{
+		ConfigDir:  t.TempDir(),
+		DataDir:    t.TempDir(),
+		RuntimeDir: t.TempDir(),
+	}
+	cfg := config.Default()
+	st := state.Empty()
+	st.Subscriptions = []state.Subscription{{
+		ID:        "sub-1",
+		Name:      "sub-1",
+		URL:       "https://subscription.example.com/sub.txt",
+		Enabled:   true,
+		CreatedAt: state.NowISO(),
+	}}
+	st.Nodes = []state.Node{{
+		ID:         "1",
+		Name:       "sub-node",
+		Enabled:    true,
+		URI:        "trojan://password@example.org:443?security=tls#sub-node",
+		ImportedAt: state.NowISO(),
+		Source:     state.Source{Kind: "subscription", ID: "sub-1"},
+	}}
+	if err := os.MkdirAll(paths.SubscriptionDir(), 0o755); err != nil {
+		t.Fatalf("mkdir subscription dir: %v", err)
+	}
+	if err := os.WriteFile(paths.SubscriptionFile("sub-1"), []byte("trojan://password@example.org:443?security=tls#sub-node\n"), 0o640); err != nil {
+		t.Fatalf("write subscription cache: %v", err)
+	}
+	text, err := buildRuntimeConfig(paths, cfg, st, nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	for _, needle := range []string{
+		"  subscription-sub:\n    type: file\n    path: ./proxy_providers/subscriptions/sub-1.txt\n    health-check:\n",
+		"      enable: true\n",
+		"      url: \"https://cp.cloudflare.com/generate_204\"\n",
+		"      interval: 300\n",
+		"      timeout: 5000\n",
+		"      lazy: true\n",
+	} {
+		if !strings.Contains(text, needle) {
+			t.Fatalf("missing %q in runtime config:\n%s", needle, text)
+		}
+	}
+}
+
+func TestBuildRuntimeConfigIncludesAutoGroupSettings(t *testing.T) {
+	paths := Paths{
+		ConfigDir:  t.TempDir(),
+		DataDir:    t.TempDir(),
+		RuntimeDir: t.TempDir(),
+	}
+	cfg := config.Default()
+	st := state.Empty()
+	st.Nodes = []state.Node{{
+		ID:         "1",
+		Name:       "manual-1",
+		Enabled:    true,
+		URI:        "trojan://password@example.org:443?security=tls#manual-1",
+		ImportedAt: state.NowISO(),
+		Source:     state.Source{Kind: "manual"},
+	}}
+	text, err := buildRuntimeConfig(paths, cfg, st, nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	for _, needle := range []string{
+		"- name: \"AUTO\"\n    type: url-test\n",
+		"    url: \"https://cp.cloudflare.com/generate_204\"\n",
+		"    interval: 300\n",
+		"    tolerance: 80\n",
+		"    lazy: true\n",
+	} {
+		if !strings.Contains(text, needle) {
+			t.Fatalf("missing %q in runtime config:\n%s", needle, text)
+		}
+	}
+}
+
+func TestBuildRuntimeConfigPreservesRulesRenderOrder(t *testing.T) {
+	paths := Paths{
+		ConfigDir:  t.TempDir(),
+		DataDir:    t.TempDir(),
+		RuntimeDir: t.TempDir(),
+	}
+	if err := os.MkdirAll(paths.RulesDir(), 0o755); err != nil {
+		t.Fatalf("mkdir rules dir: %v", err)
+	}
+	for _, file := range []struct {
+		path string
+		body string
+	}{
+		{paths.CustomRules(), "DOMAIN,custom.example,DIRECT\n"},
+		{paths.ACLRules(), "SRC-IP-CIDR,192.168.2.10/32,DIRECT\n"},
+		{paths.BuiltinRules(), "GEOIP,LAN,DIRECT\n"},
+	} {
+		if err := os.WriteFile(file.path, []byte(file.body), 0o640); err != nil {
+			t.Fatalf("write %s: %v", file.path, err)
+		}
+	}
+	cfg := config.Default()
+	text, err := buildRuntimeConfig(paths, cfg, state.Empty(), nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	customIdx := strings.Index(text, "  - DOMAIN,custom.example,DIRECT\n")
+	aclIdx := strings.Index(text, "  - SRC-IP-CIDR,192.168.2.10/32,DIRECT\n")
+	builtinIdx := strings.Index(text, "  - GEOIP,LAN,DIRECT\n")
+	processIdx := strings.Index(text, "  - PROCESS-NAME,mihomo,DIRECT\n")
+	matchIdx := strings.Index(text, "  - MATCH,PROXY\n")
+	if !(customIdx >= 0 && aclIdx > customIdx && builtinIdx > aclIdx && processIdx > builtinIdx && matchIdx > processIdx) {
+		t.Fatalf("unexpected rules order:\n%s", text)
+	}
+}
+
+func TestBuildServiceUnitIncludesHardeningFlags(t *testing.T) {
+	paths := Paths{
+		RuntimeDir:  filepath.Join(t.TempDir(), "runtime"),
+		BinPath:     filepath.Join(t.TempDir(), "bin", "minimalist"),
+		ServiceUnit: filepath.Join(t.TempDir(), "systemd", "minimalist.service"),
+	}
+	cfg := config.Default()
+	unit := BuildServiceUnit(paths, cfg)
+	for _, needle := range []string{
+		"NoNewPrivileges=true\n",
+		"PrivateTmp=true\n",
+		"ProtectHome=true\n",
+		"ProtectSystem=full\n",
+		"Restart=on-failure\n",
+		"RestartSec=5\n",
+	} {
+		if !strings.Contains(unit, needle) {
+			t.Fatalf("missing %q in service unit:\n%s", needle, unit)
+		}
 	}
 }

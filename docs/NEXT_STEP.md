@@ -15,8 +15,8 @@
 
 ## 下一最小闭环
 
-- 为 `render-config` 补更多 `proxy-groups` 健康检查细节 / `rules` 渲染顺序 focused assertions
 - 继续为 `runtime` / `cli` focused tests 做最小去重和命名收口
+- 为 `render-config` 补更多 `rules` 尾段与 provider 组合 focused assertions
 - 继续把 README / flows 文档收口到 `minimalist` 当前命令真相
 
 ## 本轮不做

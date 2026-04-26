@@ -35,6 +35,7 @@
 - `secret`、`external-controller`、`lan-allowed-ips`、`lan-disallowed-ips` 当前同样由 `render-config` 直接生成确定性段落
 - `proxy-groups` 与 `rules` 尾段当前也由 `render-config` 直接拼装，provider 存在与否会影响 `DIRECT` / `AUTO` 组形态
 - `BuildServiceUnit` 与 `BuildSysctl` 的输出当前也已被 focused tests 固定到当前真相
+- provider 的 `health-check` 默认段落、`AUTO` 组参数和 `rules` 渲染顺序当前也已被 focused tests 固定
 - 顶层 `minimalist rules|acl|subscriptions|rules-repo ...` 当前都已直接分发到同一组底层 CLI helper
 
 ## 节点与订阅

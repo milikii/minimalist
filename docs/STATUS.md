@@ -53,10 +53,10 @@
   - `internal/app` import-links / render-config / subscriptions update / setup / start / restart / healthcheck / runtime-audit / menu / router-wizard / clear-rules / apply-rules
   - `internal/cli` top-level `Run(args)` / `help` / `-h` / `show-secret` / rules-repo / nodes / subscriptions / rules / acl helper / usage error / index error / unknown subcommand / 正向分发
   - `internal/system` command runner
-  - `internal/runtime` secret fallback / configured secret / external-controller / external-ui / nameserver-policy / DNS 默认静态段落 / profile / fallback-filter / proxy-server-nameserver / nameserver / geox-url / dns.listen / lan-allowed-ips / lan-disallowed-ips / allow-lan / bind-address / log-level / mixed-port / tproxy-port / mode / ipv6 / geo flags / DNS behavior flags / manual & subscription provider / direct-only & AUTO proxy-groups / rules tail / BuildServiceUnit / BuildSysctl
+  - `internal/runtime` secret fallback / configured secret / external-controller / external-ui / nameserver-policy / DNS 默认静态段落 / profile / fallback-filter / proxy-server-nameserver / nameserver / geox-url / dns.listen / lan-allowed-ips / lan-disallowed-ips / allow-lan / bind-address / log-level / mixed-port / tproxy-port / mode / ipv6 / geo flags / DNS behavior flags / manual & subscription provider / provider health-check / direct-only & AUTO proxy-groups / rules tail & order / BuildServiceUnit / BuildSysctl / service hardening
   - `subscriptions update -> render-config` 的最小集成断言
   - `render-config` 的规则目标与 provider 组合断言
-  - `render-config` 的“无 provider / auth+cors / 仅显式代理 / secret / external-controller / LAN 允许/禁止网段 / external-ui / nameserver-policy / default-nameserver / direct-nameserver / fake-ip-filter / profile / fallback-filter / proxy-server-nameserver / nameserver / geox-url / dns.listen / allow-lan / bind-address / log-level / mixed-port / tproxy-port / mode / ipv6 / geo flags / DNS behavior flags / manual & subscription provider / direct-only & AUTO proxy-groups / rules tail” 边界断言
+  - `render-config` 的“无 provider / auth+cors / 仅显式代理 / secret / external-controller / LAN 允许/禁止网段 / external-ui / nameserver-policy / default-nameserver / direct-nameserver / fake-ip-filter / profile / fallback-filter / proxy-server-nameserver / nameserver / geox-url / dns.listen / allow-lan / bind-address / log-level / mixed-port / tproxy-port / mode / ipv6 / geo flags / DNS behavior flags / manual & subscription provider / provider health-check / direct-only & AUTO proxy-groups / rules tail & order” 边界断言
 
 ## 质量状态
 
