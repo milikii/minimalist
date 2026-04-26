@@ -23,7 +23,7 @@ assert_contains() {
 
 setup_case() {
   TMPDIR_CASE="$(mktemp -d)"
-  mkdir -p "${TMPDIR_CASE}/state" "${TMPDIR_CASE}/ruleset" "${TMPDIR_CASE}/proxy_providers" "${TMPDIR_CASE}/ui"
+  mkdir -p "${TMPDIR_CASE}/bin" "${TMPDIR_CASE}/state" "${TMPDIR_CASE}/ruleset" "${TMPDIR_CASE}/proxy_providers" "${TMPDIR_CASE}/ui"
   cp -a "${ROOT}/rules-repo" "${TMPDIR_CASE}/rules-repo"
   cat > "${TMPDIR_CASE}/router.env" <<'EOF'
 TEMPLATE_NAME="nas-single-lan-v4"
@@ -48,6 +48,34 @@ ROUTE_MASK="0xffffffff"
 ROUTE_TABLE="233"
 ROUTE_PRIORITY="100"
 EOF
+}
+
+install_ip_mock() {
+  local global_listing="$1"
+  local bridge1_cidr="${2:-}"
+  local eth1_cidr="${3:-}"
+  cat > "${TMPDIR_CASE}/bin/ip" <<EOF
+#!/usr/bin/env bash
+if [[ "\$*" == "-o -4 addr show scope global" ]]; then
+  cat <<'OUT'
+${global_listing}
+OUT
+  exit 0
+fi
+
+if [[ "\$*" == "-o -4 addr show dev bridge1 scope global" ]]; then
+  [[ -n "${bridge1_cidr}" ]] && printf '2: bridge1    inet %s brd 192.168.50.255 scope global bridge1\n' "${bridge1_cidr}"
+  exit 0
+fi
+
+if [[ "\$*" == "-o -4 addr show dev eth1 scope global" ]]; then
+  [[ -n "${eth1_cidr}" ]] && printf '3: eth1    inet %s brd 10.0.0.255 scope global eth1\n' "${eth1_cidr}"
+  exit 0
+fi
+
+exit 0
+EOF
+  chmod +x "${TMPDIR_CASE}/bin/ip"
 }
 
 env_prefix() {
@@ -235,6 +263,95 @@ with open(sys.argv[1], "r", encoding="utf-8") as f:
     data = json.load(f)
 assert data["nodes"] == [], data
 PY
+}
+
+test_router_wizard_updates_env_and_detects_lan_cidrs() {
+  setup_case
+  install_ip_mock \
+    '2: bridge1    inet 192.168.50.4/24 brd 192.168.50.255 scope global bridge1
+3: eth1    inet 10.0.0.2/24 brd 10.0.0.255 scope global eth1' \
+    '192.168.50.4/24' \
+    '10.0.0.2/24'
+
+  output="$(
+    printf '%s\n' \
+      'bridge1 eth1' \
+      'bridge1' \
+      '1' \
+      '192.168.50.10/32' \
+      'alice:secret bob:pass' \
+      '127.0.0.1/32 192.168.50.0/24' \
+      'https://panel.example.com http://192.168.50.2:3000' \
+      '1' \
+      'qbittorrent transmission' \
+      '10.10.0.0/16' \
+      '223.5.5.5/32 114.114.114.114/32' \
+      '1000 alice' \
+      | PATH="${TMPDIR_CASE}/bin:${PATH}" run_manager router-wizard 2>&1
+  )"
+
+  assert_contains "$output" '当前模板: nas-single-lan-v4'
+  assert_contains "$output" '当前可见 IPv4 接口:'
+  assert_contains "$output" 'bridge1  192.168.50.4/24'
+  assert_contains "$output" 'eth1  10.0.0.2/24'
+  assert_contains "$output" '自动识别入口网段: 10.0.0.0/24 192.168.50.0/24'
+  assert_contains "$output" '旁路由参数已更新'
+  grep -q '^LAN_INTERFACES="bridge1 eth1"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^PROXY_INGRESS_INTERFACES="bridge1 eth1"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^DNS_HIJACK_INTERFACES="bridge1"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^PROXY_HOST_OUTPUT="1"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^LAN_DISALLOWED_CIDRS="192.168.50.10/32"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^PROXY_AUTH_CREDENTIALS="alice:secret bob:pass"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^SKIP_AUTH_PREFIXES="127.0.0.1/32 192.168.50.0/24"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^CONTROLLER_CORS_ALLOW_ORIGINS="https://panel.example.com http://192.168.50.2:3000"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK="1"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^LAN_CIDRS="10.0.0.0/24 192.168.50.0/24"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^BYPASS_CONTAINER_NAMES="qbittorrent transmission"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^BYPASS_SRC_CIDRS="10.10.0.0/16"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^BYPASS_DST_CIDRS="223.5.5.5/32 114.114.114.114/32"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^BYPASS_UIDS="1000 alice"$' "${TMPDIR_CASE}/router.env"
+}
+
+test_router_wizard_keeps_existing_lan_cidrs_when_detect_fails() {
+  setup_case
+  output="$(
+    printf '%s\n' \
+      '' \
+      '' \
+      '' \
+      '' \
+      '' \
+      '' \
+      '' \
+      '' \
+      '' \
+      '' \
+      '' \
+      '' \
+      | run_manager router-wizard 2>&1
+  )"
+
+  assert_contains "$output" '未能从入口接口自动识别 IPv4 网段'
+  assert_contains "$output" '旁路由参数已更新'
+  grep -q '^LAN_CIDRS="192.168.2.0/24"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^LAN_INTERFACES="bridge1"$' "${TMPDIR_CASE}/router.env"
+  grep -q '^PROXY_HOST_OUTPUT="0"$' "${TMPDIR_CASE}/router.env"
+}
+
+test_router_wizard_rejects_invalid_host_output_value() {
+  setup_case
+  before_router_env="$(cat "${TMPDIR_CASE}/router.env")"
+  if printf '%s\n' \
+    '' \
+    '' \
+    '2' \
+    | run_manager router-wizard >/tmp/mh-router-wizard-invalid.log 2>&1; then
+    echo "router-wizard should fail on invalid host output value" >&2
+    exit 1
+  fi
+  grep -q '宿主机流量接管只能填 0 或 1' /tmp/mh-router-wizard-invalid.log
+  after_router_env="$(cat "${TMPDIR_CASE}/router.env")"
+  [[ "$before_router_env" == "$after_router_env" ]]
 }
 
 test_subscription_state_commands() {
@@ -1201,6 +1318,9 @@ main() {
   test_scan_marks_invalid_vless_port
   test_import_links_imports_supported_nodes_from_stdin
   test_import_links_fails_when_no_supported_nodes
+  test_router_wizard_updates_env_and_detects_lan_cidrs
+  test_router_wizard_keeps_existing_lan_cidrs_when_detect_fails
+  test_router_wizard_rejects_invalid_host_output_value
   test_subscription_state_commands
   test_subscription_state_uses_cache_and_enumeration_subobjects
   test_config_loader_treats_values_as_literals
