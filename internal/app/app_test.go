@@ -12,6 +12,7 @@ import (
 
 	"minimalist/internal/config"
 	"minimalist/internal/runtime"
+	"minimalist/internal/state"
 )
 
 type commandCall struct {
@@ -306,6 +307,55 @@ func TestRestartRendersConfigAndRestartsService(t *testing.T) {
 	}
 }
 
+func TestStatusFallsBackToConfigModeAndReportsReadySubscriptions(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("status-sub", "https://subscription.example.com/status.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Subscriptions) != 1 {
+		t.Fatalf("expected one subscription, got %d", len(st.Subscriptions))
+	}
+	if err := os.WriteFile(app.Paths.SubscriptionFile(st.Subscriptions[0].ID), []byte("trojan://password@example.org:443?security=tls#status\n"), 0o640); err != nil {
+		t.Fatalf("write subscription cache: %v", err)
+	}
+	if err := app.Status(); err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"当前模式: rule (config)",
+		"服务状态: active=false enabled=false",
+		"手动节点: 0",
+		"订阅: enabled=1 total=1 ready=1",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in status output:\n%s", needle, output)
+		}
+	}
+}
+
+func TestStatusPrefersRuntimeModeWhenControllerConfigResponds(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path != "/configs" {
+				t.Fatalf("unexpected request path: %s", req.URL.Path)
+			}
+			return textResponse(http.StatusOK, `{"mode":"global"}`), nil
+		}),
+	}
+	if err := app.Status(); err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "当前模式: global (runtime)") {
+		t.Fatalf("expected runtime mode in status output:\n%s", app.Stdout.(*bytes.Buffer).String())
+	}
+}
+
 func TestHealthcheckReportsControllerSummary(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Client = &http.Client{
@@ -333,6 +383,17 @@ func TestHealthcheckReportsControllerSummary(t *testing.T) {
 		if !strings.Contains(output, needle) {
 			t.Fatalf("missing %q in healthcheck output:\n%s", needle, output)
 		}
+	}
+}
+
+func TestHealthcheckReportsControllerErrorWhenUnavailable(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.Healthcheck(); err != nil {
+		t.Fatalf("healthcheck: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	if !strings.Contains(output, "controller: Get") || !strings.Contains(output, "unavailable") {
+		t.Fatalf("expected controller error in healthcheck output:\n%s", output)
 	}
 }
 
@@ -382,6 +443,52 @@ func TestRuntimeAuditCountsAlertsAndReportsRuntimeSummary(t *testing.T) {
 		if !strings.Contains(output, needle) {
 			t.Fatalf("missing %q in runtime audit output:\n%s", needle, output)
 		}
+	}
+}
+
+func TestRuntimeAuditOmitsRuntimeSummaryWhenControllerUnavailable(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			if name == "systemctl" && len(args) >= 2 && (args[0] == "is-active" || args[0] == "is-enabled") {
+				return nil
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			if name == "journalctl" {
+				return "WARN retrying\n", "", nil
+			}
+			return "", "", errors.New("unavailable")
+		},
+	}
+	if err := app.RuntimeAudit(); err != nil {
+		t.Fatalf("runtime audit: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	if !strings.Contains(output, "alerts: warn=1 error=0") {
+		t.Fatalf("expected alert count in runtime audit output:\n%s", output)
+	}
+	if strings.Contains(output, "runtime: ") {
+		t.Fatalf("did not expect runtime summary when controller is unavailable:\n%s", output)
+	}
+}
+
+func TestShowSecretPrintsConfiguredSecret(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg, err := config.Ensure(app.Paths.ConfigPath())
+	if err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	cfg.Controller.Secret = "app-secret"
+	if err := config.Save(app.Paths.ConfigPath(), cfg); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	if err := app.ShowSecret(); err != nil {
+		t.Fatalf("show secret: %v", err)
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "app-secret") {
+		t.Fatalf("unexpected show secret output:\n%s", app.Stdout.(*bytes.Buffer).String())
 	}
 }
 
