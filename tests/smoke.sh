@@ -214,6 +214,21 @@ test_protocol_renderers_keep_tls_and_transport_variants() {
   grep -A10 'download-settings:' "${TMPDIR_CASE}/proxy_providers/manual.txt" | grep -q 'client-fingerprint: "chrome"'
 }
 
+test_vless_provider_tail_fields_are_rendered() {
+  setup_case
+  run_manager render-config >/dev/null
+  python3 "${STATECTL}" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://12345678-1234-1234-1234-1234567890ab@example.com:443?flow=xtls-rprx-vision&packetEncoding=xudp&encryption=none&security=tls&type=xhttp&path=%2Fxhttp&host=cdn.example.com&mode=auto&sni=www.microsoft.com&extra=%7B%22downloadSettings%22%3A%7B%22address%22%3A%22download.example.com%22%2C%22port%22%3A8443%2C%22security%22%3A%22tls%22%2C%22serverName%22%3A%22download.example.com%22%2C%22fingerprint%22%3A%22chrome%22%2C%22xhttpSettings%22%3A%7B%22path%22%3A%22%2Fmirror%22%2C%22host%22%3A%22cache.example.com%22%2C%22mode%22%3A%22auto%22%7D%7D%7D#xhttp-tail-node' xhttp-tail-node 1 >/dev/null
+  run_manager render-config >/dev/null
+  grep -q 'flow: "xtls-rprx-vision"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'packet-encoding: "xudp"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'xhttp-opts:' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'path: "/xhttp"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'host: "cdn.example.com"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -q 'mode: "auto"' "${TMPDIR_CASE}/proxy_providers/manual.txt"
+  grep -A10 'download-settings:' "${TMPDIR_CASE}/proxy_providers/manual.txt" | grep -q 'path: "/mirror"'
+  grep -A10 'download-settings:' "${TMPDIR_CASE}/proxy_providers/manual.txt" | grep -q 'host: "cache.example.com"'
+}
+
 test_acl_rules_are_rendered() {
   setup_case
   run_manager render-config >/dev/null
@@ -1398,6 +1413,7 @@ main() {
   test_protocol_renderers
   test_protocol_renderers_keep_transport_specific_options
   test_protocol_renderers_keep_tls_and_transport_variants
+  test_vless_provider_tail_fields_are_rendered
   test_acl_rules_are_rendered
   test_auto_without_node_fails
   test_scan_marks_unsupported_scheme
