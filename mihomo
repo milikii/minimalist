@@ -1381,9 +1381,8 @@ run_core_update_command() {
   restart_service_if_active
 }
 
-main() {
-  case "${1:-}" in
-    "") run_default_main_entry ;;
+dispatch_workflow_main_command() {
+  case "$1" in
     menu) interactive_menu ;;
     setup|bootstrap) full_setup ;;
     repair) repair_command ;;
@@ -1416,6 +1415,15 @@ main() {
     remove-rule) remove_custom_rule "${2:-}" ;;
     set-mode) set_mode "${2:-rule}" ;;
     router-wizard) router_wizard ;;
+  esac
+}
+
+main() {
+  case "${1:-}" in
+    "") run_default_main_entry ;;
+    menu|setup|bootstrap|repair|install-self|install-self-sync|disable-self-sync|import-links|nodes|subscriptions|add-subscription|update-subscriptions|templates|set-template|rule-presets|set-rule-preset|rules-repo|rules-repo-entries|rules-repo-find|add-repo-rule|remove-repo-rule|remove-repo-rule-index|apply-default-template|apply-self-use|rename-node|toggle-node|acl|add-acl|remove-acl|rules|add-rule|remove-rule|set-mode|router-wizard)
+      dispatch_workflow_main_command "$@"
+      ;;
     set-ports) snapshot_before_change "set-ports"; configure_ports ;;
     install-geosite|update-geosite) install_geosite_dat ;;
     update-alpha) run_core_update_command alpha "${2:-}" ;;
