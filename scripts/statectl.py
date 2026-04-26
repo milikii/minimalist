@@ -898,33 +898,42 @@ def build_ss_provider_item(name: str, info: dict) -> dict:
     return item
 
 
+def build_vmess_provider_item(name: str, info: dict) -> dict:
+    item = {
+        "name": name,
+        "type": "vmess",
+        "server": info["server"],
+        "port": info["port"],
+        "uuid": info["uuid"],
+        "alterId": info["alter_id"],
+        "cipher": info["cipher"],
+        "udp": True,
+    }
+    if info.get("tls"):
+        item["tls"] = True
+    apply_common_tls_fields(item, info)
+    apply_network_opts(item, info)
+    return item
+
+
+def provider_item_renderer_for_scheme(scheme: str):
+    if scheme == "vless":
+        return build_vless_provider_item
+    if scheme == "trojan":
+        return build_trojan_provider_item
+    if scheme == "ss":
+        return build_ss_provider_item
+    if scheme == "vmess":
+        return build_vmess_provider_item
+    fail(f"unsupported scheme: {scheme}")
+
+
 def provider_item_from_node(node: dict) -> dict:
     info = parse_uri_info(node["uri"])
     scheme = info["scheme"]
     name = node["name"]
-    if scheme == "vless":
-        return build_vless_provider_item(name, info)
-    if scheme == "trojan":
-        return build_trojan_provider_item(name, info)
-    if scheme == "ss":
-        return build_ss_provider_item(name, info)
-    if scheme == "vmess":
-        item = {
-            "name": name,
-            "type": "vmess",
-            "server": info["server"],
-            "port": info["port"],
-            "uuid": info["uuid"],
-            "alterId": info["alter_id"],
-            "cipher": info["cipher"],
-            "udp": True,
-        }
-        if info.get("tls"):
-            item["tls"] = True
-        apply_common_tls_fields(item, info)
-        apply_network_opts(item, info)
-        return item
-    fail(f"unsupported scheme: {scheme}")
+    renderer = provider_item_renderer_for_scheme(scheme)
+    return renderer(name, info)
 
 
 def render_provider(
