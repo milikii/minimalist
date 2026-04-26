@@ -218,6 +218,31 @@ proxies: []
 EOF
 }
 
+render_authentication_block() {
+  local config_file="$1"
+  local auth_entry
+  local skip_auth_prefix
+
+  [[ ${#PROXY_AUTH_CREDENTIALS_ARR[@]} -gt 0 ]] || return 0
+
+  cat >>"$config_file" <<'EOF'
+authentication:
+EOF
+  for auth_entry in "${PROXY_AUTH_CREDENTIALS_ARR[@]}"; do
+    [[ -n "$auth_entry" ]] || continue
+    printf '  - %s\n' "$(printf '%s' "$auth_entry" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()).strip())')" >>"$config_file"
+  done
+  if [[ ${#SKIP_AUTH_PREFIXES_ARR[@]} -gt 0 ]]; then
+    cat >>"$config_file" <<'EOF'
+skip-auth-prefixes:
+EOF
+    for skip_auth_prefix in "${SKIP_AUTH_PREFIXES_ARR[@]}"; do
+      [[ -n "$skip_auth_prefix" ]] || continue
+      printf '  - %s\n' "$skip_auth_prefix" >>"$config_file"
+    done
+  fi
+}
+
 render_config() {
   require_root
   ensure_layout
@@ -236,8 +261,6 @@ render_config() {
   local active_provider_count=0
   local lan_cidrs
   local config_mode
-  local auth_entry
-  local skip_auth_prefix
   local enable_ipv6
   local explicit_proxy_only=0
   local sub_idx
@@ -277,25 +300,7 @@ render_config() {
 
   render_access_controller_block "$CONFIG_FILE" lan_allowed_cidrs_arr "$config_mode" "$enable_ipv6" "$secret"
   render_dns_base_block "$CONFIG_FILE" "$enable_ipv6"
-
-  if [[ ${#PROXY_AUTH_CREDENTIALS_ARR[@]} -gt 0 ]]; then
-    cat >>"$CONFIG_FILE" <<'EOF'
-authentication:
-EOF
-    for auth_entry in "${PROXY_AUTH_CREDENTIALS_ARR[@]}"; do
-      [[ -n "$auth_entry" ]] || continue
-      printf '  - %s\n' "$(printf '%s' "$auth_entry" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()).strip())')" >>"$CONFIG_FILE"
-    done
-    if [[ ${#SKIP_AUTH_PREFIXES_ARR[@]} -gt 0 ]]; then
-      cat >>"$CONFIG_FILE" <<'EOF'
-skip-auth-prefixes:
-EOF
-      for skip_auth_prefix in "${SKIP_AUTH_PREFIXES_ARR[@]}"; do
-        [[ -n "$skip_auth_prefix" ]] || continue
-        printf '  - %s\n' "$skip_auth_prefix" >>"$CONFIG_FILE"
-      done
-    fi
-  fi
+  render_authentication_block "$CONFIG_FILE"
 
   if [[ "$active_provider_count" -gt 0 ]]; then
     cat >>"$CONFIG_FILE" <<'EOF'
