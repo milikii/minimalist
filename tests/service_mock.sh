@@ -320,6 +320,28 @@ test_start_without_nodes_fails_before_systemctl_start() {
   [[ ! -f "${TMPDIR_CASE}/systemctl.log" ]] || ! grep -Fq 'start mihomo' "${TMPDIR_CASE}/systemctl.log"
 }
 
+test_start_prepares_runtime_support_files_before_systemctl_start() {
+  setup_case
+  python3 "${ROOT}/scripts/statectl.py" append-node "${TMPDIR_CASE}/state/nodes.json" 'vless://uuid@example.com:443?encryption=none&security=reality&sni=www.microsoft.com&fp=chrome&pbk=PUBLIC_KEY&sid=abcd&type=tcp#manual-node' manual-node 1 >/dev/null
+  cat > "${TMPDIR_CASE}/bin/systemctl" <<'EOSYS'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${SYSTEMCTL_LOG:?}"
+if [[ "$1" == "start" && "$2" == "mihomo" ]]; then
+  [[ -f "${CONFIG_FILE:?}" ]] || exit 41
+  [[ -f "${SYSTEMD_UNIT:?}" ]] || exit 42
+  [[ -f "${ROUTER_SYSCTL:?}" ]] || exit 43
+fi
+exit 0
+EOSYS
+  chmod +x "${TMPDIR_CASE}/bin/systemctl"
+
+  run_manager start >/dev/null
+  grep -q '^mixed-port: 7890$' "${TMPDIR_CASE}/config.yaml"
+  grep -q '^ExecStart=/bin/true -d ' "${TMPDIR_CASE}/mihomo.service"
+  grep -q '^net.ipv4.ip_forward = 1$' "${TMPDIR_CASE}/99-mihomo-router.conf"
+  grep -Fq 'start mihomo' "${TMPDIR_CASE}/systemctl.log"
+}
+
 test_configure_restart_enables_timer() {
   setup_case
   run_manager configure-restart 24 >/dev/null
@@ -912,6 +934,7 @@ test_rollback_config_restores_template() {
 
 main() {
   test_start_without_nodes_fails_before_systemctl_start
+  test_start_prepares_runtime_support_files_before_systemctl_start
   test_configure_restart_enables_timer
   test_disable_alpha_update_disables_timer
   test_runtime_audit_outputs

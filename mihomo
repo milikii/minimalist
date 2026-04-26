@@ -741,9 +741,7 @@ repair_command() {
   ensure_permissions
   load_settings
   load_router_env
-  render_config
-  write_service
-  write_sysctl
+  write_runtime_support_files
   [[ -f "$COUNTRY_MMDB" ]] || install_country_mmdb
   ensure_geosite_ready
   if [[ ! -d "$UI_DIR" || -z "$(find "$UI_DIR" -mindepth 1 -maxdepth 1 2>/dev/null | head -n 1)" ]]; then
@@ -751,6 +749,12 @@ repair_command() {
   fi
   config_test
   ok "修复完成；核心部署已恢复到可测试状态"
+}
+
+write_runtime_support_files() {
+  render_config
+  write_service
+  write_sysctl
 }
 
 prepare_runtime_assets() {
@@ -762,9 +766,7 @@ prepare_runtime_assets() {
   if [[ ! -x "$MIHOMO_BIN" ]]; then
     install_binary "${CORE_CHANNEL:-alpha}"
   fi
-  render_config
-  write_service
-  write_sysctl
+  write_runtime_support_files
   [[ -f "$COUNTRY_MMDB" ]] || install_country_mmdb
   ensure_geosite_ready
   config_test
@@ -1039,9 +1041,7 @@ full_setup() {
   if [[ ! -x "$MIHOMO_BIN" ]]; then
     install_binary "${CORE_CHANNEL:-alpha}"
   fi
-  render_config
-  write_service
-  write_sysctl
+  write_runtime_support_files
   [[ -f "$COUNTRY_MMDB" ]] || install_country_mmdb
   ensure_geosite_ready
   if install_webui; then
