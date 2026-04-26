@@ -737,10 +737,7 @@ show_status() {
 repair_command() {
   require_root
   snapshot_before_change "repair"
-  ensure_layout
-  ensure_permissions
-  load_settings
-  load_router_env
+  prepare_runtime_deploy_context
   write_runtime_support_files
   ensure_runtime_geo_assets
   if [[ ! -d "$UI_DIR" || -z "$(find "$UI_DIR" -mindepth 1 -maxdepth 1 2>/dev/null | head -n 1)" ]]; then
@@ -763,6 +760,12 @@ ensure_runtime_geo_assets() {
 
 ensure_runtime_core_binary_ready() {
   [[ -x "$MIHOMO_BIN" ]] || install_binary "${CORE_CHANNEL:-alpha}"
+}
+
+prepare_runtime_deploy_context() {
+  ensure_layout
+  ensure_permissions
+  load_settings
 }
 
 prepare_runtime_assets() {
@@ -1043,9 +1046,7 @@ diagnostics_menu() {
 full_setup() {
   require_root
   snapshot_before_change "setup"
-  ensure_layout
-  ensure_permissions
-  load_settings
+  prepare_runtime_deploy_context
   ensure_runtime_core_binary_ready
   write_runtime_support_files
   ensure_runtime_geo_assets
