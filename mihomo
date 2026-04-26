@@ -744,6 +744,27 @@ collect_router_wizard_core_inputs() {
   [[ "$cors_private_ref" == "0" || "$cors_private_ref" == "1" ]] || die "控制面 CORS Private-Network 只能填 0 或 1"
 }
 
+write_router_wizard_core_env() {
+  local ingress_ifaces="$1"
+  local dns_ifaces="$2"
+  local host_output="$3"
+  local lan_disallowed="$4"
+  local proxy_auth="$5"
+  local skip_auth="$6"
+  local cors_origins="$7"
+  local cors_private="$8"
+
+  upsert_env_var "$ROUTER_ENV" "LAN_INTERFACES" "$ingress_ifaces"
+  upsert_env_var "$ROUTER_ENV" "PROXY_INGRESS_INTERFACES" "$ingress_ifaces"
+  upsert_env_var "$ROUTER_ENV" "DNS_HIJACK_INTERFACES" "$dns_ifaces"
+  upsert_env_var "$ROUTER_ENV" "PROXY_HOST_OUTPUT" "$host_output"
+  upsert_env_var "$ROUTER_ENV" "LAN_DISALLOWED_CIDRS" "$lan_disallowed"
+  upsert_env_var "$ROUTER_ENV" "PROXY_AUTH_CREDENTIALS" "$proxy_auth"
+  upsert_env_var "$ROUTER_ENV" "SKIP_AUTH_PREFIXES" "$skip_auth"
+  upsert_env_var "$ROUTER_ENV" "CONTROLLER_CORS_ALLOW_ORIGINS" "$cors_origins"
+  upsert_env_var "$ROUTER_ENV" "CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK" "$cors_private"
+}
+
 router_wizard() {
   require_root
   load_router_env
@@ -770,15 +791,15 @@ router_wizard() {
     next_controller_cors_private
 
   snapshot_before_change "router-wizard"
-  upsert_env_var "$ROUTER_ENV" "LAN_INTERFACES" "$next_ingress_ifaces"
-  upsert_env_var "$ROUTER_ENV" "PROXY_INGRESS_INTERFACES" "$next_ingress_ifaces"
-  upsert_env_var "$ROUTER_ENV" "DNS_HIJACK_INTERFACES" "$next_dns_ifaces"
-  upsert_env_var "$ROUTER_ENV" "PROXY_HOST_OUTPUT" "$next_host_output"
-  upsert_env_var "$ROUTER_ENV" "LAN_DISALLOWED_CIDRS" "$next_lan_disallowed"
-  upsert_env_var "$ROUTER_ENV" "PROXY_AUTH_CREDENTIALS" "$next_proxy_auth"
-  upsert_env_var "$ROUTER_ENV" "SKIP_AUTH_PREFIXES" "$next_skip_auth"
-  upsert_env_var "$ROUTER_ENV" "CONTROLLER_CORS_ALLOW_ORIGINS" "$next_controller_cors_origins"
-  upsert_env_var "$ROUTER_ENV" "CONTROLLER_CORS_ALLOW_PRIVATE_NETWORK" "$next_controller_cors_private"
+  write_router_wizard_core_env \
+    "$next_ingress_ifaces" \
+    "$next_dns_ifaces" \
+    "$next_host_output" \
+    "$next_lan_disallowed" \
+    "$next_proxy_auth" \
+    "$next_skip_auth" \
+    "$next_controller_cors_origins" \
+    "$next_controller_cors_private"
 
   next_lan_cidrs="$(detect_iface_networks "$next_ingress_ifaces" || true)"
   if [[ -n "$next_lan_cidrs" ]]; then
