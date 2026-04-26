@@ -605,6 +605,145 @@ func TestRenameNodeRejectsSubscriptionNode(t *testing.T) {
 	}
 }
 
+func TestAddSubscriptionUpdatesExistingURLInPlace(t *testing.T) {
+	app, _ := newTestApp(t)
+	url := "https://subscription.example.com/shared.txt"
+	if err := app.AddSubscription("first-name", url, true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.AddSubscription("renamed-sub", url, false); err != nil {
+		t.Fatalf("update subscription: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Subscriptions) != 1 {
+		t.Fatalf("expected one subscription, got %d", len(st.Subscriptions))
+	}
+	if st.Subscriptions[0].Name != "renamed-sub" || st.Subscriptions[0].Enabled {
+		t.Fatalf("expected updated subscription fields, got %+v", st.Subscriptions[0])
+	}
+}
+
+func TestSetSubscriptionDisabledPurgesSubscriptionNodes(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#sub-purge\n"), nil
+		}),
+	}
+	if err := app.AddSubscription("purge-sub", "https://subscription.example.com/purge.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
+	}
+	if err := app.SetSubscriptionEnabled(1, false); err != nil {
+		t.Fatalf("disable subscription: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if st.Subscriptions[0].Enabled {
+		t.Fatalf("expected subscription to be disabled")
+	}
+	for _, node := range st.Nodes {
+		if node.Source.Kind == "subscription" {
+			t.Fatalf("expected subscription nodes to be purged, got %+v", st.Nodes)
+		}
+	}
+}
+
+func TestRemoveSubscriptionDeletesCacheAndNodes(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#sub-remove\n"), nil
+		}),
+	}
+	if err := app.AddSubscription("remove-sub", "https://subscription.example.com/remove.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	cachePath := app.Paths.SubscriptionFile(st.Subscriptions[0].ID)
+	if _, err := os.Stat(cachePath); err != nil {
+		t.Fatalf("expected cache file before remove: %v", err)
+	}
+	if err := app.RemoveSubscription(1); err != nil {
+		t.Fatalf("remove subscription: %v", err)
+	}
+	st, err = state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("reload state: %v", err)
+	}
+	if len(st.Subscriptions) != 0 || len(st.Nodes) != 0 {
+		t.Fatalf("expected subscription and nodes removed, got %+v", st)
+	}
+	if _, err := os.Stat(cachePath); !os.IsNotExist(err) {
+		t.Fatalf("expected cache file removal, got %v", err)
+	}
+}
+
+func TestAddRuleRejectsAUTOWithoutEnabledManualNodes(t *testing.T) {
+	app, _ := newTestApp(t)
+	err := app.AddRule(false, "domain", "example.com", "AUTO")
+	if err == nil || !strings.Contains(err.Error(), "AUTO 需要至少一个启用的手动节点") {
+		t.Fatalf("expected AUTO target guard, got %v", err)
+	}
+}
+
+func TestApplyRulesSkipsTransparentRulesForExplicitProxyOnlyConfig(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg, err := config.Ensure(app.Paths.ConfigPath())
+	if err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	cfg.Network.ProxyIngressInterfaces = nil
+	cfg.Network.DNSHijackEnabled = false
+	cfg.Network.DNSHijackInterfaces = nil
+	cfg.Network.ProxyHostOutput = false
+	if err := config.Save(app.Paths.ConfigPath(), cfg); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	var calls []commandCall
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			if name == "iptables" {
+				return errors.New("missing")
+			}
+			if name == "ip" && len(args) >= 4 && args[0] == "-4" && args[1] == "rule" && args[2] == "del" {
+				return errors.New("missing")
+			}
+			return nil
+		},
+	}
+	err = app.ApplyRules()
+	if os.Geteuid() != 0 {
+		if err == nil || !strings.Contains(err.Error(), "请用 root 运行") {
+			t.Fatalf("expected root error, got %v", err)
+		}
+		return
+	}
+	if err != nil {
+		t.Fatalf("apply rules: %v", err)
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "当前模板为仅显式代理，不下发透明旁路由规则") {
+		t.Fatalf("unexpected apply output:\n%s", app.Stdout.(*bytes.Buffer).String())
+	}
+	if hasRecordedCall(calls, "iptables", "-A", "MIHOMO_PRE_HANDLE", "-p", "tcp", "-j", "TPROXY") {
+		t.Fatalf("did not expect transparent routing rules in explicit-proxy-only mode: %#v", calls)
+	}
+}
+
 func TestMenuShowsInvalidSelectionThenExit(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("x\n0\n")
