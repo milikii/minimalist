@@ -195,6 +195,7 @@ test_scan_marks_unsupported_scheme() {
   printf '%s\n' 'hy2://password@example.com:443#unsupported' > "${TMPDIR_CASE}/uris.txt"
   output="$(python3 "${STATECTL}" scan-uris "${TMPDIR_CASE}/uris.txt")"
   assert_contains "$output" $'\t0\thy2\t'
+  assert_contains "$output" $'\t0\thy2\tunsupported scheme: hy2'
 }
 
 test_scan_marks_invalid_vmess_payload() {
@@ -216,6 +217,26 @@ test_scan_marks_invalid_vless_port() {
   printf '%s\n' 'vless://uuid@example.com:abc?type=tcp#bad-port' > "${TMPDIR_CASE}/uris.txt"
   output="$(python3 "${STATECTL}" scan-uris "${TMPDIR_CASE}/uris.txt")"
   assert_contains "$output" $'\t0\tvless\tPort could not be cast to integer value'
+}
+
+test_scan_reports_supported_trojan_metadata() {
+  setup_case
+  printf '%s\n' 'trojan://password@example.org:443?security=tls&sni=www.apple.com&type=ws&host=www.apple.com&path=%2Fws#trojan-node' > "${TMPDIR_CASE}/uris.txt"
+  output="$(python3 "${STATECTL}" scan-uris "${TMPDIR_CASE}/uris.txt")"
+  assert_contains "$output" $'\ttrojan-node\texample.org\t443\tws\ttls\t1\ttrojan\t'
+}
+
+test_scan_skips_non_uri_lines() {
+  setup_case
+  cat > "${TMPDIR_CASE}/uris.txt" <<'EOF'
+# comment
+just-text
+
+vless://uuid@example.com:443?encryption=none&security=reality&sni=www.microsoft.com&fp=chrome&pbk=PUBLIC_KEY&sid=abcd&type=tcp#scan-node
+EOF
+  output="$(python3 "${STATECTL}" scan-uris "${TMPDIR_CASE}/uris.txt")"
+  assert_contains "$output" $'\tscan-node\texample.com\t443\ttcp\treality\t1\tvless\t'
+  [[ "$(printf '%s\n' "$output" | awk 'NF{count++} END{print count+0}')" == "1" ]]
 }
 
 test_import_links_imports_supported_nodes_from_stdin() {
@@ -1334,6 +1355,8 @@ main() {
   test_scan_marks_invalid_vmess_payload
   test_scan_marks_invalid_ss_payload
   test_scan_marks_invalid_vless_port
+  test_scan_reports_supported_trojan_metadata
+  test_scan_skips_non_uri_lines
   test_import_links_imports_supported_nodes_from_stdin
   test_import_links_fails_when_no_supported_nodes
   test_router_wizard_updates_env_and_detects_lan_cidrs
