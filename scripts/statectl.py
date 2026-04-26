@@ -824,45 +824,54 @@ def apply_network_opts(item: dict[str, object], info: dict) -> None:
         item["header"] = {"type": header_type}
 
 
+def render_vless_xhttp_opts(info: dict) -> dict:
+    xhttp_opts: dict[str, object] = {}
+    if info.get("path"):
+        xhttp_opts["path"] = info["path"]
+    if info.get("host"):
+        xhttp_opts["host"] = info["host"]
+    if info.get("mode"):
+        xhttp_opts["mode"] = info["mode"]
+    rendered_download_settings = xhttp_download_settings_from_mapping(info.get("download_settings"))
+    if rendered_download_settings:
+        xhttp_opts["download-settings"] = rendered_download_settings
+    return xhttp_opts
+
+
+def build_vless_provider_item(name: str, info: dict) -> dict:
+    item: dict[str, object] = {
+        "name": name,
+        "type": "vless",
+        "server": info["server"],
+        "port": info["port"],
+        "uuid": info["uuid"],
+        "udp": True,
+    }
+    if info.get("flow"):
+        item["flow"] = info["flow"]
+    if info.get("packet_encoding"):
+        item["packet-encoding"] = info["packet_encoding"]
+    if info.get("encryption"):
+        item["encryption"] = info["encryption"]
+    if info.get("security") in {"tls", "reality"}:
+        item["tls"] = True
+    apply_common_tls_fields(item, info)
+    if info.get("security") == "reality" and info.get("reality_opts"):
+        item["reality-opts"] = info["reality_opts"]
+    apply_network_opts(item, info)
+    if item.get("network") == "xhttp":
+        xhttp_opts = render_vless_xhttp_opts(info)
+        if xhttp_opts:
+            item["xhttp-opts"] = xhttp_opts
+    return item
+
+
 def provider_item_from_node(node: dict) -> dict:
     info = parse_uri_info(node["uri"])
     scheme = info["scheme"]
     name = node["name"]
     if scheme == "vless":
-        item: dict[str, object] = {
-            "name": name,
-            "type": "vless",
-            "server": info["server"],
-            "port": info["port"],
-            "uuid": info["uuid"],
-            "udp": True,
-        }
-        if info.get("flow"):
-            item["flow"] = info["flow"]
-        if info.get("packet_encoding"):
-            item["packet-encoding"] = info["packet_encoding"]
-        if info.get("encryption"):
-            item["encryption"] = info["encryption"]
-        if info.get("security") in {"tls", "reality"}:
-            item["tls"] = True
-        apply_common_tls_fields(item, info)
-        if info.get("security") == "reality" and info.get("reality_opts"):
-            item["reality-opts"] = info["reality_opts"]
-        apply_network_opts(item, info)
-        if item.get("network") == "xhttp":
-            xhttp_opts: dict[str, object] = {}
-            if info.get("path"):
-                xhttp_opts["path"] = info["path"]
-            if info.get("host"):
-                xhttp_opts["host"] = info["host"]
-            if info.get("mode"):
-                xhttp_opts["mode"] = info["mode"]
-            rendered_download_settings = xhttp_download_settings_from_mapping(info.get("download_settings"))
-            if rendered_download_settings:
-                xhttp_opts["download-settings"] = rendered_download_settings
-            if xhttp_opts:
-                item["xhttp-opts"] = xhttp_opts
-        return item
+        return build_vless_provider_item(name, info)
     if scheme == "trojan":
         item = {
             "name": name,
