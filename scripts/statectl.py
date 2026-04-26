@@ -906,6 +906,16 @@ def apply_vless_provider_xhttp_fields(item: dict[str, object], info: dict) -> No
         item["xhttp-opts"] = xhttp_opts
 
 
+def build_provider_base_item(name: str, type_name: str, info: dict) -> dict:
+    return {
+        "name": name,
+        "type": type_name,
+        "server": info["server"],
+        "port": info["port"],
+        "udp": True,
+    }
+
+
 def render_vless_xhttp_opts(info: dict) -> dict:
     xhttp_opts: dict[str, object] = {}
     apply_vless_xhttp_direct_fields(xhttp_opts, info)
@@ -914,14 +924,8 @@ def render_vless_xhttp_opts(info: dict) -> dict:
 
 
 def build_vless_provider_item(name: str, info: dict) -> dict:
-    item: dict[str, object] = {
-        "name": name,
-        "type": "vless",
-        "server": info["server"],
-        "port": info["port"],
-        "uuid": info["uuid"],
-        "udp": True,
-    }
+    item = build_provider_base_item(name, "vless", info)
+    item["uuid"] = info["uuid"]
     apply_vless_provider_data_fields(item, info)
     apply_vless_provider_security_fields(item, info)
     apply_network_opts(item, info)
@@ -930,30 +934,18 @@ def build_vless_provider_item(name: str, info: dict) -> dict:
 
 
 def build_trojan_provider_item(name: str, info: dict) -> dict:
-    item = {
-        "name": name,
-        "type": "trojan",
-        "server": info["server"],
-        "port": info["port"],
-        "password": info["password"],
-        "udp": True,
-        "tls": info.get("security", "tls") in {"tls", "reality"},
-    }
+    item = build_provider_base_item(name, "trojan", info)
+    item["password"] = info["password"]
+    item["tls"] = info.get("security", "tls") in {"tls", "reality"}
     apply_common_tls_fields(item, info)
     apply_network_opts(item, info)
     return item
 
 
 def build_ss_provider_item(name: str, info: dict) -> dict:
-    item = {
-        "name": name,
-        "type": "ss",
-        "server": info["server"],
-        "port": info["port"],
-        "cipher": info["cipher"],
-        "password": info["password"],
-        "udp": True,
-    }
+    item = build_provider_base_item(name, "ss", info)
+    item["cipher"] = info["cipher"]
+    item["password"] = info["password"]
     if info.get("plugin"):
         item["plugin"] = info["plugin"]
     if info.get("plugin_opts"):
@@ -962,16 +954,10 @@ def build_ss_provider_item(name: str, info: dict) -> dict:
 
 
 def build_vmess_provider_item(name: str, info: dict) -> dict:
-    item = {
-        "name": name,
-        "type": "vmess",
-        "server": info["server"],
-        "port": info["port"],
-        "uuid": info["uuid"],
-        "alterId": info["alter_id"],
-        "cipher": info["cipher"],
-        "udp": True,
-    }
+    item = build_provider_base_item(name, "vmess", info)
+    item["uuid"] = info["uuid"]
+    item["alterId"] = info["alter_id"]
+    item["cipher"] = info["cipher"]
     if info.get("tls"):
         item["tls"] = True
     apply_common_tls_fields(item, info)
