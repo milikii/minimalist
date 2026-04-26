@@ -384,6 +384,94 @@ func TestRuntimeAuditCountsAlertsAndReportsRuntimeSummary(t *testing.T) {
 	}
 }
 
+func TestMenuShowsInvalidSelectionThenExit(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("x\n0\n")
+	if err := app.Menu(); err != nil {
+		t.Fatalf("menu: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	if !strings.Contains(output, "无效选择") {
+		t.Fatalf("expected invalid selection output:\n%s", output)
+	}
+	if strings.Count(output, "0) 退出") < 2 {
+		t.Fatalf("expected menu to render twice:\n%s", output)
+	}
+}
+
+func TestMenuDispatchesSubscriptionUpdate(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#menu-sub-node\n"), nil
+		}),
+	}
+	if err := app.AddSubscription("menu-sub", "https://subscription.example.com/menu.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	app.Stdin = strings.NewReader("4\n2\n0\n")
+	if err := app.Menu(); err != nil {
+		t.Fatalf("menu: %v", err)
+	}
+	body, err := os.ReadFile(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("read state: %v", err)
+	}
+	text := string(body)
+	for _, needle := range []string{`"name": "menu-sub"`, `"last_count": 1`, `"name": "menu-sub-node"`} {
+		if !strings.Contains(text, needle) {
+			t.Fatalf("missing %q in state:\n%s", needle, text)
+		}
+	}
+}
+
+func TestRouterWizardPersistsUpdatedConfig(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader(strings.Join([]string{
+		"lan0 lan1",
+		"lan0",
+		"lan0",
+		"1",
+		"10.0.0.0/24 10.0.1.0/24",
+		"10.0.99.0/24",
+		"user:pass",
+		"192.168.0.",
+		"https://a.example https://b.example",
+		"1",
+		"qbittorrent prowlarr",
+		"172.18.0.0/16",
+		"8.8.8.8/32",
+		"1000 1001",
+	}, "\n") + "\n")
+	if err := app.RouterWizard(); err != nil {
+		t.Fatalf("router wizard: %v", err)
+	}
+	cfgBody, err := os.ReadFile(app.Paths.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	cfgText := string(cfgBody)
+	for _, needle := range []string{
+		"lan_interfaces:",
+		"- lan0",
+		"- lan1",
+		"proxy_host_output: true",
+		"- 10.0.99.0/24",
+		"- user:pass",
+		"- https://a.example",
+		"- qbittorrent",
+		`- "1000"`,
+	} {
+		if !strings.Contains(cfgText, needle) {
+			t.Fatalf("missing %q in config:\n%s", needle, cfgText)
+		}
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	if !strings.Contains(output, "旁路由参数已更新") {
+		t.Fatalf("unexpected router wizard output:\n%s", output)
+	}
+}
+
 func TestRenderConfigIncludesSubscriptionProviderAfterUpdate(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Client = &http.Client{
@@ -419,6 +507,54 @@ func TestRenderConfigIncludesSubscriptionProviderAfterUpdate(t *testing.T) {
 		"path: ./proxy_providers/subscriptions/",
 		`- name: "AUTO"`,
 		`MATCH,PROXY`,
+	} {
+		if !strings.Contains(configText, needle) {
+			t.Fatalf("missing %q in runtime config:\n%s", needle, configText)
+		}
+	}
+}
+
+func TestRenderConfigIncludesCustomRuleTargetsAndProviderMix(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#sub-mix-node\n"), nil
+		}),
+	}
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#manual-mix-node\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable node: %v", err)
+	}
+	if err := app.AddSubscription("mix-sub", "https://subscription.example.com/mix.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
+	}
+	if err := app.AddRule(false, "domain", "example.com", "AUTO"); err != nil {
+		t.Fatalf("add rule: %v", err)
+	}
+	if err := app.AddRule(true, "src-cidr", "192.168.2.10/32", "manual-mix-node"); err != nil {
+		t.Fatalf("add acl: %v", err)
+	}
+	if err := app.RenderConfig(); err != nil {
+		t.Fatalf("render config: %v", err)
+	}
+	configBody, err := os.ReadFile(app.Paths.RuntimeConfig())
+	if err != nil {
+		t.Fatalf("read runtime config: %v", err)
+	}
+	configText := string(configBody)
+	for _, needle := range []string{
+		"manual:",
+		"subscription-",
+		"DOMAIN,example.com,AUTO",
+		"SRC-IP-CIDR,192.168.2.10/32,manual-mix-node",
+		`- name: "PROXY"`,
+		`- name: "AUTO"`,
 	} {
 		if !strings.Contains(configText, needle) {
 			t.Fatalf("missing %q in runtime config:\n%s", needle, configText)

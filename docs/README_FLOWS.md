@@ -30,6 +30,12 @@
 - `subscriptions update` 拉取的是 provider 缓存真相，订阅节点只保留只读枚举
 - ACL / 自定义规则只允许指向手动节点与内置目标
 
+## 辅助入口
+
+- `minimalist menu` 是当前交互入口，内部仍分发到同一组 CLI 命令
+- `minimalist router-wizard` 直接回写 `/etc/minimalist/config.yaml`
+- `minimalist rules-repo summary|entries|find` 用于查看当前内置规则仓库真相
+
 ## 运行态观测
 
 - `status` / `runtime-audit` / `healthcheck` 优先读取 Mihomo REST API
