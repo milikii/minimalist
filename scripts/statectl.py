@@ -866,17 +866,25 @@ def apply_network_opts(item: dict[str, object], info: dict) -> None:
         apply_tcp_header_network_opts(item, info)
 
 
-def render_vless_xhttp_opts(info: dict) -> dict:
-    xhttp_opts: dict[str, object] = {}
+def apply_vless_xhttp_direct_fields(xhttp_opts: dict[str, object], info: dict) -> None:
     if info.get("path"):
         xhttp_opts["path"] = info["path"]
     if info.get("host"):
         xhttp_opts["host"] = info["host"]
     if info.get("mode"):
         xhttp_opts["mode"] = info["mode"]
+
+
+def apply_vless_xhttp_download_settings(xhttp_opts: dict[str, object], info: dict) -> None:
     rendered_download_settings = xhttp_download_settings_from_mapping(info.get("download_settings"))
     if rendered_download_settings:
         xhttp_opts["download-settings"] = rendered_download_settings
+
+
+def render_vless_xhttp_opts(info: dict) -> dict:
+    xhttp_opts: dict[str, object] = {}
+    apply_vless_xhttp_direct_fields(xhttp_opts, info)
+    apply_vless_xhttp_download_settings(xhttp_opts, info)
     return xhttp_opts
 
 
