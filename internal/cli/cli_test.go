@@ -523,38 +523,6 @@ func TestRunDispatchesRulesRepoUnknownSubcommand(t *testing.T) {
 	}
 }
 
-func TestRunDispatchesRulesListThroughRunPath(t *testing.T) {
-	setCLIPathsEnv(t)
-	a := app.New()
-	if err := a.AddRule(false, "domain", "example.com", "DIRECT"); err != nil {
-		t.Fatalf("add rule: %v", err)
-	}
-	output := captureStdout(t, func() {
-		if err := Run([]string{"rules", "list"}); err != nil {
-			t.Fatalf("run rules list: %v", err)
-		}
-	})
-	if !strings.Contains(output, "1\tDOMAIN,example.com,DIRECT") {
-		t.Fatalf("unexpected rules list output:\n%s", output)
-	}
-}
-
-func TestRunDispatchesACLListThroughRunPath(t *testing.T) {
-	setCLIPathsEnv(t)
-	a := app.New()
-	if err := a.AddRule(true, "src-cidr", "192.168.2.10/32", "DIRECT"); err != nil {
-		t.Fatalf("add acl: %v", err)
-	}
-	output := captureStdout(t, func() {
-		if err := Run([]string{"acl", "list"}); err != nil {
-			t.Fatalf("run acl list: %v", err)
-		}
-	})
-	if !strings.Contains(output, "1\tSRC-IP-CIDR,192.168.2.10/32,DIRECT") {
-		t.Fatalf("unexpected acl list output:\n%s", output)
-	}
-}
-
 func TestRunDispatchesSubscriptionsList(t *testing.T) {
 	setCLIPathsEnv(t)
 	a := app.New()
@@ -580,66 +548,6 @@ func TestRunDispatchesRulesRepoEntries(t *testing.T) {
 	})
 	if !strings.Contains(output, "1\tsmzdm.com") {
 		t.Fatalf("unexpected rules-repo entries output:\n%s", output)
-	}
-}
-
-func TestRunDispatchesRulesListThroughRun(t *testing.T) {
-	setCLIPathsEnv(t)
-	a := app.New()
-	if err := a.AddRule(false, "domain", "example.com", "DIRECT"); err != nil {
-		t.Fatalf("add rule: %v", err)
-	}
-	output := captureStdout(t, func() {
-		if err := Run([]string{"rules", "list"}); err != nil {
-			t.Fatalf("run rules list: %v", err)
-		}
-	})
-	if !strings.Contains(output, "1\tDOMAIN,example.com,DIRECT") {
-		t.Fatalf("unexpected rules list output:\n%s", output)
-	}
-}
-
-func TestRunDispatchesACLListThroughRun(t *testing.T) {
-	setCLIPathsEnv(t)
-	a := app.New()
-	if err := a.AddRule(true, "src-cidr", "192.168.2.10/32", "DIRECT"); err != nil {
-		t.Fatalf("add acl: %v", err)
-	}
-	output := captureStdout(t, func() {
-		if err := Run([]string{"acl", "list"}); err != nil {
-			t.Fatalf("run acl list: %v", err)
-		}
-	})
-	if !strings.Contains(output, "1\tSRC-IP-CIDR,192.168.2.10/32,DIRECT") {
-		t.Fatalf("unexpected acl list output:\n%s", output)
-	}
-}
-
-func TestRunDispatchesSubscriptionsListThroughRun(t *testing.T) {
-	setCLIPathsEnv(t)
-	a := app.New()
-	if err := a.AddSubscription("run-sub", "https://subscription.example.com/run.txt", true); err != nil {
-		t.Fatalf("add subscription: %v", err)
-	}
-	output := captureStdout(t, func() {
-		if err := Run([]string{"subscriptions", "list"}); err != nil {
-			t.Fatalf("run subscriptions list: %v", err)
-		}
-	})
-	if !strings.Contains(output, "1\trun-sub\thttps://subscription.example.com/run.txt\t1\t\t0\t") {
-		t.Fatalf("unexpected subscriptions list output:\n%s", output)
-	}
-}
-
-func TestRunDispatchesRulesRepoSummaryThroughRun(t *testing.T) {
-	setCLIPathsEnv(t)
-	output := captureStdout(t, func() {
-		if err := Run([]string{"rules-repo", "summary"}); err != nil {
-			t.Fatalf("run rules-repo summary: %v", err)
-		}
-	})
-	if !strings.Contains(output, "规则仓库:") || !strings.Contains(output, "总规则数:") {
-		t.Fatalf("unexpected rules-repo summary output:\n%s", output)
 	}
 }
 

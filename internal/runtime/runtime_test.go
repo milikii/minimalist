@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -444,5 +445,142 @@ func TestBuildRuntimeConfigIncludesManualProviderWhenNodesEnabled(t *testing.T) 
 		if !strings.Contains(text, needle) {
 			t.Fatalf("missing %q in runtime config:\n%s", needle, text)
 		}
+	}
+}
+
+func TestBuildRuntimeConfigUsesDirectOnlyProxyGroupWithoutProviders(t *testing.T) {
+	paths := Paths{
+		ConfigDir:  t.TempDir(),
+		DataDir:    t.TempDir(),
+		RuntimeDir: t.TempDir(),
+	}
+	cfg := config.Default()
+	text, err := buildRuntimeConfig(paths, cfg, state.Empty(), nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	if !strings.Contains(text, "proxy-groups:\n  - name: \"PROXY\"\n    type: select\n    proxies:\n      - DIRECT\n") {
+		t.Fatalf("expected direct-only proxy group:\n%s", text)
+	}
+	if strings.Contains(text, "- name: \"AUTO\"") {
+		t.Fatalf("did not expect AUTO group without providers:\n%s", text)
+	}
+}
+
+func TestBuildRuntimeConfigIncludesAutoProxyGroupWithEnabledProviders(t *testing.T) {
+	paths := Paths{
+		ConfigDir:  t.TempDir(),
+		DataDir:    t.TempDir(),
+		RuntimeDir: t.TempDir(),
+	}
+	cfg := config.Default()
+	st := state.Empty()
+	st.Nodes = []state.Node{{
+		ID:         "1",
+		Name:       "manual-1",
+		Enabled:    true,
+		URI:        "trojan://password@example.org:443?security=tls#manual-1",
+		ImportedAt: state.NowISO(),
+		Source:     state.Source{Kind: "manual"},
+	}}
+	text, err := buildRuntimeConfig(paths, cfg, st, nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	for _, needle := range []string{
+		"- name: \"PROXY\"\n    type: select\n    proxies:\n      - DIRECT\n      - AUTO\n    use:\n      - manual\n",
+		"- name: \"AUTO\"\n    type: url-test\n    url: \"https://cp.cloudflare.com/generate_204\"\n",
+	} {
+		if !strings.Contains(text, needle) {
+			t.Fatalf("missing %q in runtime config:\n%s", needle, text)
+		}
+	}
+}
+
+func TestBuildRuntimeConfigAppendsDefaultRuleTail(t *testing.T) {
+	paths := Paths{
+		ConfigDir:  t.TempDir(),
+		DataDir:    t.TempDir(),
+		RuntimeDir: t.TempDir(),
+	}
+	if err := os.MkdirAll(paths.RulesDir(), 0o755); err != nil {
+		t.Fatalf("mkdir rules dir: %v", err)
+	}
+	for _, file := range []struct {
+		path string
+		body string
+	}{
+		{paths.CustomRules(), "DOMAIN,example.com,DIRECT\n"},
+		{paths.ACLRules(), "SRC-IP-CIDR,192.168.2.10/32,DIRECT\n"},
+		{paths.BuiltinRules(), "GEOIP,LAN,DIRECT\n"},
+	} {
+		if err := os.WriteFile(file.path, []byte(file.body), 0o640); err != nil {
+			t.Fatalf("write %s: %v", file.path, err)
+		}
+	}
+	cfg := config.Default()
+	text, err := buildRuntimeConfig(paths, cfg, state.Empty(), nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	for _, needle := range []string{
+		"  - DOMAIN,example.com,DIRECT\n",
+		"  - SRC-IP-CIDR,192.168.2.10/32,DIRECT\n",
+		"  - GEOIP,LAN,DIRECT\n",
+		"  - PROCESS-NAME,mihomo,DIRECT\n",
+		"  - GEOIP,CN,DIRECT\n",
+		"  - MATCH,PROXY\n",
+	} {
+		if !strings.Contains(text, needle) {
+			t.Fatalf("missing %q in runtime config:\n%s", needle, text)
+		}
+	}
+}
+
+func TestBuildRuntimeConfigSkipsCommentedAndBlankRules(t *testing.T) {
+	paths := Paths{
+		ConfigDir:  t.TempDir(),
+		DataDir:    t.TempDir(),
+		RuntimeDir: t.TempDir(),
+	}
+	if err := os.MkdirAll(paths.RulesDir(), 0o755); err != nil {
+		t.Fatalf("mkdir rules dir: %v", err)
+	}
+	body := "# comment\n\nDOMAIN,example.com,DIRECT\n"
+	for _, path := range []string{paths.CustomRules(), paths.ACLRules(), paths.BuiltinRules()} {
+		if err := os.WriteFile(path, []byte(body), 0o640); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+	cfg := config.Default()
+	text, err := buildRuntimeConfig(paths, cfg, state.Empty(), nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	if strings.Contains(text, "# comment") {
+		t.Fatalf("comment should not appear in runtime config:\n%s", text)
+	}
+	if strings.Count(text, "  - DOMAIN,example.com,DIRECT\n") != 3 {
+		t.Fatalf("expected one rendered line from each rules file:\n%s", text)
+	}
+}
+
+func TestBuildRuntimeConfigUsesRuntimeUIPath(t *testing.T) {
+	paths := Paths{
+		ConfigDir:   t.TempDir(),
+		DataDir:     t.TempDir(),
+		RuntimeDir:  filepath.Join(t.TempDir(), "mihomo-runtime"),
+		InstallDir:  t.TempDir(),
+		BinPath:     filepath.Join(t.TempDir(), "minimalist"),
+		ServiceUnit: filepath.Join(t.TempDir(), "minimalist.service"),
+		SysctlPath:  filepath.Join(t.TempDir(), "99-minimalist-router.conf"),
+	}
+	cfg := config.Default()
+	text, err := buildRuntimeConfig(paths, cfg, state.Empty(), nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	if !strings.Contains(text, "external-ui: "+paths.UIPath()+"\n") {
+		t.Fatalf("expected runtime-specific ui path:\n%s", text)
 	}
 }

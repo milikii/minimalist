@@ -33,6 +33,7 @@
 - `nameserver`、`geox-url`、`dns.listen` 当前同样由 `render-config` 直接生成固定默认段落
 - `allow-lan`、`bind-address`、`log-level`、`ipv6`、geo 与 DNS 行为标志当前也由 `render-config` 直接生成固定默认段落
 - `secret`、`external-controller`、`lan-allowed-ips`、`lan-disallowed-ips` 当前同样由 `render-config` 直接生成确定性段落
+- `proxy-groups` 与 `rules` 尾段当前也由 `render-config` 直接拼装，provider 存在与否会影响 `DIRECT` / `AUTO` 组形态
 - 顶层 `minimalist rules|acl|subscriptions|rules-repo ...` 当前都已直接分发到同一组底层 CLI helper
 
 ## 节点与订阅
