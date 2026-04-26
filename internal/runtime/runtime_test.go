@@ -455,6 +455,39 @@ func TestBuildRuntimeConfigIncludesAuthSectionsWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeConfigOmitsAuthenticationWhenDisabled(t *testing.T) {
+	paths := Paths{
+		ConfigDir:  t.TempDir(),
+		DataDir:    t.TempDir(),
+		RuntimeDir: t.TempDir(),
+	}
+	cfg := config.Default()
+	text, err := buildRuntimeConfig(paths, cfg, state.Empty(), nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	if strings.Contains(text, "authentication:") || strings.Contains(text, "skip-auth-prefixes:") {
+		t.Fatalf("did not expect auth sections by default:\n%s", text)
+	}
+}
+
+func TestBuildRuntimeConfigOmitsSkipAuthPrefixesWithoutAuthentication(t *testing.T) {
+	paths := Paths{
+		ConfigDir:  t.TempDir(),
+		DataDir:    t.TempDir(),
+		RuntimeDir: t.TempDir(),
+	}
+	cfg := config.Default()
+	cfg.Access.SkipAuthPrefixes = []string{"192.168.2."}
+	text, err := buildRuntimeConfig(paths, cfg, state.Empty(), nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	if strings.Contains(text, "skip-auth-prefixes:") {
+		t.Fatalf("did not expect skip-auth-prefixes without authentication:\n%s", text)
+	}
+}
+
 func TestBuildRuntimeConfigIncludesManualProviderWhenNodesEnabled(t *testing.T) {
 	paths := Paths{
 		ConfigDir:  t.TempDir(),
@@ -804,6 +837,66 @@ func TestBuildRuntimeConfigIncludesAutoGroupSettings(t *testing.T) {
 	}
 }
 
+func TestBuildRuntimeConfigKeepsProxyGroupOrder(t *testing.T) {
+	paths := Paths{
+		ConfigDir:  t.TempDir(),
+		DataDir:    t.TempDir(),
+		RuntimeDir: t.TempDir(),
+	}
+	cfg := config.Default()
+	st := state.Empty()
+	st.Nodes = []state.Node{{
+		ID:         "1",
+		Name:       "manual-1",
+		Enabled:    true,
+		URI:        "trojan://password@example.org:443?security=tls#manual-1",
+		ImportedAt: state.NowISO(),
+		Source:     state.Source{Kind: "manual"},
+	}}
+	text, err := buildRuntimeConfig(paths, cfg, st, nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	proxyIdx := strings.Index(text, "- name: \"PROXY\"")
+	autoIdx := strings.Index(text, "- name: \"AUTO\"")
+	if !(proxyIdx >= 0 && autoIdx > proxyIdx) {
+		t.Fatalf("unexpected proxy group order:\n%s", text)
+	}
+}
+
+func TestBuildRuntimeConfigIncludesRulesSectionHeader(t *testing.T) {
+	paths := Paths{
+		ConfigDir:  t.TempDir(),
+		DataDir:    t.TempDir(),
+		RuntimeDir: t.TempDir(),
+	}
+	cfg := config.Default()
+	text, err := buildRuntimeConfig(paths, cfg, state.Empty(), nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	if !strings.Contains(text, "\nrules:\n") {
+		t.Fatalf("expected rules section header:\n%s", text)
+	}
+}
+
+func TestBuildRuntimeConfigAlwaysIncludesLoopbackLANAllowedIP(t *testing.T) {
+	paths := Paths{
+		ConfigDir:  t.TempDir(),
+		DataDir:    t.TempDir(),
+		RuntimeDir: t.TempDir(),
+	}
+	cfg := config.Default()
+	cfg.Network.LANCIDRs = nil
+	text, err := buildRuntimeConfig(paths, cfg, state.Empty(), nil)
+	if err != nil {
+		t.Fatalf("build runtime config: %v", err)
+	}
+	if !strings.Contains(text, "  - 127.0.0.0/8\n") {
+		t.Fatalf("expected loopback in lan-allowed-ips:\n%s", text)
+	}
+}
+
 func TestBuildRuntimeConfigPreservesRulesRenderOrder(t *testing.T) {
 	paths := Paths{
 		ConfigDir:  t.TempDir(),
@@ -859,5 +952,40 @@ func TestBuildServiceUnitIncludesHardeningFlags(t *testing.T) {
 		if !strings.Contains(unit, needle) {
 			t.Fatalf("missing %q in service unit:\n%s", needle, unit)
 		}
+	}
+}
+
+func TestBuildServiceUnitIncludesBootDependenciesAndInstallTarget(t *testing.T) {
+	paths := Paths{
+		RuntimeDir:  filepath.Join(t.TempDir(), "runtime"),
+		BinPath:     filepath.Join(t.TempDir(), "bin", "minimalist"),
+		ServiceUnit: filepath.Join(t.TempDir(), "systemd", "minimalist.service"),
+	}
+	cfg := config.Default()
+	unit := BuildServiceUnit(paths, cfg)
+	for _, needle := range []string{
+		"After=network-online.target docker.service\n",
+		"Wants=network-online.target\n",
+		"WantedBy=multi-user.target\n",
+		"Type=simple\n",
+		"LimitNOFILE=1048576\n",
+	} {
+		if !strings.Contains(unit, needle) {
+			t.Fatalf("missing %q in service unit:\n%s", needle, unit)
+		}
+	}
+}
+
+func TestBuildServiceUnitUsesConfiguredCoreBin(t *testing.T) {
+	paths := Paths{
+		RuntimeDir:  filepath.Join(t.TempDir(), "runtime"),
+		BinPath:     filepath.Join(t.TempDir(), "bin", "minimalist"),
+		ServiceUnit: filepath.Join(t.TempDir(), "systemd", "minimalist.service"),
+	}
+	cfg := config.Default()
+	cfg.Install.CoreBin = "/custom/bin/mihomo-core"
+	unit := BuildServiceUnit(paths, cfg)
+	if !strings.Contains(unit, "ExecStart=/custom/bin/mihomo-core -d "+paths.RuntimeDir+"\n") {
+		t.Fatalf("expected configured core bin in service unit:\n%s", unit)
 	}
 }
