@@ -2,50 +2,31 @@
 
 ## 当前阶段
 
-- 当前主线处于阶段 5：代码结构收口。
-- 阶段 5 第一轮已完成运行态/审计展示、安装与同步链路、manager sync unit 渲染链的共用逻辑收口。
-- `lib/render.sh` 的 `render_config` 已完成当前块级收口，输出顺序 focused tests 已补齐。
-- `mihomo` 的运行前准备与服务启停编排已完成当前最小收口。
-- `mihomo` 的部署与修复编排已完成当前最小收口。
-- `mihomo` 的订阅刷新编排已完成当前最小收口。
-- `mihomo` 的交互导入编排已完成当前最小收口。
-- `mihomo` 的交互网络向导编排已完成当前最小收口。
-- `mihomo` 的 CLI 入口分发已完成当前最小收口。
-- `mihomo` 的交互菜单编排已完成当前最小收口。
-- `scripts/statectl.py` 的协议解析链已完成当前最小收口。
-- `scripts/statectl.py` 的 provider 渲染链已完成当前最小收口。
-- 阶段 5 下一闭环转向 `scripts/statectl.py` 中仍保留协议分支的轻量 helper。
+- 当前主线已经从 shell/Python 收口切到 Go 版 `minimalist` 实现落地。
+- 当前第一轮 Go V2 已经完成：
+  - Go 模块与 CLI 主入口
+  - 配置/状态真相
+  - provider / rules 基础渲染
+  - rules-repo 默认资产
+  - systemd/sysctl 文本生成
+  - 基础单元测试
 
 ## 下一最小闭环
 
-- 在 `scripts/statectl.py` 收口仍保留协议分支的轻量 helper
-- 优先围绕 `guess_name` 与 `uri_base_key`
-- 保持已完成的 provider builders、renderer dispatch 与 `render_vless_xhttp_opts` 拆分不变
-- 保持现有 provider YAML 字段、协议支持范围和渲染输出不变
-- 优先复用现有 `smoke` 的 `scan-uris` / `import-links` / `render-config` 回归，必要时只补最小 focused tests
-- 文档同步切到阶段 5 当前真相
+- 清理仓库中的旧 shell / Python 参考实现
+- 为 `internal/app` / `internal/system` 补 command mock tests
+- 为 `render-config`、`import-links`、`subscriptions update` 补更细的 golden/integration tests
+- 明确 `minimalist` 的开发入口与发布方式文档
 
 ## 本轮不做
 
-- 不新增用户可感知功能
-- 不调整运行态真相边界
-- 不扩 `external-controller-tls` 实现
-- 不继续新增 manager sync unit 单行 helper
-- 不回退已完成的 `render_config` 职责块收口
-- 不回退已完成的运行前准备与服务启停编排收口
-- 不回退已完成的部署与修复编排收口
-- 不回退已完成的订阅刷新编排收口
-- 不回退已完成的交互导入编排收口
-- 不回退已完成的交互网络向导编排收口
-- 不回退已完成的 CLI 入口分发收口
-- 不回退已完成的交互菜单编排收口
-- 不回退已完成的协议解析链收口
-- 不回退已完成的 provider 渲染链收口
-- 不做跨文件大规模拆分
+- 不恢复旧 `mihomo` 命令入口
+- 不做旧状态迁移兼容
+- 不引入 alpha/stable 切换、自同步、回滚 core 等旧运维能力
+- 不扩 `external-controller-tls`
 
 ## 退出条件
 
-- provider builders / dispatch / 协议 helper 的职责块边界更清晰，且现有 YAML / scan / import 输出保持不变
-- provider YAML 字段、协议支持范围和渲染输出保持不变
-- 相关 smoke / service-mock 回归通过
-- 文档同步更新当前阶段结论
+- 旧主入口和旧主实现已不再残留为默认可执行路径
+- `go test ./...` 覆盖核心命令与系统编排关键路径
+- README 与权威文档只描述 `minimalist` 当前真相

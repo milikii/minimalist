@@ -1,0 +1,21 @@
+rulesets:
+  - name: pt
+    category: direct
+    type: domain_suffix
+    source: rules/direct/pt.txt
+    target: direct
+    note: PT 站点域名直连
+
+  - name: fcm-site
+    category: proxy
+    type: domain
+    source: rules/proxy/fcm-site.txt
+    target: proxy
+    note: Android / FCM 相关域名强制走代理
+
+  - name: fcm-ip
+    category: proxy
+    type: ip_cidr
+    source: rules/proxy/fcm-ip.txt
+    target: proxy
+    note: Android / FCM 相关 IP 强制走代理
