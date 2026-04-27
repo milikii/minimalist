@@ -3814,6 +3814,29 @@ func TestUpdateSubscriptionsRecordsBodyReadFailure(t *testing.T) {
 	}
 }
 
+func TestUpdateSubscriptionsRecordsInvalidURLFailure(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("invalid-url", "://bad-url", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if st.Subscriptions[0].Cache.LastAttemptAt == "" {
+		t.Fatalf("expected attempt timestamp to be recorded, got %+v", st.Subscriptions[0].Cache)
+	}
+	if !strings.Contains(st.Subscriptions[0].Cache.LastError, "missing protocol scheme") {
+		t.Fatalf("expected invalid URL recorded, got %+v", st.Subscriptions[0].Cache)
+	}
+	if !strings.Contains(app.Stderr.(*bytes.Buffer).String(), "invalid-url") {
+		t.Fatalf("expected subscription name in stderr:\n%s", app.Stderr.(*bytes.Buffer).String())
+	}
+}
+
 func TestUpdateSubscriptionsRecordsWriteFailure(t *testing.T) {
 	app, _ := newTestApp(t)
 	if err := app.AddSubscription("write-fail", "https://subscription.example.com/write-fail.txt", true); err != nil {
