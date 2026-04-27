@@ -805,60 +805,108 @@ func (a *App) ApplyRules() error {
 		return err
 	}
 	for _, iface := range cfg.Network.ProxyIngressInterfaces {
-		_ = a.ipt("mangle", "-A", "MIHOMO_PRE", "-i", iface, "-j", "MIHOMO_PRE_HANDLE")
+		if err := a.ipt("mangle", "-A", "MIHOMO_PRE", "-i", iface, "-j", "MIHOMO_PRE_HANDLE"); err != nil {
+			return err
+		}
 	}
-	_ = a.ipt("mangle", "-A", "MIHOMO_PRE", "-j", "RETURN")
+	if err := a.ipt("mangle", "-A", "MIHOMO_PRE", "-j", "RETURN"); err != nil {
+		return err
+	}
 	if cfg.Network.DNSHijackEnabled {
-		_ = a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-p", "udp", "--dport", "53", "-j", "RETURN")
-		_ = a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-p", "tcp", "--dport", "53", "-j", "RETURN")
+		if err := a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-p", "udp", "--dport", "53", "-j", "RETURN"); err != nil {
+			return err
+		}
+		if err := a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-p", "tcp", "--dport", "53", "-j", "RETURN"); err != nil {
+			return err
+		}
 	}
 	for _, cidr := range append(append([]string{}, reserved...), cfg.Network.Bypass.DstCIDRs...) {
 		if cidr == "" {
 			continue
 		}
-		_ = a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-d", cidr, "-j", "RETURN")
-		_ = a.ipt("mangle", "-A", "MIHOMO_OUT", "-d", cidr, "-j", "RETURN")
+		if err := a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-d", cidr, "-j", "RETURN"); err != nil {
+			return err
+		}
+		if err := a.ipt("mangle", "-A", "MIHOMO_OUT", "-d", cidr, "-j", "RETURN"); err != nil {
+			return err
+		}
 	}
 	for _, cidr := range cfg.Network.Bypass.SrcCIDRs {
 		if cidr == "" {
 			continue
 		}
-		_ = a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-s", cidr, "-j", "RETURN")
-		_ = a.ipt("nat", "-A", "MIHOMO_DNS_HANDLE", "-s", cidr, "-j", "RETURN")
+		if err := a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-s", cidr, "-j", "RETURN"); err != nil {
+			return err
+		}
+		if err := a.ipt("nat", "-A", "MIHOMO_DNS_HANDLE", "-s", cidr, "-j", "RETURN"); err != nil {
+			return err
+		}
 	}
 	for _, cidr := range a.containerBypassIPs(cfg.Network.Bypass.ContainerNames) {
-		_ = a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-s", cidr, "-j", "RETURN")
-		_ = a.ipt("nat", "-A", "MIHOMO_DNS_HANDLE", "-s", cidr, "-j", "RETURN")
+		if err := a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-s", cidr, "-j", "RETURN"); err != nil {
+			return err
+		}
+		if err := a.ipt("nat", "-A", "MIHOMO_DNS_HANDLE", "-s", cidr, "-j", "RETURN"); err != nil {
+			return err
+		}
 	}
 	mark, mask, routeTable, priority := "0x2333", "0xffffffff", "233", "100"
-	_ = a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-p", "tcp", "-j", "TPROXY", "--on-port", strconv.Itoa(cfg.Ports.TProxy), "--tproxy-mark", mark+"/"+mask)
-	_ = a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-p", "udp", "-j", "TPROXY", "--on-port", strconv.Itoa(cfg.Ports.TProxy), "--tproxy-mark", mark+"/"+mask)
-	_ = a.ipt("mangle", "-A", "MIHOMO_OUT", "-m", "owner", "--uid-owner", "root", "-j", "RETURN")
-	_ = a.ipt("mangle", "-A", "MIHOMO_OUT", "-m", "conntrack", "--ctdir", "REPLY", "-j", "RETURN")
+	if err := a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-p", "tcp", "-j", "TPROXY", "--on-port", strconv.Itoa(cfg.Ports.TProxy), "--tproxy-mark", mark+"/"+mask); err != nil {
+		return err
+	}
+	if err := a.ipt("mangle", "-A", "MIHOMO_PRE_HANDLE", "-p", "udp", "-j", "TPROXY", "--on-port", strconv.Itoa(cfg.Ports.TProxy), "--tproxy-mark", mark+"/"+mask); err != nil {
+		return err
+	}
+	if err := a.ipt("mangle", "-A", "MIHOMO_OUT", "-m", "owner", "--uid-owner", "root", "-j", "RETURN"); err != nil {
+		return err
+	}
+	if err := a.ipt("mangle", "-A", "MIHOMO_OUT", "-m", "conntrack", "--ctdir", "REPLY", "-j", "RETURN"); err != nil {
+		return err
+	}
 	for _, uid := range cfg.Network.Bypass.UIDs {
 		if uid == "" {
 			continue
 		}
-		_ = a.ipt("mangle", "-A", "MIHOMO_OUT", "-m", "owner", "--uid-owner", uid, "-j", "RETURN")
+		if err := a.ipt("mangle", "-A", "MIHOMO_OUT", "-m", "owner", "--uid-owner", uid, "-j", "RETURN"); err != nil {
+			return err
+		}
 	}
-	_ = a.ipt("mangle", "-A", "MIHOMO_OUT", "-p", "tcp", "-j", "MARK", "--set-mark", "9011")
-	_ = a.ipt("mangle", "-A", "MIHOMO_OUT", "-p", "udp", "-j", "MARK", "--set-mark", "9011")
+	if err := a.ipt("mangle", "-A", "MIHOMO_OUT", "-p", "tcp", "-j", "MARK", "--set-mark", "9011"); err != nil {
+		return err
+	}
+	if err := a.ipt("mangle", "-A", "MIHOMO_OUT", "-p", "udp", "-j", "MARK", "--set-mark", "9011"); err != nil {
+		return err
+	}
 	if cfg.Network.DNSHijackEnabled {
 		for _, iface := range cfg.Network.DNSHijackInterfaces {
-			_ = a.ipt("nat", "-A", "MIHOMO_DNS", "-i", iface, "-j", "MIHOMO_DNS_HANDLE")
+			if err := a.ipt("nat", "-A", "MIHOMO_DNS", "-i", iface, "-j", "MIHOMO_DNS_HANDLE"); err != nil {
+				return err
+			}
 		}
-		_ = a.ipt("nat", "-A", "MIHOMO_DNS", "-j", "RETURN")
-		_ = a.ipt("nat", "-A", "MIHOMO_DNS_HANDLE", "-p", "udp", "--dport", "53", "-j", "REDIRECT", "--to-ports", strconv.Itoa(cfg.Ports.DNS))
-		_ = a.ipt("nat", "-A", "MIHOMO_DNS_HANDLE", "-p", "tcp", "--dport", "53", "-j", "REDIRECT", "--to-ports", strconv.Itoa(cfg.Ports.DNS))
+		if err := a.ipt("nat", "-A", "MIHOMO_DNS", "-j", "RETURN"); err != nil {
+			return err
+		}
+		if err := a.ipt("nat", "-A", "MIHOMO_DNS_HANDLE", "-p", "udp", "--dport", "53", "-j", "REDIRECT", "--to-ports", strconv.Itoa(cfg.Ports.DNS)); err != nil {
+			return err
+		}
+		if err := a.ipt("nat", "-A", "MIHOMO_DNS_HANDLE", "-p", "tcp", "--dport", "53", "-j", "REDIRECT", "--to-ports", strconv.Itoa(cfg.Ports.DNS)); err != nil {
+			return err
+		}
 		if !commandOK(a.iptCheck("nat", "PREROUTING", "-j", "MIHOMO_DNS")) {
-			_ = a.ipt("nat", "-A", "PREROUTING", "-j", "MIHOMO_DNS")
+			if err := a.ipt("nat", "-A", "PREROUTING", "-j", "MIHOMO_DNS"); err != nil {
+				return err
+			}
 		}
 	}
 	if !commandOK(a.iptCheck("mangle", "PREROUTING", "-j", "MIHOMO_PRE")) {
-		_ = a.ipt("mangle", "-A", "PREROUTING", "-j", "MIHOMO_PRE")
+		if err := a.ipt("mangle", "-A", "PREROUTING", "-j", "MIHOMO_PRE"); err != nil {
+			return err
+		}
 	}
 	if cfg.Network.ProxyHostOutput && !commandOK(a.iptCheck("mangle", "OUTPUT", "-j", "MIHOMO_OUT")) {
-		_ = a.ipt("mangle", "-A", "OUTPUT", "-j", "MIHOMO_OUT")
+		if err := a.ipt("mangle", "-A", "OUTPUT", "-j", "MIHOMO_OUT"); err != nil {
+			return err
+		}
 	}
 	_ = a.deleteIPRule(routeTable, priority)
 	_ = a.Runner.Run("ip", "-4", "route", "replace", "local", "0.0.0.0/0", "dev", "lo", "table", routeTable)
