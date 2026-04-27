@@ -2625,6 +2625,28 @@ func TestAddSubscriptionRejectsEmptyNameOrURLBeforePersisting(t *testing.T) {
 	}
 }
 
+func TestAddSubscriptionTrimsNameAndURLBeforePersisting(t *testing.T) {
+	app, _ := newTestApp(t)
+	url := "https://subscription.example.com/trimmed.txt"
+	if err := app.AddSubscription(" first-name ", " "+url+" ", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.AddSubscription(" renamed-sub ", url, false); err != nil {
+		t.Fatalf("update subscription: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Subscriptions) != 1 {
+		t.Fatalf("expected trimmed URL to dedupe to one subscription, got %+v", st.Subscriptions)
+	}
+	sub := st.Subscriptions[0]
+	if sub.Name != "renamed-sub" || sub.URL != url || sub.Enabled {
+		t.Fatalf("expected trimmed updated subscription, got %+v", sub)
+	}
+}
+
 func TestSetSubscriptionDisabledPurgesSubscriptionNodes(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Client = &http.Client{
