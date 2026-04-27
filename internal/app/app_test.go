@@ -891,6 +891,53 @@ func TestUpdateSubscriptionsRecordsHTTPAndTransportErrors(t *testing.T) {
 	}
 }
 
+func TestUpdateSubscriptionsFailurePreservesPreviousSuccessState(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("flaky-sub", "https://subscription.example.com/flaky.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#stable-node\n"), nil
+		}),
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("first update subscriptions: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state after success: %v", err)
+	}
+	successAt := st.Subscriptions[0].Cache.LastSuccessAt
+	lastCount := st.Subscriptions[0].Enumeration.LastCount
+	if successAt == "" || lastCount != 1 || len(st.Nodes) != 1 {
+		t.Fatalf("expected successful subscription state, got %+v", st)
+	}
+
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusServiceUnavailable, "temporary"), nil
+		}),
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("second update subscriptions: %v", err)
+	}
+	st, err = state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state after failure: %v", err)
+	}
+	sub := st.Subscriptions[0]
+	if sub.Cache.LastSuccessAt != successAt || sub.Enumeration.LastCount != lastCount {
+		t.Fatalf("expected previous success fields to remain, got %+v", sub)
+	}
+	if sub.Cache.LastError != "http 503" {
+		t.Fatalf("expected latest failure to be recorded, got %+v", sub.Cache)
+	}
+	if len(st.Nodes) != 1 || st.Nodes[0].Name != "stable-node" {
+		t.Fatalf("expected previous subscription node to remain, got %+v", st.Nodes)
+	}
+}
+
 func TestUpdateSubscriptionsSkipsDisabledSubscriptions(t *testing.T) {
 	app, _ := newTestApp(t)
 	if err := app.AddSubscription("disabled-sub", "https://subscription.example.com/disabled.txt", true); err != nil {
