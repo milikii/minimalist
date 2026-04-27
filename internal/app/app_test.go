@@ -2102,6 +2102,41 @@ func TestRuntimeAuditOmitsRuntimeSummaryWhenControllerUnavailable(t *testing.T) 
 	}
 }
 
+func TestRuntimeAuditKeepsLocalSummaryWhenJournalctlFails(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			if name == "systemctl" && len(args) >= 2 && (args[0] == "is-active" || args[0] == "is-enabled") {
+				return nil
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			if name == "journalctl" {
+				return "", "", errors.New("journal unavailable")
+			}
+			return "", "", errors.New("unavailable")
+		},
+	}
+	if err := app.RuntimeAudit(); err != nil {
+		t.Fatalf("runtime audit: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"服务状态: active=true enabled=true",
+		"alerts: warn=0 error=0",
+		"providers-ready=false",
+		"cutover-preflight:",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in runtime audit output:\n%s", needle, output)
+		}
+	}
+	if strings.Contains(output, "journal unavailable") {
+		t.Fatalf("journalctl failure should not be printed as a runtime alert:\n%s", output)
+	}
+}
+
 func TestRuntimeAuditReportsLegacyLiveCutoverRisk(t *testing.T) {
 	app, root := newTestApp(t)
 	oldLegacy := legacyLiveInstall
