@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -416,15 +417,14 @@ func (a *App) Menu() error {
 		}
 	}
 	for {
-		fmt.Fprintln(a.Stdout, "1) 状态")
+		fmt.Fprintln(a.Stdout, "1) 状态总览")
 		fmt.Fprintln(a.Stdout, "2) 部署/修复")
-		fmt.Fprintln(a.Stdout, "3) 导入节点")
-		fmt.Fprintln(a.Stdout, "4) 订阅")
-		fmt.Fprintln(a.Stdout, "5) 网络向导")
-		fmt.Fprintln(a.Stdout, "6) 健康检查")
-		fmt.Fprintln(a.Stdout, "7) 运行审计")
-		fmt.Fprintln(a.Stdout, "8) 规则")
-		fmt.Fprintln(a.Stdout, "9) ACL")
+		fmt.Fprintln(a.Stdout, "3) 节点管理")
+		fmt.Fprintln(a.Stdout, "4) 订阅管理")
+		fmt.Fprintln(a.Stdout, "5) 网络入口与规则仓库")
+		fmt.Fprintln(a.Stdout, "6) 规则与 ACL")
+		fmt.Fprintln(a.Stdout, "7) 服务管理")
+		fmt.Fprintln(a.Stdout, "8) 健康检查与审计")
 		fmt.Fprintln(a.Stdout, "0) 退出")
 		fmt.Fprint(a.Stdout, "> ")
 		line, _ := reader.ReadString('\n')
@@ -432,21 +432,19 @@ func (a *App) Menu() error {
 		case "1":
 			report(a.Status())
 		case "2":
-			report(a.Setup())
+			report(a.deployMenu(reader))
 		case "3":
-			report(a.ImportLinks())
+			report(a.nodesMenu(reader))
 		case "4":
 			report(a.subscriptionsMenu(reader))
 		case "5":
-			report(a.RouterWizard())
+			report(a.networkMenu(reader))
 		case "6":
-			report(a.Healthcheck())
+			report(a.rulesAndACLMenu(reader))
 		case "7":
-			report(a.RuntimeAudit())
+			report(a.serviceMenu(reader))
 		case "8":
-			report(a.rulesMenu(reader, false))
-		case "9":
-			report(a.rulesMenu(reader, true))
+			report(a.auditMenu(reader))
 		case "0":
 			return nil
 		default:
@@ -462,6 +460,30 @@ func (a *App) ListNodes() error {
 	}
 	for idx, node := range st.Nodes {
 		fmt.Fprintf(a.Stdout, "%d\t%s\t%d\t%s\t%s\n", idx+1, node.Name, boolInt(node.Enabled), node.Source.Kind, node.URI)
+	}
+	return nil
+}
+
+func (a *App) TestNodes() error {
+	cfg, st, err := a.ensureAll()
+	if err != nil {
+		return err
+	}
+	tested := 0
+	for _, node := range st.Nodes {
+		if !node.Enabled {
+			continue
+		}
+		tested++
+		delay, err := a.testNodeDelay(cfg, node.Name)
+		if err != nil {
+			fmt.Fprintf(a.Stdout, "%s\tERROR\t%v\n", node.Name, err)
+			continue
+		}
+		fmt.Fprintf(a.Stdout, "%s\t%dms\n", node.Name, delay)
+	}
+	if tested == 0 {
+		fmt.Fprintln(a.Stdout, "暂无启用节点")
 	}
 	return nil
 }
@@ -1106,16 +1128,9 @@ func (a *App) currentMode(cfg config.Config) (string, string) {
 }
 
 func (a *App) controllerRuntimeSummary(cfg config.Config) (string, error) {
-	host := cfg.Controller.BindAddress
-	if host == "0.0.0.0" || host == "*" || host == "" {
-		host = "127.0.0.1"
-	}
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s:%d/version", host, cfg.Ports.Controller), nil)
+	req, err := a.controllerRequest(cfg, "/version")
 	if err != nil {
 		return "", err
-	}
-	if cfg.Controller.Secret != "" {
-		req.Header.Set("Authorization", "Bearer "+cfg.Controller.Secret)
 	}
 	resp, err := a.httpClient().Do(req)
 	if err != nil {
@@ -1130,16 +1145,9 @@ func (a *App) controllerRuntimeSummary(cfg config.Config) (string, error) {
 }
 
 func (a *App) controllerConfigMode(cfg config.Config) (string, error) {
-	host := cfg.Controller.BindAddress
-	if host == "0.0.0.0" || host == "*" || host == "" {
-		host = "127.0.0.1"
-	}
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s:%d/configs", host, cfg.Ports.Controller), nil)
+	req, err := a.controllerRequest(cfg, "/configs")
 	if err != nil {
 		return "", err
-	}
-	if cfg.Controller.Secret != "" {
-		req.Header.Set("Authorization", "Bearer "+cfg.Controller.Secret)
 	}
 	resp, err := a.httpClient().Do(req)
 	if err != nil {
@@ -1154,6 +1162,44 @@ func (a *App) controllerConfigMode(cfg config.Config) (string, error) {
 		return mode, nil
 	}
 	return "", nil
+}
+
+func (a *App) testNodeDelay(cfg config.Config, name string) (int, error) {
+	path := "/proxies/" + url.PathEscape(name) + "/delay?timeout=5000&url=" + url.QueryEscape("https://cp.cloudflare.com/generate_204")
+	req, err := a.controllerRequest(cfg, path)
+	if err != nil {
+		return 0, err
+	}
+	resp, err := a.httpClient().Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return 0, fmt.Errorf("http %d", resp.StatusCode)
+	}
+	var payload struct {
+		Delay int `json:"delay"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return 0, err
+	}
+	return payload.Delay, nil
+}
+
+func (a *App) controllerRequest(cfg config.Config, path string) (*http.Request, error) {
+	host := cfg.Controller.BindAddress
+	if host == "0.0.0.0" || host == "*" || host == "" {
+		host = "127.0.0.1"
+	}
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s:%d%s", host, cfg.Ports.Controller, path), nil)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Controller.Secret != "" {
+		req.Header.Set("Authorization", "Bearer "+cfg.Controller.Secret)
+	}
+	return req, nil
 }
 
 func (a *App) readImportInput() (string, error) {
@@ -1230,40 +1276,238 @@ func (a *App) nodeAt(st *state.State, index int) (*state.Node, error) {
 	return &st.Nodes[index-1], nil
 }
 
-func (a *App) subscriptionsMenu(reader *bufio.Reader) error {
-	fmt.Fprintln(a.Stdout, "1) 查看订阅")
-	fmt.Fprintln(a.Stdout, "2) 更新订阅")
-	fmt.Fprint(a.Stdout, "> ")
-	line, _ := reader.ReadString('\n')
-	switch strings.TrimSpace(line) {
-	case "1":
-		return a.ListSubscriptions()
-	case "2":
-		return a.UpdateSubscriptions()
-	default:
-		return nil
+func (a *App) deployMenu(reader *bufio.Reader) error {
+	for {
+		fmt.Fprintln(a.Stdout, "1) 部署/修复")
+		fmt.Fprintln(a.Stdout, "2) 重新渲染配置")
+		fmt.Fprintln(a.Stdout, "3) 安装/刷新 minimalist")
+		fmt.Fprintln(a.Stdout, "0) 返回")
+		fmt.Fprint(a.Stdout, "> ")
+		line, _ := reader.ReadString('\n')
+		switch strings.TrimSpace(line) {
+		case "1":
+			return a.Setup()
+		case "2":
+			return a.RenderConfig()
+		case "3":
+			return a.InstallSelf()
+		case "0":
+			return nil
+		default:
+			fmt.Fprintln(a.Stdout, "无效选择")
+		}
 	}
 }
 
-func (a *App) rulesMenu(reader *bufio.Reader, acl bool) error {
-	fmt.Fprintln(a.Stdout, "1) 查看")
-	fmt.Fprintln(a.Stdout, "2) 添加")
-	fmt.Fprintln(a.Stdout, "3) 删除")
-	fmt.Fprint(a.Stdout, "> ")
-	line, _ := reader.ReadString('\n')
-	switch strings.TrimSpace(line) {
-	case "1":
-		return a.ListRules(acl)
-	case "2":
-		kind := promptString(reader, a.Stdout, "kind", "")
-		pattern := promptString(reader, a.Stdout, "pattern", "")
-		target := promptString(reader, a.Stdout, "target", "")
-		return a.AddRule(acl, kind, pattern, target)
-	case "3":
-		index, _ := strconv.Atoi(promptString(reader, a.Stdout, "index", "1"))
-		return a.RemoveRule(acl, index)
-	default:
-		return nil
+func (a *App) nodesMenu(reader *bufio.Reader) error {
+	for {
+		fmt.Fprintln(a.Stdout, "1) 查看节点")
+		fmt.Fprintln(a.Stdout, "2) 导入节点")
+		fmt.Fprintln(a.Stdout, "3) 测试节点")
+		fmt.Fprintln(a.Stdout, "4) 节点改名")
+		fmt.Fprintln(a.Stdout, "5) 启用节点")
+		fmt.Fprintln(a.Stdout, "6) 禁用节点")
+		fmt.Fprintln(a.Stdout, "7) 删除节点")
+		fmt.Fprintln(a.Stdout, "0) 返回")
+		fmt.Fprint(a.Stdout, "> ")
+		line, _ := reader.ReadString('\n')
+		switch strings.TrimSpace(line) {
+		case "1":
+			return a.ListNodes()
+		case "2":
+			return a.ImportLinks()
+		case "3":
+			return a.TestNodes()
+		case "4":
+			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "节点 ID", "1"))
+			name := promptString(reader, a.Stdout, "新名称", "")
+			return a.RenameNode(index, name)
+		case "5":
+			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "节点 ID", "1"))
+			return a.SetNodeEnabled(index, true)
+		case "6":
+			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "节点 ID", "1"))
+			return a.SetNodeEnabled(index, false)
+		case "7":
+			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "节点 ID", "1"))
+			return a.RemoveNode(index)
+		case "0":
+			return nil
+		default:
+			fmt.Fprintln(a.Stdout, "无效选择")
+		}
+	}
+}
+
+func (a *App) subscriptionsMenu(reader *bufio.Reader) error {
+	for {
+		fmt.Fprintln(a.Stdout, "1) 查看订阅")
+		fmt.Fprintln(a.Stdout, "2) 添加订阅")
+		fmt.Fprintln(a.Stdout, "3) 启用订阅")
+		fmt.Fprintln(a.Stdout, "4) 禁用订阅")
+		fmt.Fprintln(a.Stdout, "5) 删除订阅")
+		fmt.Fprintln(a.Stdout, "6) 立即更新订阅")
+		fmt.Fprintln(a.Stdout, "0) 返回")
+		fmt.Fprint(a.Stdout, "> ")
+		line, _ := reader.ReadString('\n')
+		switch strings.TrimSpace(line) {
+		case "1":
+			return a.ListSubscriptions()
+		case "2":
+			name := promptString(reader, a.Stdout, "订阅名称", "")
+			subURL := promptString(reader, a.Stdout, "订阅 URL", "")
+			return a.AddSubscription(name, subURL, true)
+		case "3":
+			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "订阅 ID", "1"))
+			return a.SetSubscriptionEnabled(index, true)
+		case "4":
+			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "订阅 ID", "1"))
+			return a.SetSubscriptionEnabled(index, false)
+		case "5":
+			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "订阅 ID", "1"))
+			return a.RemoveSubscription(index)
+		case "6":
+			return a.UpdateSubscriptions()
+		case "0":
+			return nil
+		default:
+			fmt.Fprintln(a.Stdout, "无效选择")
+		}
+	}
+}
+
+func (a *App) networkMenu(reader *bufio.Reader) error {
+	for {
+		fmt.Fprintln(a.Stdout, "1) 旁路由入口向导")
+		fmt.Fprintln(a.Stdout, "2) 重新渲染配置")
+		fmt.Fprintln(a.Stdout, "3) 查看规则仓库")
+		fmt.Fprintln(a.Stdout, "4) 查看规则集条目")
+		fmt.Fprintln(a.Stdout, "5) 搜索规则仓库")
+		fmt.Fprintln(a.Stdout, "6) 添加规则集条目")
+		fmt.Fprintln(a.Stdout, "7) 删除规则集条目")
+		fmt.Fprintln(a.Stdout, "0) 返回")
+		fmt.Fprint(a.Stdout, "> ")
+		line, _ := reader.ReadString('\n')
+		switch strings.TrimSpace(line) {
+		case "1":
+			return a.RouterWizard()
+		case "2":
+			return a.RenderConfig()
+		case "3":
+			return a.RulesRepoSummary()
+		case "4":
+			name := promptString(reader, a.Stdout, "规则集名称", "pt")
+			keyword := promptString(reader, a.Stdout, "关键字过滤", "")
+			return a.RulesRepoEntries(name, keyword)
+		case "5":
+			keyword := promptString(reader, a.Stdout, "关键字", "")
+			return a.RulesRepoFind(keyword)
+		case "6":
+			name := promptString(reader, a.Stdout, "规则集名称", "pt")
+			value := promptString(reader, a.Stdout, "规则内容", "")
+			return a.RulesRepoAdd(name, value)
+		case "7":
+			name := promptString(reader, a.Stdout, "规则集名称", "pt")
+			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "条目 ID", "1"))
+			return a.RulesRepoRemoveIndex(name, index)
+		case "0":
+			return nil
+		default:
+			fmt.Fprintln(a.Stdout, "无效选择")
+		}
+	}
+}
+
+func (a *App) rulesAndACLMenu(reader *bufio.Reader) error {
+	for {
+		fmt.Fprintln(a.Stdout, "1) 查看自定义规则")
+		fmt.Fprintln(a.Stdout, "2) 添加自定义规则")
+		fmt.Fprintln(a.Stdout, "3) 删除自定义规则")
+		fmt.Fprintln(a.Stdout, "4) 查看 ACL 规则")
+		fmt.Fprintln(a.Stdout, "5) 添加 ACL 规则")
+		fmt.Fprintln(a.Stdout, "6) 删除 ACL 规则")
+		fmt.Fprintln(a.Stdout, "0) 返回")
+		fmt.Fprint(a.Stdout, "> ")
+		line, _ := reader.ReadString('\n')
+		switch strings.TrimSpace(line) {
+		case "1":
+			return a.ListRules(false)
+		case "2":
+			return a.promptAddRule(reader, false)
+		case "3":
+			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "规则 ID", "1"))
+			return a.RemoveRule(false, index)
+		case "4":
+			return a.ListRules(true)
+		case "5":
+			return a.promptAddRule(reader, true)
+		case "6":
+			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "规则 ID", "1"))
+			return a.RemoveRule(true, index)
+		case "0":
+			return nil
+		default:
+			fmt.Fprintln(a.Stdout, "无效选择")
+		}
+	}
+}
+
+func (a *App) promptAddRule(reader *bufio.Reader, acl bool) error {
+	kind := promptString(reader, a.Stdout, "kind", "")
+	pattern := promptString(reader, a.Stdout, "pattern", "")
+	target := promptString(reader, a.Stdout, "target", "")
+	return a.AddRule(acl, kind, pattern, target)
+}
+
+func (a *App) serviceMenu(reader *bufio.Reader) error {
+	for {
+		fmt.Fprintln(a.Stdout, "1) 启动服务")
+		fmt.Fprintln(a.Stdout, "2) 重启服务")
+		fmt.Fprintln(a.Stdout, "3) 停止服务")
+		fmt.Fprintln(a.Stdout, "4) 查看状态")
+		fmt.Fprintln(a.Stdout, "0) 返回")
+		fmt.Fprint(a.Stdout, "> ")
+		line, _ := reader.ReadString('\n')
+		switch strings.TrimSpace(line) {
+		case "1":
+			return a.Start()
+		case "2":
+			return a.Restart()
+		case "3":
+			return a.Stop()
+		case "4":
+			return a.Status()
+		case "0":
+			return nil
+		default:
+			fmt.Fprintln(a.Stdout, "无效选择")
+		}
+	}
+}
+
+func (a *App) auditMenu(reader *bufio.Reader) error {
+	for {
+		fmt.Fprintln(a.Stdout, "1) 健康检查")
+		fmt.Fprintln(a.Stdout, "2) 运行审计")
+		fmt.Fprintln(a.Stdout, "3) Cutover 检查")
+		fmt.Fprintln(a.Stdout, "4) Cutover 计划")
+		fmt.Fprintln(a.Stdout, "0) 返回")
+		fmt.Fprint(a.Stdout, "> ")
+		line, _ := reader.ReadString('\n')
+		switch strings.TrimSpace(line) {
+		case "1":
+			return a.Healthcheck()
+		case "2":
+			return a.RuntimeAudit()
+		case "3":
+			return a.CutoverPreflight()
+		case "4":
+			return a.CutoverPlan()
+		case "0":
+			return nil
+		default:
+			fmt.Fprintln(a.Stdout, "无效选择")
+		}
 	}
 }
 

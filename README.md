@@ -71,6 +71,8 @@ sudo /usr/local/bin/minimalist setup
 
 补充当前行为：
 
+- `menu` 当前按运维任务分组：状态总览、部署/修复、节点管理、订阅管理、网络入口与规则仓库、规则与 ACL、服务管理、健康检查与审计
+- 节点管理包含查看、导入、测试、改名、启用、禁用和删除；节点测试依赖本机 Mihomo controller
 - `subscriptions update` 更新的是订阅 provider 缓存；`render-config` 直接读取缓存生成订阅 provider
 - 即使当前没有手动节点或订阅 provider，`render-config` 仍会生成仅含 `DIRECT` 的 `PROXY` 组
 - provider 导入会按 `URIBaseKey` 去重，并为重名节点自动追加后缀

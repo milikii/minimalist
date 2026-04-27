@@ -46,7 +46,9 @@
 
 ## 辅助入口
 
-- `minimalist menu` 是当前交互入口，内部仍分发到同一组 CLI 命令
+- `minimalist menu` 是当前交互入口，按旧菜单习惯重新分为状态总览、部署/修复、节点管理、订阅管理、网络入口与规则仓库、规则与 ACL、服务管理、健康检查与审计
+- 节点管理包含查看、导入、测试、改名、启用、禁用和删除；节点测试通过本机 Mihomo controller 对已启用节点执行 delay 检查
+- 当前菜单只暴露 Go 版仍保留的能力；旧版升级、core 回滚、自动更新等已明确不恢复的能力不放回菜单
 - 顶层 `minimalist --help` / `help` / 非 TTY 空参数当前都回落到同一份 usage 输出
 - 顶层 `minimalist setup` / `render-config` / `start` / `stop` / `restart` / `clear-rules` 等命令当前仍直接分发到同一组 `internal/app` 实现
 - `minimalist router-wizard` 直接回写 `/etc/minimalist/config.yaml`

@@ -574,6 +574,37 @@ func TestListNodesAndRemoveNodePersistUpdatedState(t *testing.T) {
 	}
 }
 
+func TestTestNodesReportsDelayForEnabledNodes(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#delay-node\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable node: %v", err)
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path != "/proxies/delay-node/delay" {
+				t.Fatalf("unexpected delay path: %s", req.URL.String())
+			}
+			if req.URL.Query().Get("timeout") != "5000" || req.URL.Query().Get("url") == "" {
+				t.Fatalf("unexpected delay query: %s", req.URL.RawQuery)
+			}
+			if req.Header.Get("Authorization") == "" {
+				t.Fatalf("expected controller secret header")
+			}
+			return textResponse(http.StatusOK, `{"delay":42}`), nil
+		}),
+	}
+	if err := app.TestNodes(); err != nil {
+		t.Fatalf("test nodes: %v", err)
+	}
+	if output := app.Stdout.(*bytes.Buffer).String(); !strings.Contains(output, "delay-node\t42ms") {
+		t.Fatalf("unexpected test nodes output:\n%s", output)
+	}
+}
+
 func TestRemoveNodeRejectsReferencedManualNode(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -675,7 +706,7 @@ func TestListSubscriptionsAndMenuViewPrintCurrentState(t *testing.T) {
 	output := app.Stdout.(*bytes.Buffer).String()
 	for _, needle := range []string{
 		"1) 查看订阅",
-		"2) 更新订阅",
+		"6) 立即更新订阅",
 		"1\tlist-sub\thttps://subscription.example.com/list.txt\t1\t2026-04-27T10:00:00+08:00\t2\tboom",
 	} {
 		if !strings.Contains(output, needle) {
@@ -697,7 +728,7 @@ func TestSubscriptionsMenuUpdateRefreshesEnabledSubscriptions(t *testing.T) {
 			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#menu-sub-node\n"), nil
 		}),
 	}
-	app.Stdin = strings.NewReader("2\n")
+	app.Stdin = strings.NewReader("6\n")
 	if err := app.subscriptionsMenu(bufio.NewReader(app.Stdin)); err != nil {
 		t.Fatalf("subscriptions menu update: %v", err)
 	}
@@ -1057,7 +1088,7 @@ func TestUpdateSubscriptionsFailsWhenSubscriptionDirCannotBeCreated(t *testing.T
 	}
 }
 
-func TestRulesMenuAddsRuleAndPromptStringKeepsDefaultOnBlankInput(t *testing.T) {
+func TestRulesAndACLMenuAddsRuleAndPromptStringKeepsDefaultOnBlankInput(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#menu-rule-node\n")
 	if err := app.ImportLinks(); err != nil {
@@ -1068,8 +1099,8 @@ func TestRulesMenuAddsRuleAndPromptStringKeepsDefaultOnBlankInput(t *testing.T) 
 	}
 
 	reader := bufio.NewReader(strings.NewReader("2\ndomain\nmenu.example.com\nAUTO\n"))
-	if err := app.rulesMenu(reader, false); err != nil {
-		t.Fatalf("rules menu add: %v", err)
+	if err := app.rulesAndACLMenu(reader); err != nil {
+		t.Fatalf("rules and acl menu add: %v", err)
 	}
 	st, err := state.Load(app.Paths.StatePath())
 	if err != nil {
@@ -1088,14 +1119,14 @@ func TestRulesMenuAddsRuleAndPromptStringKeepsDefaultOnBlankInput(t *testing.T) 
 	}
 }
 
-func TestRulesMenuRemovesRuleByIndex(t *testing.T) {
+func TestRulesAndACLMenuRemovesRuleByIndex(t *testing.T) {
 	app, _ := newTestApp(t)
 	if err := app.AddRule(false, "domain", "menu.example.com", "DIRECT"); err != nil {
 		t.Fatalf("add rule: %v", err)
 	}
 	reader := bufio.NewReader(strings.NewReader("3\n1\n"))
-	if err := app.rulesMenu(reader, false); err != nil {
-		t.Fatalf("rules menu remove: %v", err)
+	if err := app.rulesAndACLMenu(reader); err != nil {
+		t.Fatalf("rules and acl menu remove: %v", err)
 	}
 	st, err := state.Load(app.Paths.StatePath())
 	if err != nil {
@@ -1106,11 +1137,11 @@ func TestRulesMenuRemovesRuleByIndex(t *testing.T) {
 	}
 }
 
-func TestRulesMenuSupportsACLAddAndRemove(t *testing.T) {
+func TestRulesAndACLMenuSupportsACLAddAndRemove(t *testing.T) {
 	app, _ := newTestApp(t)
-	reader := bufio.NewReader(strings.NewReader("2\nsrc\n192.168.2.10/32\nDIRECT\n"))
-	if err := app.rulesMenu(reader, true); err != nil {
-		t.Fatalf("rules menu acl add: %v", err)
+	reader := bufio.NewReader(strings.NewReader("5\nsrc\n192.168.2.10/32\nDIRECT\n"))
+	if err := app.rulesAndACLMenu(reader); err != nil {
+		t.Fatalf("rules and acl menu acl add: %v", err)
 	}
 	st, err := state.Load(app.Paths.StatePath())
 	if err != nil {
@@ -1119,9 +1150,9 @@ func TestRulesMenuSupportsACLAddAndRemove(t *testing.T) {
 	if len(st.ACL) != 1 || st.ACL[0].Kind != "src-cidr" || st.ACL[0].Pattern != "192.168.2.10/32" {
 		t.Fatalf("unexpected acl after add: %+v", st.ACL)
 	}
-	reader = bufio.NewReader(strings.NewReader("3\n1\n"))
-	if err := app.rulesMenu(reader, true); err != nil {
-		t.Fatalf("rules menu acl remove: %v", err)
+	reader = bufio.NewReader(strings.NewReader("6\n1\n"))
+	if err := app.rulesAndACLMenu(reader); err != nil {
+		t.Fatalf("rules and acl menu acl remove: %v", err)
 	}
 	st, err = state.Load(app.Paths.StatePath())
 	if err != nil {
@@ -1141,13 +1172,15 @@ func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 	app.Stdin = strings.NewReader(strings.Join([]string{
 		"x",
 		"1",
-		"6",
 		"2",
+		"1",
 		"4",
 		"1",
-		"8",
+		"6",
 		"1",
-		"9",
+		"6",
+		"4",
+		"8",
 		"1",
 		"0",
 	}, "\n") + "\n")
@@ -1159,7 +1192,7 @@ func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 		"无效选择",
 		"部署完成，请先 import-links 或 subscriptions update 后再启动服务",
 		"1) 查看订阅",
-		"1) 查看",
+		"1) 查看自定义规则",
 		"mixed-port=7890",
 	} {
 		if !strings.Contains(output, needle) {
@@ -3905,7 +3938,7 @@ func TestMenuReportsActionErrorsToStderr(t *testing.T) {
 	if err := app.SetNodeEnabled(1, true); err != nil {
 		t.Fatalf("enable node: %v", err)
 	}
-	app.Stdin = strings.NewReader("2\n0\n")
+	app.Stdin = strings.NewReader("2\n1\n0\n")
 	if err := app.Menu(); err != nil {
 		t.Fatalf("menu: %v", err)
 	}
@@ -3924,7 +3957,7 @@ func TestMenuDispatchesSubscriptionUpdate(t *testing.T) {
 	if err := app.AddSubscription("menu-sub", "https://subscription.example.com/menu.txt", true); err != nil {
 		t.Fatalf("add subscription: %v", err)
 	}
-	app.Stdin = strings.NewReader("4\n2\n0\n")
+	app.Stdin = strings.NewReader("4\n6\n0\n")
 	if err := app.Menu(); err != nil {
 		t.Fatalf("menu: %v", err)
 	}

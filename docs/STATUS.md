@@ -18,6 +18,7 @@
 - 运行时配置、provider、rules、systemd unit 与 sysctl 文本生成：`internal/runtime`
 - 业务命令、菜单与 CLI 分发：`internal/app`、`internal/cli`
 - 外部命令封装：`internal/system`
+- `menu` 已按运维任务分组：状态总览、部署/修复、节点管理、订阅管理、网络入口与规则仓库、规则与 ACL、服务管理、健康检查与审计
 
 当前保留命令：
 
