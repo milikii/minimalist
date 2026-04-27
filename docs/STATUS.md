@@ -47,7 +47,7 @@
 - `cutover-preflight` 已在实机只读跑通，当前结果是 `cutover-ready=false`：旧 `mihomo.service` active/enabled，Go 版 `minimalist.service` / bin 尚未落地。
 - `setup` / `start` / `restart` / `apply-rules` / `clear-rules` 已接入执行前 cutover guard；旧 `mihomo.service` live 且 `minimalist.service` 未 active/enabled 时会返回 `cutover blocked`。当前实机 `setup` 已验证会阻断，且不会创建 `/etc/minimalist`、`/var/lib/minimalist`、`minimalist.service` 或 `/usr/local/bin/minimalist`。
 - `docs/CUTOVER.md` 已记录人工 cutover 与回滚步骤，当前不提供自动切换命令。
-- `cutover-plan` 已实现为只读计划输出，只报告当前状态、下一步建议和回滚入口。
+- `cutover-plan` 已实现并在实机只读跑通：当前输出 `legacy_live=true`、`minimalist_service_live=false`、`cutover_ready=false`、`next-action: prepare-minimalist-inputs`，且不会创建 Go 版目标文件。
 
 ## 当前风险与限制
 
