@@ -1192,6 +1192,26 @@ func TestSetupSurfaceEnsureAllFailureWhenRuntimeLayoutBlocked(t *testing.T) {
 	}
 }
 
+func TestSetupFailsWhenServiceUnitPathIsDirectory(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := os.MkdirAll(app.Paths.ServiceUnit, 0o755); err != nil {
+		t.Fatalf("mkdir blocking service unit path: %v", err)
+	}
+	if err := app.Setup(); err == nil || !strings.Contains(err.Error(), "is a directory") {
+		t.Fatalf("expected service unit write failure, got %v", err)
+	}
+}
+
+func TestSetupFailsWhenSysctlPathIsDirectory(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := os.MkdirAll(app.Paths.SysctlPath, 0o755); err != nil {
+		t.Fatalf("mkdir blocking sysctl path: %v", err)
+	}
+	if err := app.Setup(); err == nil || !strings.Contains(err.Error(), "is a directory") {
+		t.Fatalf("expected sysctl write failure, got %v", err)
+	}
+}
+
 func TestReadImportInputReturnsAllLinesWhenNotTerminal(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#one\nsocks5://proxy.example.com:1080#two\n")

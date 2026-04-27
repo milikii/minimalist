@@ -194,6 +194,29 @@ func TestValidateEntrySupportsKnownRuleTypes(t *testing.T) {
 	}
 }
 
+func TestSearchRejectsEmptyKeywordAndRenderRejectsUnsupportedEntries(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "rules-repo", "default")
+	if err := InitDefaultRepo(root); err != nil {
+		t.Fatalf("init repo: %v", err)
+	}
+	manifest := filepath.Join(root, "manifest.yaml")
+	if _, err := Search(manifest, "   "); err == nil || !strings.Contains(err.Error(), "empty keyword") {
+		t.Fatalf("expected empty keyword error, got %v", err)
+	}
+
+	dir := t.TempDir()
+	manifest = filepath.Join(dir, "manifest.yaml")
+	if err := os.WriteFile(manifest, []byte("rulesets:\n  - name: test\n    category: demo\n    type: domain\n    source: entries.txt\n    target: direct\n"), 0o640); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "entries.txt"), []byte("bad entry\n"), 0o640); err != nil {
+		t.Fatalf("write invalid entries: %v", err)
+	}
+	if _, err := Render(manifest); err == nil || !strings.Contains(err.Error(), "invalid domain entry") {
+		t.Fatalf("expected invalid render error, got %v", err)
+	}
+}
+
 func TestAppendAndRemoveEntryIndexDeduplicateAndRewrite(t *testing.T) {
 	dir := t.TempDir()
 	manifest := filepath.Join(dir, "manifest.yaml")
