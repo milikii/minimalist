@@ -30,8 +30,8 @@
 
 - `go build` 已覆盖当前主入口。
 - `GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...` 作为当前全量回归入口。
-- 当前测试已经覆盖配置、状态、provider、rules-repo、runtime 渲染、核心 app 命令、CLI 分发、错误透传、路径阻塞、菜单/helper 边界与 system runner，并补上了 config/state/provider/system 的关键错误路径、missing-file 分支、订阅输入空值保护、订阅启停分流、订阅删除缓存清理失败、订阅节点 provider-managed 保护、手动节点删除前引用检查、节点重命名空值保护、规则输入 kind / pattern 校验、CLI/app 终端判断、runtime layout 阻塞、runtime rule read error、provider URI fallback、rules-repo 校验边界、controller body read error、`apply-rules` 的关键失败传播、provider 过滤边界，以及 config 随机 secret 回退与 state existing-state 复用。
-- 最近一轮补强继续收口在 app / runtime / provider / rules-repo 的失败路径和状态一致性：`menu` 不再静默吞掉子命令错误；`deleteIPRule` 先通过 `ip rule show` 确认可删规则，并把 `ip rule` 异常上浮到 `apply-rules` / `clear-rules`；`rules-repo` 初始化会拒绝被目录占用的 `manifest.yaml`；`status` 覆盖控制面坏 JSON 回退；订阅输入空值、重复 URL 更新、节点重命名 provider-managed 保护、无 provider 的 `render-config` 输出、provider xhttp/reality 辅助解析，以及 CLI 高风险命令 fake runner 分发边界均已有 focused tests。
+- 当前测试已经覆盖配置、状态、provider、rules-repo、runtime 渲染、核心 app 命令、CLI 分发、错误透传、路径阻塞、菜单/helper 边界与 system runner，并补上了 config/state/provider/system 的关键错误路径、missing-file 分支、订阅输入空值保护、订阅启停分流、订阅删除缓存清理失败、订阅节点 provider-managed 保护、手动节点删除前引用检查、节点重命名空值保护、规则输入 kind / pattern 校验、CLI/app 终端判断、runtime layout 阻塞、runtime rule read error、provider URI fallback、rules-repo 校验边界、controller body read error、`apply-rules` 的关键失败传播、provider 过滤边界、config 随机 secret 回退、state existing-state 复用，以及 config/state 嵌套父目录创建。
+- 最近十个小闭环继续收口 app / runtime / provider / rules-repo / config / state 的 focused coverage：订阅菜单 update 路径、`deleteIPRule` 删除失败直返、ACL rules 渲染写失败、VLESS `skip-cert-verify` 别名、VLESS 坏 `extra` 容错、rules-repo append/remove 输入 trim、导入输入 EOF 无尾换行、config/state 嵌套父目录持久化均已有 focused tests。
 
 ## 本机真实验证结论
 
