@@ -45,6 +45,8 @@ sudo /usr/local/bin/minimalist router-wizard
 
 如果节点或订阅尚未准备好，不进入切换窗口。
 
+注意：`mihomo-core` 在首次启动时还会读取 `Country.mmdb`、`GeoSite.dat` 和 `ui/`。在离线、慢网络或刚清理完旧资产的环境里，必须先把这些资源预置到 `/var/lib/minimalist/mihomo/`，否则启动阶段可能尝试联网下载并超时失败。
+
 ## 切换窗口步骤
 
 切换会短暂中断透明代理，应在可回滚的维护窗口执行。

@@ -62,4 +62,5 @@
 - `runtime-audit` 在控制面不可达时不会伪造 runtime 摘要，只保留本地状态和日志告警计数
 - `cutover-preflight` 输出 `cutover-ready=false` 时，表示仍处于旧 `mihomo.service` live install 状态；高风险命令会返回 `cutover blocked`，不会自动停旧服务或清规则
 - 当前实机旧 `mihomo` 资产已清理，`cutover-plan` 应显示 legacy rollback unavailable
+- `mihomo-core` 首次启动依赖 `Country.mmdb`、`GeoSite.dat` 和 `ui/`；离线或慢网络环境要先预置到 `/var/lib/minimalist/mihomo/`
 - `cutover-plan` 当前只服务人工 runbook，不替代维护窗口决策

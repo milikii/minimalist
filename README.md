@@ -86,3 +86,4 @@ sudo /usr/local/bin/minimalist setup
 - `cutover-preflight` 是只读实机检查；若检测到旧 `mihomo.service` 正在承载现网，默认只告警，不停服务、不清规则
 - `cutover-plan` 是只读计划输出；只给当前状态、下一步建议和回滚可用性，不执行 cutover
 - 在旧 `mihomo.service` active/enabled 且 `minimalist.service` 尚未 active/enabled 时，`setup` / `start` / `restart` / `apply-rules` / `clear-rules` 会返回 `cutover blocked`
+- `mihomo-core` 首次启动需要 `Country.mmdb`、`GeoSite.dat` 和 `ui/`；离线或慢网络环境下要先预置到 `/var/lib/minimalist/mihomo/`
