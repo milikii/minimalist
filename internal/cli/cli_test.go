@@ -224,6 +224,76 @@ func TestRunRulesRepoRequiresSubcommand(t *testing.T) {
 	}
 }
 
+func TestRunNodesUsageErrorThroughRun(t *testing.T) {
+	err := Run([]string{"nodes"})
+	if err == nil || !strings.Contains(err.Error(), "usage: minimalist nodes list|rename|enable|disable|remove ...") {
+		t.Fatalf("expected nodes usage error, got %v", err)
+	}
+}
+
+func TestRunSubscriptionsUsageErrorThroughRun(t *testing.T) {
+	err := Run([]string{"subscriptions"})
+	if err == nil || !strings.Contains(err.Error(), "usage: minimalist subscriptions list|add|enable|disable|remove|update ...") {
+		t.Fatalf("expected subscriptions usage error, got %v", err)
+	}
+}
+
+func TestRunRulesUsageErrorThroughRun(t *testing.T) {
+	err := Run([]string{"rules"})
+	if err == nil || !strings.Contains(err.Error(), "usage: minimalist rules list|add|remove ...") {
+		t.Fatalf("expected rules usage error, got %v", err)
+	}
+}
+
+func TestRunACLUsageErrorThroughRun(t *testing.T) {
+	err := Run([]string{"acl"})
+	if err == nil || !strings.Contains(err.Error(), "usage: minimalist acl list|add|remove ...") {
+		t.Fatalf("expected acl usage error, got %v", err)
+	}
+}
+
+func TestRunRulesRepoUsageErrorThroughRun(t *testing.T) {
+	err := Run([]string{"rules-repo"})
+	if err == nil || !strings.Contains(err.Error(), "usage: minimalist rules-repo summary|entries|find|add|remove|remove-index ...") {
+		t.Fatalf("expected rules-repo usage error, got %v", err)
+	}
+}
+
+func TestRunNodesIndexErrorThroughRun(t *testing.T) {
+	err := Run([]string{"nodes", "rename", "bad", "x"})
+	if err == nil || !strings.Contains(err.Error(), "invalid syntax") {
+		t.Fatalf("expected nodes index error, got %v", err)
+	}
+}
+
+func TestRunSubscriptionsIndexErrorThroughRun(t *testing.T) {
+	err := Run([]string{"subscriptions", "enable", "bad"})
+	if err == nil || !strings.Contains(err.Error(), "invalid syntax") {
+		t.Fatalf("expected subscriptions index error, got %v", err)
+	}
+}
+
+func TestRunRulesIndexErrorThroughRun(t *testing.T) {
+	err := Run([]string{"rules", "remove", "bad"})
+	if err == nil || !strings.Contains(err.Error(), "invalid syntax") {
+		t.Fatalf("expected rules index error, got %v", err)
+	}
+}
+
+func TestRunACLIndexErrorThroughRun(t *testing.T) {
+	err := Run([]string{"acl", "remove", "bad"})
+	if err == nil || !strings.Contains(err.Error(), "invalid syntax") {
+		t.Fatalf("expected acl index error, got %v", err)
+	}
+}
+
+func TestRunRulesRepoRemoveIndexErrorThroughRun(t *testing.T) {
+	err := Run([]string{"rules-repo", "remove-index", "defaults", "bad"})
+	if err == nil || !strings.Contains(err.Error(), "invalid syntax") {
+		t.Fatalf("expected rules-repo index error, got %v", err)
+	}
+}
+
 func TestRunRulesRepoUsageAndIndexErrors(t *testing.T) {
 	a, _ := newCLIApp(t)
 	for _, tc := range []struct {

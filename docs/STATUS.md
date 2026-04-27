@@ -62,6 +62,7 @@
   - `internal/app` `deleteIPRule` 重试退出、`ApplyRules` `ensureChain` 失败、`Setup` manifest 失败、`install-self` 的 `rules-repo` / `state.json` 路径阻塞、`Setup` `builtin.rules` 路径阻塞补强
   - `internal/app` `Start` / `Restart` 的 manifest 损坏与 runtime 路径阻塞早失败、`Setup` 的 `manual.txt` / `custom.rules` / 最终 `config.yaml` 路径阻塞早失败、`RenderConfig` 的最终 `config.yaml` 路径阻塞补强
   - `internal/cli` `runWithApp` 的 `setup` / `render-config` / `start` / `restart` 失败透传补强
+  - `internal/cli` `Run(...)` 的 `nodes` / `subscriptions` / `rules` / `acl` / `rules-repo` usage 与 index 错误透传补强
   - `internal/runtime` `RenderFiles` 的 `manual.txt` / `custom.rules` / `builtin.rules` / 最终 `config.yaml` 路径阻塞失败路径补强
   - `subscriptions update -> render-config` 的最小集成断言
   - `render-config` 的规则目标与 provider 组合断言
