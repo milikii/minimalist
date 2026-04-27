@@ -50,13 +50,14 @@
   - `internal/config` round-trip
   - `internal/config` missing secret 回写落盘
   - `internal/provider` scan / render / base64 subscription decode / scannable URI filter / URIBaseKey / imported node dedupe & rename / naming helper / unsupported scheme fallback / `ss` / `vmess` / `vless` / `trojan` 解析 / `xhttp` / `grpc` / `ws` / `h2` / `httpupgrade` provider 渲染分支
-  - `internal/rulesrepo` render / search / manifest empty / duplicate entry / invalid entry / missing source / append dedupe / remove-index rewrite
+  - `internal/rulesrepo` render / search / manifest empty / duplicate entry / invalid entry / missing source / append dedupe / remove-index rewrite / invalid YAML / unsupported manifest type / unsupported manifest target / `copyTree` missing source / `RemoveEntryIndex` 越界
   - `internal/app` import-links / render-config / subscriptions update / setup / start / restart / healthcheck / runtime-audit / menu / router-wizard / clear-rules / apply-rules
   - `internal/app` status 配置回退 / runtime 优先、healthcheck 控制面错误输出、runtime-audit 缺失 runtime 摘要、show-secret、install-self 自定义 bin 父目录、stop、invalid rule target、rename node 联动 target、node/rule/subscription list & remove、rules-repo app 入口、subscription rename guard、subscription update/disable/remove 副作用、subscription HTTP/transport/cache-dir 失败路径、AUTO target guard、rules menu prompt、routing helper、explicit-proxy-only apply-rules、setup preflight 失败透传
   - `internal/cli` top-level `Run(args)` / `help` / `-h` / `show-secret` / rules-repo / nodes / subscriptions / rules / acl helper / usage error / index error / unknown subcommand / 正向分发 / `rules-repo add/remove/remove-index` 成功分发 / `apply-rules` 成功分发 / `render-config` 成功分发 / `runWithApp` 的 start / stop / restart / router-wizard / setup / clear-rules
   - `internal/system` command runner / `Run` delegate / zero timeout default
   - `internal/runtime` paths helper / `EnsureLayout` / `RenderFiles` / `writeRules` / secret fallback / configured secret / external-controller / external-ui / nameserver-policy / DNS 默认静态段落 / profile / fallback-filter / proxy-server-nameserver / nameserver / geox-url / dns.listen / lan-allowed-ips / lan-disallowed-ips / allow-lan / bind-address / log-level / mixed-port / tproxy-port / mode / ipv6 / geo flags / DNS behavior flags / manual & subscription provider / provider health-check / direct-only & AUTO proxy-groups / rules section & order / auth omission / active provider 选择 / `RenderFiles` unsupported rule 失败路径 / `BuildServiceUnit` / `BuildSysctl` / service hardening / install target / core bin / 自定义 bin 父目录
   - `internal/app` install-self / setup / render-config / update-subscriptions / readImportInput / requireRoot 的真实 I/O 失败路径补强
+  - `internal/app` `install-self` 非 root 早失败分支补强
   - `internal/app` `start` / `restart` / `stop` / `apply-rules` / `clear-rules` 的 non-root smoke 与 `rules-repo` wrapper 错误透传补强
   - `subscriptions update -> render-config` 的最小集成断言
   - `render-config` 的规则目标与 provider 组合断言
@@ -74,13 +75,13 @@
 - `go build -o /tmp/gobin/minimalist ./cmd/minimalist`：通过
 - `GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...`：通过
 - focused coverage 快照：
-  - `internal/app`: `90.1%`
-  - `internal/runtime`: `95.7%`
+- `internal/app`: `90.3%`
+- `internal/runtime`: `96.3%`
   - `internal/provider`: `87.2%`
-  - `internal/rulesrepo`: `81.1%`
+- `internal/rulesrepo`: `84.2%`
 
 ## 当前风险与限制
 
-- 当前 Go 测试已覆盖配置、provider、rules-repo、核心 app 路径、status/healthcheck/runtime-audit 回退与 runtime 优先、top-level CLI 与 `runWithApp` 主要分发、runtime 文本生成、system runner 以及多组 helper 边界；当前剩余缺口进一步收缩到少量 root/真实环境依赖链路、`ApplyRules` 更深的 iptables/ip rule 编排分支、以及更贴近真实运行环境的 smoke
+- 当前 Go 测试已覆盖配置、provider、rules-repo、核心 app 路径、status/healthcheck/runtime-audit 回退与 runtime 优先、top-level CLI 与 `runWithApp` 主要分发、runtime 文本生成、system runner 以及多组 helper 边界；当前剩余缺口进一步收缩到少量 root/真实环境依赖链路、`ApplyRules` 更深的 iptables/ip rule 编排分支，以及 `runtime.RenderFiles` / `install-self` 之外的更贴近真实运行环境的 smoke
 - `docs/images/readme-overview.svg` 已移除，后续若需要项目总览图应按 `minimalist` 当前架构重画
 - 旧版本 `settings.env` / `router.env` / `state/*.json` 不兼容，不做迁移

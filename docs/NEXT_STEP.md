@@ -33,7 +33,7 @@
 ## 下一最小闭环
 
 - 继续补 `ApplyRules` 更深的 iptables / ip rule 编排 smoke 断言
-- 继续补 `setup` / `status` / `rules-repo` 更贴近真实运行环境的 smoke 断言
+- 继续补 `runtime.RenderFiles` / `install-self` / `setup` 更贴近真实运行环境的失败与回退断言
 - 保持 README / flows / STATUS 只描述 `minimalist` 当前真相，不回退到旧 `mihomo` 叙述
 
 ## 本轮不做

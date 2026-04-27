@@ -130,6 +130,17 @@ func TestInstallSelfFailsWhenBinaryPathIsDirectory(t *testing.T) {
 	}
 }
 
+func TestInstallSelfReturnsRootErrorWhenNotRoot(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 1000 }
+	defer func() { geteuid = oldGeteuid }()
+
+	if err := app.InstallSelf(); err == nil || !strings.Contains(err.Error(), "请用 root 运行") {
+		t.Fatalf("expected root error, got %v", err)
+	}
+}
+
 func TestSetupFailsWhenConfigPathIsDirectory(t *testing.T) {
 	app, _ := newTestApp(t)
 	if os.Geteuid() != 0 {

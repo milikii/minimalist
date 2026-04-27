@@ -226,6 +226,32 @@ func TestRenderFilesWritesAllRuntimeArtifacts(t *testing.T) {
 	}
 }
 
+func TestRenderFilesReturnsErrorForInvalidRulesRepo(t *testing.T) {
+	root := t.TempDir()
+	paths := Paths{
+		ConfigDir:   filepath.Join(root, "etc"),
+		DataDir:     filepath.Join(root, "var"),
+		RuntimeDir:  filepath.Join(root, "runtime"),
+		InstallDir:  filepath.Join(root, "install"),
+		BinPath:     filepath.Join(root, "bin", "minimalist"),
+		ServiceUnit: filepath.Join(root, "systemd", "minimalist.service"),
+		SysctlPath:  filepath.Join(root, "sysctl", "99-minimalist-router.conf"),
+	}
+	if err := EnsureLayout(paths); err != nil {
+		t.Fatalf("ensure layout: %v", err)
+	}
+	manifest := paths.RulesRepoPath()
+	if err := os.MkdirAll(filepath.Dir(manifest), 0o755); err != nil {
+		t.Fatalf("make rules repo dir: %v", err)
+	}
+	if err := os.WriteFile(manifest, []byte("rulesets: [\n"), 0o640); err != nil {
+		t.Fatalf("write invalid manifest: %v", err)
+	}
+	if err := RenderFiles(paths, config.Default(), state.Empty()); err == nil || !strings.Contains(err.Error(), "parse manifest") {
+		t.Fatalf("expected render files to fail for invalid rules repo, got %v", err)
+	}
+}
+
 func TestBuildRuntimeConfigFallsBackToDefaultSecret(t *testing.T) {
 	paths := Paths{
 		ConfigDir:  t.TempDir(),

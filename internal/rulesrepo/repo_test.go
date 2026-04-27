@@ -41,6 +41,15 @@ func TestLoadManifestAndReadEntriesValidateInputs(t *testing.T) {
 	if _, err := LoadManifest(manifest); err == nil || !strings.Contains(err.Error(), "empty manifest") {
 		t.Fatalf("expected empty manifest error, got %v", err)
 	}
+	if _, err := LoadManifest(filepath.Join(dir, "missing.yaml")); err == nil {
+		t.Fatalf("expected missing manifest error")
+	}
+	if err := os.WriteFile(manifest, []byte("rulesets: [\n"), 0o640); err != nil {
+		t.Fatalf("write invalid manifest: %v", err)
+	}
+	if _, err := LoadManifest(manifest); err == nil || !strings.Contains(err.Error(), "parse manifest") {
+		t.Fatalf("expected parse manifest error, got %v", err)
+	}
 	entriesPath := filepath.Join(dir, "entries.txt")
 	if err := os.WriteFile(entriesPath, []byte("# comment\nexample.com\n\nexample.com\n"), 0o640); err != nil {
 		t.Fatalf("write entries: %v", err)
@@ -53,6 +62,31 @@ func TestLoadManifestAndReadEntriesValidateInputs(t *testing.T) {
 	}
 	if err := ValidateEntry("unsupported", "example.com", entriesPath); err == nil || !strings.Contains(err.Error(), "unsupported rule type") {
 		t.Fatalf("expected unsupported rule type error, got %v", err)
+	}
+}
+
+func TestCopyTreeAndRenderRejectUnsupportedManifestEntries(t *testing.T) {
+	dir := t.TempDir()
+	if err := copyTree("assets/missing", filepath.Join(dir, "dst")); err == nil {
+		t.Fatalf("expected copyTree to fail for missing source")
+	}
+
+	manifest := filepath.Join(dir, "manifest.yaml")
+	if err := os.WriteFile(manifest, []byte("rulesets:\n  - name: test\n    category: demo\n    type: invalid\n    source: entries.txt\n    target: direct\n"), 0o640); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "entries.txt"), []byte("example.com\n"), 0o640); err != nil {
+		t.Fatalf("write entries: %v", err)
+	}
+	if _, err := Render(manifest); err == nil || !strings.Contains(err.Error(), "unsupported rule type in manifest") {
+		t.Fatalf("expected unsupported type error, got %v", err)
+	}
+
+	if err := os.WriteFile(manifest, []byte("rulesets:\n  - name: test\n    category: demo\n    type: domain\n    source: entries.txt\n    target: invalid\n"), 0o640); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if _, err := Render(manifest); err == nil || !strings.Contains(err.Error(), "unsupported rule target in manifest") {
+		t.Fatalf("expected unsupported target error, got %v", err)
 	}
 }
 
@@ -249,5 +283,23 @@ func TestAppendAndRemoveEntryIndexDeduplicateAndRewrite(t *testing.T) {
 	}
 	if len(lines) != 0 {
 		t.Fatalf("expected empty entries after remove, got %#v", lines)
+	}
+}
+
+func TestRemoveEntryIndexRejectsOutOfRange(t *testing.T) {
+	dir := t.TempDir()
+	manifest := filepath.Join(dir, "manifest.yaml")
+	source := filepath.Join(dir, "entries.txt")
+	if err := os.WriteFile(manifest, []byte("rulesets:\n  - name: test\n    category: demo\n    type: domain\n    source: entries.txt\n    target: direct\n"), 0o640); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if err := os.WriteFile(source, []byte("example.com\n"), 0o640); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := RemoveEntryIndex(manifest, "test", 0); err == nil || !strings.Contains(err.Error(), "entry index out of range") {
+		t.Fatalf("expected out of range error, got %v", err)
+	}
+	if err := RemoveEntryIndex(manifest, "test", 2); err == nil || !strings.Contains(err.Error(), "entry index out of range") {
+		t.Fatalf("expected out of range error, got %v", err)
 	}
 }
