@@ -174,6 +174,27 @@ func TestDescribeListEntriesDescribeRulesetAndRemoveEntry(t *testing.T) {
 	}
 }
 
+func TestAppendEntryTrimsAndDeduplicatesValues(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "rules-repo", "default")
+	if err := InitDefaultRepo(root); err != nil {
+		t.Fatalf("init repo: %v", err)
+	}
+	manifest := filepath.Join(root, "manifest.yaml")
+	if err := AppendEntry(manifest, "fcm-site", "  codex.example.com  "); err != nil {
+		t.Fatalf("append trimmed entry: %v", err)
+	}
+	if err := AppendEntry(manifest, "fcm-site", "codex.example.com"); err != nil {
+		t.Fatalf("append duplicate entry: %v", err)
+	}
+	lines, err := ListEntries(manifest, "fcm-site", "codex")
+	if err != nil {
+		t.Fatalf("list entries: %v", err)
+	}
+	if len(lines) != 1 || !strings.Contains(lines[0], "codex.example.com") {
+		t.Fatalf("expected one trimmed deduped entry, got %#v", lines)
+	}
+}
+
 func TestInitDefaultRepoIsNoopWhenManifestAlreadyExists(t *testing.T) {
 	root := t.TempDir()
 	manifest := filepath.Join(root, "manifest.yaml")
