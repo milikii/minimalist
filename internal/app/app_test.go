@@ -805,6 +805,40 @@ func TestSetupPropagatesEnableFailureWhenProvidersReady(t *testing.T) {
 	}
 }
 
+func TestSetupPropagatesSysctlAndDaemonReloadFailures(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			if name == "sysctl" {
+				return errors.New("sysctl failed")
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", nil
+		},
+	}
+	if err := app.Setup(); err == nil || !strings.Contains(err.Error(), "sysctl failed") {
+		t.Fatalf("expected sysctl failure, got %v", err)
+	}
+
+	app, _ = newTestApp(t)
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			if name == "systemctl" && len(args) >= 1 && args[0] == "daemon-reload" {
+				return errors.New("daemon reload failed")
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", nil
+		},
+	}
+	if err := app.Setup(); err == nil || !strings.Contains(err.Error(), "daemon reload failed") {
+		t.Fatalf("expected daemon-reload failure, got %v", err)
+	}
+}
+
 func TestStartRendersConfigAndEnablesService(t *testing.T) {
 	app, _ := newTestApp(t)
 	var calls []commandCall

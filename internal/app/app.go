@@ -91,8 +91,12 @@ func (a *App) Setup() error {
 	if err := os.WriteFile(a.Paths.SysctlPath, []byte(runtime.BuildSysctl(cfg)), 0o644); err != nil {
 		return err
 	}
-	_ = a.Runner.Run("sysctl", "-p", a.Paths.SysctlPath)
-	_ = a.Runner.Run("systemctl", "daemon-reload")
+	if err := a.Runner.Run("sysctl", "-p", a.Paths.SysctlPath); err != nil {
+		return err
+	}
+	if err := a.Runner.Run("systemctl", "daemon-reload"); err != nil {
+		return err
+	}
 	hasProviders := a.hasReadyProviders(st)
 	if hasProviders {
 		if err := a.Runner.Run("systemctl", "enable", "--now", "minimalist.service"); err != nil {
