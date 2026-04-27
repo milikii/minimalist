@@ -3554,6 +3554,71 @@ func TestApplyRulesFlushesExistingChainsBeforeProgramming(t *testing.T) {
 	}
 }
 
+func TestApplyRulesSkipsExistingTopLevelJumps(t *testing.T) {
+	app := newTestAppWithEnabledManualNode(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 0 }
+	defer func() { geteuid = oldGeteuid }()
+
+	cfg, err := config.Ensure(app.Paths.ConfigPath())
+	if err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	cfg.Network.ProxyHostOutput = true
+	if err := config.Save(app.Paths.ConfigPath(), cfg); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	var calls []commandCall
+	programmedRules := false
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			if name == "systemctl" && len(args) >= 2 && (args[0] == "is-active" || args[0] == "is-enabled") {
+				return errors.New("inactive")
+			}
+			if name == "iptables" && hasArgSequence(args, "-A", "MIHOMO_PRE_HANDLE", "-p", "tcp", "-j", "TPROXY") {
+				programmedRules = true
+			}
+			if name == "iptables" && hasArgSequence(args, "-C") {
+				if programmedRules &&
+					(hasArgSequence(args, "-C", "PREROUTING", "-j", "MIHOMO_DNS") ||
+						hasArgSequence(args, "-C", "PREROUTING", "-j", "MIHOMO_PRE") ||
+						hasArgSequence(args, "-C", "OUTPUT", "-j", "MIHOMO_OUT")) {
+					return nil
+				}
+				return errors.New("missing")
+			}
+			if name == "iptables" && hasArgSequence(args, "-S") {
+				return errors.New("missing")
+			}
+			if name == "ip" && len(args) >= 4 && args[0] == "-4" && args[1] == "rule" && args[2] == "del" {
+				return errors.New("missing")
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", nil
+		},
+	}
+
+	if err := app.ApplyRules(); err != nil {
+		t.Fatalf("apply rules: %v", err)
+	}
+	for _, forbidden := range []struct {
+		table string
+		args  []string
+	}{
+		{"nat", []string{"-A", "PREROUTING", "-j", "MIHOMO_DNS"}},
+		{"mangle", []string{"-A", "PREROUTING", "-j", "MIHOMO_PRE"}},
+		{"mangle", []string{"-A", "OUTPUT", "-j", "MIHOMO_OUT"}},
+	} {
+		if hasRecordedCall(calls, "iptables", append([]string{"-w", "5", "-t", forbidden.table}, forbidden.args...)...) {
+			t.Fatalf("did not expect duplicate jump %s %#v in %#v", forbidden.table, forbidden.args, calls)
+		}
+	}
+}
+
 func TestApplyRulesSkipsDNSAndOutputJumpsWhenDisabled(t *testing.T) {
 	app, _ := newTestApp(t)
 	cfg, err := config.Ensure(app.Paths.ConfigPath())
