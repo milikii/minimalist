@@ -37,3 +37,10 @@
 - 继续只承诺 Debian NAS / IPv4 旁路由 / `iptables + TProxy`
 - 不补 OpenWrt / firewall4 / nftables 抽象
 - 不恢复 `nas-single-lan-dualstack`
+
+## 2026-04-27 实机 legacy install 不做原地覆盖
+
+- 当前 NAS 仍由旧 `mihomo.service` 承载现网透明代理
+- Go 版 `minimalist` 不能把旧 `/etc/mihomo` 直接视为自己的配置和状态真相
+- 切换到 Go 版前必须先完成非破坏性 preflight / cutover 检查
+- 在确认 cutover 方案前，不自动停旧服务、不自动清理现网 `MIHOMO_*` 规则、不自动迁移旧 `settings.env` / `router.env` / `state/*.json`

@@ -9,11 +9,11 @@
 
 ## 下一最小闭环
 
-- 继续做只读清点，确认当前 live install 的归属和迁移边界：
-  - `/usr/local/lib/mihomo-manager/mihomo` 的类型、来源与是否仍对应旧实现
-  - `/etc/mihomo` 中不含敏感值的结构性信息
-  - 当前 `mihomo.service` 与 Go 版目标 `minimalist.service` 的差异
-  - Go 版 `/usr/local/bin/minimalist` / `/etc/minimalist` / `/var/lib/minimalist` 的落地方案
+- 补一个非破坏性迁移前置闭环，先防止误操作再谈切换：
+  - 识别 `mihomo.service` active 且 `minimalist.service` absent 的 legacy live 状态
+  - 明确 Go 版 `apply-rules` / `clear-rules` 与旧服务共用 `MIHOMO_*` 链名和 `0x2333` / table `233`
+  - 给出 safe cutover 前置检查或文档化步骤，默认不自动停旧服务、不自动清规则
+  - 若要改代码，优先做只读 preflight / audit，不直接改变现网规则行为
 - 在确认迁移策略前，不对现网 `MIHOMO_*` 规则做清理或重写。
 - 若确认要切换到 Go 版，再做最小迁移闭环并重新跑 `setup` / `start` / `restart` / `apply-rules` / `clear-rules` 实机 smoke。
 - 保持 README / flows 描述 Go 版 `minimalist` 目标真相；STATUS / NEXT_STEP 只记录 live host 差异，不恢复旧 `mihomo` 作为项目目标。
@@ -30,4 +30,4 @@
 
 - README 与权威文档只描述 Go 版 `minimalist` 当前真相。
 - `go test ./...` 覆盖核心命令与系统编排关键路径。
-- 在这台 NAS 上把 live install 归属和 Go 版部署边界先理清，再决定下一步是否做迁移验收。
+- 在这台 NAS 上形成一个可验证、可回滚、不会误清现网规则的 Go 版 cutover 前置方案。

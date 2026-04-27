@@ -40,6 +40,10 @@
 - 这台机子上 `/usr/local/bin/minimalist`、`/etc/minimalist`、`/var/lib/minimalist` 目前都不存在，`minimalist.service` 也不存在。
 - 现网 `iptables` / `ip rule` 已有真实的 MIHOMO 透明代理状态：`MIHOMO_PRE`、`MIHOMO_PRE_HANDLE`、`MIHOMO_OUT`、`MIHOMO_DNS` 都在，`fwmark 0x2333 lookup 233` 规则和 table `233` 也都在。
 - 之前那轮“系统调用不可用”的判断只代表 Codex 沙箱限制，不代表这台 NAS 的真实宿主机状态。
+- 只读清点确认 `/usr/local/bin/mihomo` 指向 `/usr/local/lib/mihomo-manager/mihomo`，后者是 shell 版 `mihomo v0.6.0`，不是 Go 版 `minimalist`。
+- 旧 `/etc/mihomo` 同时包含 runtime `config.yaml`、`router.env`、`settings.env`、`state/*.json`、provider、ruleset、UI 与 geodata；这不是 Go 版 `/etc/minimalist/config.yaml` + `/var/lib/minimalist/state.json` 的同构目录。
+- Go 版目标 unit 当前会使用 `/var/lib/minimalist/mihomo` 作为 `mihomo-core -d` 运行目录；旧 unit 使用 `/etc/mihomo`。
+- Go 版与旧 shell 版默认都会操作 `MIHOMO_*` 链名、`0x2333` mark 与 table `233`，所以未切换服务归属前运行 Go 版 `apply-rules` / `clear-rules` 会与现网旧服务争用同一组规则。
 
 ## 当前风险与限制
 
