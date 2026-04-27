@@ -556,6 +556,8 @@ func (a *App) AddRule(acl bool, kind, pattern, target string) error {
 	if strings.TrimSpace(pattern) == "" {
 		return errors.New("rule pattern is empty")
 	}
+	pattern = strings.TrimSpace(pattern)
+	target = strings.TrimSpace(target)
 	rule := state.Rule{ID: newID(), Kind: normalizedKind, Pattern: pattern, Target: target}
 	if err := a.validateTargetValue(st, rule.Target); err != nil {
 		return err

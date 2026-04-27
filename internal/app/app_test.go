@@ -2753,6 +2753,24 @@ func TestAddRuleRejectsEmptyPatternBeforePersisting(t *testing.T) {
 	}
 }
 
+func TestAddRuleTrimsPatternAndTargetBeforePersisting(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddRule(false, " domain-suffix ", " example.com ", " DIRECT "); err != nil {
+		t.Fatalf("add trimmed rule: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Rules) != 1 {
+		t.Fatalf("expected one rule, got %+v", st.Rules)
+	}
+	rule := st.Rules[0]
+	if rule.Kind != "suffix" || rule.Pattern != "example.com" || rule.Target != "DIRECT" {
+		t.Fatalf("expected normalized rule values, got %+v", rule)
+	}
+}
+
 func TestApplyRulesSkipsTransparentRulesForExplicitProxyOnlyConfig(t *testing.T) {
 	app, _ := newTestApp(t)
 	cfg, err := config.Ensure(app.Paths.ConfigPath())
