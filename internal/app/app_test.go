@@ -3509,6 +3509,51 @@ func TestApplyRulesProgramsExpectedRoutingCommands(t *testing.T) {
 	}
 }
 
+func TestApplyRulesFlushesExistingChainsBeforeProgramming(t *testing.T) {
+	app := newTestAppWithEnabledManualNode(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 0 }
+	defer func() { geteuid = oldGeteuid }()
+
+	var calls []commandCall
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			if name == "systemctl" && len(args) >= 2 && (args[0] == "is-active" || args[0] == "is-enabled") {
+				return errors.New("inactive")
+			}
+			if name == "iptables" && hasArgSequence(args, "-C") {
+				return errors.New("missing")
+			}
+			if name == "iptables" && hasArgSequence(args, "-S") {
+				return nil
+			}
+			if name == "ip" && len(args) >= 4 && args[0] == "-4" && args[1] == "rule" && args[2] == "del" {
+				return errors.New("missing")
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", nil
+		},
+	}
+
+	if err := app.ApplyRules(); err != nil {
+		t.Fatalf("apply rules: %v", err)
+	}
+	for _, chain := range []string{"MIHOMO_PRE", "MIHOMO_PRE_HANDLE", "MIHOMO_OUT", "MIHOMO_DNS", "MIHOMO_DNS_HANDLE"} {
+		if !hasRecordedCall(calls, "iptables", "-w", "5", "-S", chain) {
+			t.Fatalf("expected chain existence check for %s, calls=%#v", chain, calls)
+		}
+		if !hasRecordedCall(calls, "iptables", "-w", "5", "-F", chain) {
+			t.Fatalf("expected existing chain flush for %s, calls=%#v", chain, calls)
+		}
+		if hasRecordedCall(calls, "iptables", "-w", "5", "-N", chain) {
+			t.Fatalf("did not expect create for existing chain %s, calls=%#v", chain, calls)
+		}
+	}
+}
+
 func TestApplyRulesSkipsDNSAndOutputJumpsWhenDisabled(t *testing.T) {
 	app, _ := newTestApp(t)
 	cfg, err := config.Ensure(app.Paths.ConfigPath())
