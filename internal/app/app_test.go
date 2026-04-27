@@ -34,6 +34,18 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
+type errorReadCloser struct {
+	err error
+}
+
+func (e errorReadCloser) Read([]byte) (int, error) {
+	return 0, e.err
+}
+
+func (e errorReadCloser) Close() error {
+	return nil
+}
+
 func textResponse(status int, body string) *http.Response {
 	return &http.Response{
 		StatusCode: status,
@@ -58,6 +70,18 @@ func TestNewInitializesDefaultDependencies(t *testing.T) {
 	}
 }
 
+func TestRequireRootReturnsErrorWhenNotRoot(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 1000 }
+	defer func() { geteuid = oldGeteuid }()
+
+	err := app.requireRoot()
+	if err == nil || !strings.Contains(err.Error(), "请用 root 运行") {
+		t.Fatalf("expected root error, got %v", err)
+	}
+}
+
 func TestInstallSelfCopiesBinaryAndInitializesAssets(t *testing.T) {
 	app, _ := newTestApp(t)
 	if err := app.InstallSelf(); err != nil {
@@ -75,6 +99,62 @@ func TestInstallSelfCopiesBinaryAndInitializesAssets(t *testing.T) {
 	}
 	if _, err := os.ReadFile(app.Paths.BinPath); err != nil {
 		t.Fatalf("expected copied binary to be readable: %v", err)
+	}
+}
+
+func TestInstallSelfFailsWhenLayoutCannotBeEnsured(t *testing.T) {
+	app, _ := newTestApp(t)
+	if os.Geteuid() != 0 {
+		t.Skip("root required")
+	}
+	if err := os.WriteFile(app.Paths.ConfigDir, []byte("blocked"), 0o640); err != nil {
+		t.Fatalf("write blocking file: %v", err)
+	}
+	err := app.InstallSelf()
+	if err == nil || (!strings.Contains(err.Error(), "not a directory") && !strings.Contains(err.Error(), "file exists")) {
+		t.Fatalf("expected layout failure, got %v", err)
+	}
+}
+
+func TestInstallSelfFailsWhenBinaryPathIsDirectory(t *testing.T) {
+	app, _ := newTestApp(t)
+	if os.Geteuid() != 0 {
+		t.Skip("root required")
+	}
+	if err := os.MkdirAll(app.Paths.BinPath, 0o755); err != nil {
+		t.Fatalf("mkdir blocking directory: %v", err)
+	}
+	err := app.InstallSelf()
+	if err == nil || !strings.Contains(err.Error(), "is a directory") {
+		t.Fatalf("expected binary write failure, got %v", err)
+	}
+}
+
+func TestSetupFailsWhenConfigPathIsDirectory(t *testing.T) {
+	app, _ := newTestApp(t)
+	if os.Geteuid() != 0 {
+		t.Skip("root required")
+	}
+	if err := os.MkdirAll(app.Paths.ConfigPath(), 0o755); err != nil {
+		t.Fatalf("mkdir blocking config path: %v", err)
+	}
+	err := app.Setup()
+	if err == nil || !strings.Contains(err.Error(), "is a directory") {
+		t.Fatalf("expected config load failure, got %v", err)
+	}
+}
+
+func TestSetupFailsWhenStatePathIsDirectory(t *testing.T) {
+	app, _ := newTestApp(t)
+	if os.Geteuid() != 0 {
+		t.Skip("root required")
+	}
+	if err := os.MkdirAll(app.Paths.StatePath(), 0o755); err != nil {
+		t.Fatalf("mkdir blocking state path: %v", err)
+	}
+	err := app.Setup()
+	if err == nil || !strings.Contains(err.Error(), "is a directory") {
+		t.Fatalf("expected state load failure, got %v", err)
 	}
 }
 
@@ -848,6 +928,25 @@ func TestReadImportInputReturnsAllLinesWhenNotTerminal(t *testing.T) {
 	}
 	if text != "trojan://password@example.org:443?security=tls#one\nsocks5://proxy.example.com:1080#two" {
 		t.Fatalf("unexpected import input text: %q", text)
+	}
+}
+
+func TestReadImportInputStopsAtEndWhenTerminal(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldCheck := terminalCheck
+	terminalCheck = func(io.Reader) bool { return true }
+	defer func() { terminalCheck = oldCheck }()
+
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#one\nend\nsocks5://proxy.example.com:1080#two\n")
+	text, err := app.readImportInput()
+	if err != nil {
+		t.Fatalf("read import input: %v", err)
+	}
+	if text != "trojan://password@example.org:443?security=tls#one" {
+		t.Fatalf("unexpected terminal import text: %q", text)
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "请粘贴节点链接，输入 end 结束") {
+		t.Fatalf("expected terminal prompt, got:\n%s", app.Stdout.(*bytes.Buffer).String())
 	}
 }
 
@@ -2027,6 +2126,17 @@ func TestRenderConfigWritesRuntimeArtifacts(t *testing.T) {
 	}
 }
 
+func TestRenderConfigFailsWhenBuiltinRulesPathIsDirectory(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := os.MkdirAll(app.Paths.BuiltinRules(), 0o755); err != nil {
+		t.Fatalf("mkdir blocking builtin rules path: %v", err)
+	}
+	err := app.RenderConfig()
+	if err == nil || !strings.Contains(err.Error(), "is a directory") {
+		t.Fatalf("expected builtin rules write failure, got %v", err)
+	}
+}
+
 func TestUpdateSubscriptionsWritesCacheAndNodes(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Client = &http.Client{
@@ -2071,5 +2181,63 @@ func TestUpdateSubscriptionsWritesCacheAndNodes(t *testing.T) {
 	}
 	if !strings.Contains(string(cacheBody), "trojan://password@example.org:443?security=tls#sub-node") {
 		t.Fatalf("unexpected provider cache:\n%s", string(cacheBody))
+	}
+}
+
+func TestUpdateSubscriptionsRecordsBodyReadFailure(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("body-fail", "https://subscription.example.com/body-fail.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: 200,
+				Body:       errorReadCloser{err: errors.New("read failed")},
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if !strings.Contains(st.Subscriptions[0].Cache.LastError, "read failed") {
+		t.Fatalf("expected read failure recorded, got %+v", st.Subscriptions[0].Cache)
+	}
+	if !strings.Contains(app.Stderr.(*bytes.Buffer).String(), "body-fail") {
+		t.Fatalf("expected subscription name in stderr:\n%s", app.Stderr.(*bytes.Buffer).String())
+	}
+}
+
+func TestUpdateSubscriptionsRecordsWriteFailure(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("write-fail", "https://subscription.example.com/write-fail.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if err := os.MkdirAll(app.Paths.SubscriptionFile(st.Subscriptions[0].ID), 0o755); err != nil {
+		t.Fatalf("mkdir blocking subscription file path: %v", err)
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#write-node\n"), nil
+		}),
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
+	}
+	st, err = state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("reload state: %v", err)
+	}
+	if !strings.Contains(st.Subscriptions[0].Cache.LastError, "is a directory") {
+		t.Fatalf("expected write failure recorded, got %+v", st.Subscriptions[0].Cache)
 	}
 }

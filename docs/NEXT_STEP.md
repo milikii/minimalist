@@ -12,12 +12,16 @@
   - 基础单元测试
   - `app` / `system` 的最小命令与集成护栏
   - `setup` / `clear-rules` / `apply-rules` 的最小命令编排护栏
+- 当前补强已经覆盖：
+  - `InstallSelf` / `Setup` / `RenderConfig` / `UpdateSubscriptions` 的真实 I/O 失败路径
+  - `readImportInput` 的终端输入截断分支
+  - `requireRoot` 的可测错误分支
+  - `internal/app` focused coverage 已提升到 `83.9%`
 
 ## 下一最小闭环
 
-- 为 `app` / `runtime` 剩余 root 依赖与真实 I/O 失败路径补 focused tests
+- 继续补 `start` / `restart` / `stop` / `apply-rules` / `clear-rules` 的 root-gated smoke
 - 继续补贴近真实运行环境的 `render-config` / `setup` / `status` / `rules-repo` smoke 断言
-- 继续保持 `setup` 这类部署命令对 `sysctl` / `daemon-reload` / `enable` 失败显式透传，不再静默成功
 - 保持 README / flows / STATUS 只描述 `minimalist` 当前真相，不回退到旧 `mihomo` 叙述
 
 ## 本轮不做

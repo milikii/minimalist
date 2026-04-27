@@ -576,9 +576,11 @@ func (a *App) updateSubscription(sub *state.Subscription, st *state.State) error
 		return err
 	}
 	if err := os.MkdirAll(a.Paths.SubscriptionDir(), 0o755); err != nil {
+		sub.Cache.LastError = err.Error()
 		return err
 	}
 	if err := os.WriteFile(a.Paths.SubscriptionFile(sub.ID), body, 0o640); err != nil {
+		sub.Cache.LastError = err.Error()
 		return err
 	}
 	rows := provider.ScanURIRows(string(body))
@@ -812,7 +814,7 @@ func (a *App) ensureAll() (config.Config, state.State, error) {
 }
 
 func (a *App) requireRoot() error {
-	if os.Geteuid() != 0 {
+	if geteuid() != 0 {
 		return errors.New("请用 root 运行")
 	}
 	return nil
@@ -928,7 +930,7 @@ func (a *App) controllerConfigMode(cfg config.Config) (string, error) {
 }
 
 func (a *App) readImportInput() (string, error) {
-	if isTerminal(a.Stdin) {
+	if terminalCheck(a.Stdin) {
 		fmt.Fprintln(a.Stdout, "请粘贴节点链接，输入 end 结束：")
 	}
 	reader := bufio.NewReader(a.Stdin)
@@ -946,7 +948,7 @@ func (a *App) readImportInput() (string, error) {
 			return "", err
 		}
 		line = strings.TrimRight(line, "\r\n")
-		if isTerminal(a.Stdin) && strings.EqualFold(line, "end") {
+		if terminalCheck(a.Stdin) && strings.EqualFold(line, "end") {
 			break
 		}
 		lines = append(lines, line)
@@ -1242,3 +1244,6 @@ func isCharDevice(f *os.File) bool {
 	}
 	return info.Mode()&os.ModeCharDevice != 0
 }
+
+var terminalCheck = isTerminal
+var geteuid = os.Geteuid
