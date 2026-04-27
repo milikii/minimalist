@@ -2893,6 +2893,23 @@ func TestControllerRuntimeSummaryFallsBackToLoopbackAndUsesSecret(t *testing.T) 
 	}
 }
 
+func TestControllerRuntimeSummaryReturnsBodyReadError(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg := config.Default()
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       errorReadCloser{err: errors.New("version body read failed")},
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+	if _, err := app.controllerRuntimeSummary(cfg); err == nil || !strings.Contains(err.Error(), "version body read failed") {
+		t.Fatalf("expected body read error, got %v", err)
+	}
+}
+
 func TestControllerConfigModeFallsBackToLoopbackAndUsesSecret(t *testing.T) {
 	app, _ := newTestApp(t)
 	cfg, err := config.Ensure(app.Paths.ConfigPath())

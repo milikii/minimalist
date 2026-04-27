@@ -1064,7 +1064,10 @@ func (a *App) controllerRuntimeSummary(cfg config.Config) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
 	return strings.TrimSpace(string(body)), nil
 }
 
