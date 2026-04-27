@@ -2928,17 +2928,29 @@ func TestRemoveSubscriptionIgnoresMissingCache(t *testing.T) {
 
 func TestRemoveSubscriptionReturnsCacheRemovalFailure(t *testing.T) {
 	app, _ := newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#remove-fail-node\n"), nil
+		}),
+	}
 	if err := app.AddSubscription("remove-fail", "https://subscription.example.com/remove-fail.txt", true); err != nil {
 		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
 	}
 	st, err := state.Load(app.Paths.StatePath())
 	if err != nil {
 		t.Fatalf("load state: %v", err)
 	}
-	if err := os.MkdirAll(app.Paths.SubscriptionFile(st.Subscriptions[0].ID), 0o755); err != nil {
+	cachePath := app.Paths.SubscriptionFile(st.Subscriptions[0].ID)
+	if err := os.Remove(cachePath); err != nil {
+		t.Fatalf("remove cache file before directory replacement: %v", err)
+	}
+	if err := os.MkdirAll(cachePath, 0o755); err != nil {
 		t.Fatalf("mkdir blocking cache path: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(app.Paths.SubscriptionFile(st.Subscriptions[0].ID), "keep"), []byte("blocked"), 0o640); err != nil {
+	if err := os.WriteFile(filepath.Join(cachePath, "keep"), []byte("blocked"), 0o640); err != nil {
 		t.Fatalf("write blocking cache child: %v", err)
 	}
 	err = app.RemoveSubscription(1)
@@ -2951,6 +2963,9 @@ func TestRemoveSubscriptionReturnsCacheRemovalFailure(t *testing.T) {
 	}
 	if len(st.Subscriptions) != 1 {
 		t.Fatalf("expected subscription to remain after cache removal failure, got %+v", st.Subscriptions)
+	}
+	if len(st.Nodes) != 1 || st.Nodes[0].Source.Kind != "subscription" {
+		t.Fatalf("expected subscription node to remain after cache removal failure, got %+v", st.Nodes)
 	}
 }
 
