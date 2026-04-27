@@ -2160,6 +2160,19 @@ func TestCutoverPlanReportsCurrentState(t *testing.T) {
 				"next-action: validate-minimalist",
 			},
 		},
+		{
+			name: "legacy-and-minimalist-live",
+			runFn: func(name string, args ...string) error {
+				if name == "systemctl" && len(args) >= 3 && (args[2] == "mihomo.service" || args[2] == "minimalist.service") {
+					return nil
+				}
+				return errors.New("inactive")
+			},
+			needles: []string{
+				"cutover-plan: legacy_live=true minimalist_service_live=true cutover_ready=true",
+				"next-action: validate-minimalist",
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
