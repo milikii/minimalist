@@ -458,7 +458,8 @@ func (a *App) RenameNode(index int, newName string) error {
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(newName) == "" {
+	newName = strings.TrimSpace(newName)
+	if newName == "" {
 		return errors.New("node name is empty")
 	}
 	node, err := a.nodeAt(&st, index)

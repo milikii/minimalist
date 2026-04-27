@@ -2513,6 +2513,27 @@ func TestRenameNodeRejectsEmptyNameBeforePersisting(t *testing.T) {
 	}
 }
 
+func TestRenameNodeTrimsNameBeforePersisting(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#rename-spaces\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.AddRule(false, "domain", "example.com", "rename-spaces"); err != nil {
+		t.Fatalf("add rule: %v", err)
+	}
+	if err := app.RenameNode(1, " renamed-trimmed "); err != nil {
+		t.Fatalf("rename node: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if st.Nodes[0].Name != "renamed-trimmed" || st.Rules[0].Target != "renamed-trimmed" {
+		t.Fatalf("expected trimmed node name and rule target, got %+v", st)
+	}
+}
+
 func TestRenameNodeRejectsSubscriptionNode(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Client = &http.Client{
