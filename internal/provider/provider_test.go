@@ -497,6 +497,19 @@ func TestParseVlessPreservesSkipCertVerifyAlias(t *testing.T) {
 	}
 }
 
+func TestParseVlessIgnoresMalformedOptionalExtra(t *testing.T) {
+	info, err := parseVless("vless://12345678-1234-1234-1234-1234567890ab@example.com:443?type=xhttp&extra=%7Bbad")
+	if err != nil {
+		t.Fatalf("parse vless with malformed extra: %v", err)
+	}
+	if info.Network != "xhttp" {
+		t.Fatalf("expected base vless fields to remain usable, got %#v", info)
+	}
+	if len(info.DownloadSetting) != 0 {
+		t.Fatalf("did not expect download settings from malformed extra: %#v", info.DownloadSetting)
+	}
+}
+
 func TestProviderHelpersCoverTypedValuesAndXHTTPDownloadAliases(t *testing.T) {
 	if anyString(float64(8443)) != "8443" || anyString(443) != "443" || anyString(nil) != "" {
 		t.Fatalf("unexpected anyString conversions")
