@@ -66,6 +66,14 @@ func TestLoadReportsParseError(t *testing.T) {
 	}
 }
 
+func TestLoadReturnsMissingFileError(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "missing.yaml")
+	if _, err := Load(path); err == nil {
+		t.Fatalf("expected missing file error")
+	}
+}
+
 func TestSaveAndEnsureReturnErrorsWhenParentPathIsBlocked(t *testing.T) {
 	root := t.TempDir()
 	blockedDir := filepath.Join(root, "blocked")

@@ -13,7 +13,7 @@
   - legacy live 状态下 `cutover-plan` 输出 `prepare-minimalist-inputs`
   - `cutover-plan` 不创建 `/etc/minimalist`、`/var/lib/minimalist` 或 `/usr/local/bin/minimalist`
   - `cutover-plan` 不停旧服务、不启新服务、不清规则
-- 质量硬化继续优先补 rules-repo 与剩余 app 边角路径，同时保持 `render-config` / `subscriptions update` 集成覆盖稳定。
+- 质量硬化继续优先补 rules-repo 与剩余 app 边角路径，同时保持 `render-config` / `subscriptions update` 集成覆盖稳定；当前已进入收尾区，剩余主要是更保守的缺失文件与 no-op 分支。
 - 在确认迁移策略前，不对现网 `MIHOMO_*` 规则做清理或重写。
 - 若确认要切换到 Go 版，再做最小迁移闭环并重新跑 `setup` / `start` / `restart` / `apply-rules` / `clear-rules` 实机 smoke。
 - 保持 README / flows 描述 Go 版 `minimalist` 目标真相；STATUS / NEXT_STEP 只记录 live host 差异，不恢复旧 `mihomo` 作为项目目标。

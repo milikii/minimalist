@@ -31,6 +31,17 @@ func TestOutputFailureUsesStderr(t *testing.T) {
 	}
 }
 
+func TestOutputFailureWithoutStderrUsesExecError(t *testing.T) {
+	runner := Runner{Timeout: 2 * time.Second}
+	_, _, err := runner.Output("bash", "-lc", "exit 7")
+	if err == nil {
+		t.Fatalf("expected failure")
+	}
+	if !strings.Contains(err.Error(), "exit status 7") {
+		t.Fatalf("expected exec error in message, got: %v", err)
+	}
+}
+
 func TestOutputTimeout(t *testing.T) {
 	runner := Runner{Timeout: 10 * time.Millisecond}
 	_, _, err := runner.Output("bash", "-lc", "sleep 1")

@@ -30,7 +30,7 @@
 
 - `go build` 已覆盖当前主入口。
 - `GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...` 作为当前全量回归入口。
-- 当前测试已经覆盖配置、状态、provider、rules-repo、runtime 渲染、核心 app 命令、CLI 分发、错误透传、路径阻塞、菜单/helper 边界与 system runner，并补上了 config/state/provider/system 的关键错误路径。
+- 当前测试已经覆盖配置、状态、provider、rules-repo、runtime 渲染、核心 app 命令、CLI 分发、错误透传、路径阻塞、菜单/helper 边界与 system runner，并补上了 config/state/provider/system 的关键错误路径、missing-file 分支和订阅启停分流。
 - 最近一轮补强重点已经从“补单元测试红灯”转为“收口命令链路失败路径和真实 smoke 前置条件”。
 
 ## 本机真实验证结论

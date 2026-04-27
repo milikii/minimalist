@@ -814,6 +814,72 @@ func TestUpdateSubscriptionsRecordsHTTPAndTransportErrors(t *testing.T) {
 	}
 }
 
+func TestUpdateSubscriptionsSkipsDisabledSubscriptions(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("disabled-sub", "https://subscription.example.com/disabled.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.SetSubscriptionEnabled(1, false); err != nil {
+		t.Fatalf("disable subscription: %v", err)
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			t.Fatalf("disabled subscription should not be fetched: %s", req.URL.String())
+			return nil, nil
+		}),
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if st.Subscriptions[0].Cache.LastAttemptAt != "" || st.Subscriptions[0].Cache.LastError != "" {
+		t.Fatalf("disabled subscription should not update cache state, got %+v", st.Subscriptions[0].Cache)
+	}
+	if _, err := os.Stat(app.Paths.SubscriptionFile(st.Subscriptions[0].ID)); !os.IsNotExist(err) {
+		t.Fatalf("disabled subscription should not create cache file, stat err=%v", err)
+	}
+}
+
+func TestUpdateSubscriptionsProcessesOnlyEnabledSubscriptions(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("enabled-sub", "https://subscription.example.com/enabled.txt", true); err != nil {
+		t.Fatalf("add enabled subscription: %v", err)
+	}
+	if err := app.AddSubscription("disabled-sub", "https://subscription.example.com/disabled.txt", true); err != nil {
+		t.Fatalf("add disabled subscription: %v", err)
+	}
+	if err := app.SetSubscriptionEnabled(2, false); err != nil {
+		t.Fatalf("disable second subscription: %v", err)
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() != "https://subscription.example.com/enabled.txt" {
+				t.Fatalf("unexpected subscription fetch: %s", req.URL.String())
+			}
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#enabled-node\n"), nil
+		}),
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if st.Subscriptions[0].Cache.LastAttemptAt == "" || st.Subscriptions[0].Cache.LastSuccessAt == "" {
+		t.Fatalf("expected enabled subscription to update cache, got %+v", st.Subscriptions[0].Cache)
+	}
+	if st.Subscriptions[1].Cache.LastAttemptAt != "" || st.Subscriptions[1].Cache.LastSuccessAt != "" {
+		t.Fatalf("expected disabled subscription to remain untouched, got %+v", st.Subscriptions[1].Cache)
+	}
+	if len(st.Nodes) != 1 || st.Nodes[0].Source.Kind != "subscription" || st.Nodes[0].Source.ID != st.Subscriptions[0].ID {
+		t.Fatalf("expected only enabled subscription node to be imported, got %+v", st.Nodes)
+	}
+}
+
 func TestUpdateSubscriptionsFailsWhenSubscriptionDirCannotBeCreated(t *testing.T) {
 	app, _ := newTestApp(t)
 	if err := app.AddSubscription("dir-blocked", "https://subscription.example.com/dir-blocked.txt", true); err != nil {

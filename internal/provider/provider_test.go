@@ -476,6 +476,32 @@ func TestRenderProviderReturnsErrorWhenParentPathIsBlocked(t *testing.T) {
 	}
 }
 
+func TestRenderProviderSkipsDisabledNodes(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "provider.yaml")
+	nodes := []state.Node{
+		{
+			Name:    "disabled-node",
+			Enabled: false,
+			URI:     "trojan://secret@example.com:443?security=tls#disabled-node",
+			Source:  state.Source{Kind: "manual"},
+		},
+	}
+	if err := RenderProvider(out, nodes, "", ""); err != nil {
+		t.Fatalf("render provider: %v", err)
+	}
+	body, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("read provider: %v", err)
+	}
+	var file providerFile
+	if err := yaml.Unmarshal(body, &file); err != nil {
+		t.Fatalf("unmarshal provider yaml: %v", err)
+	}
+	if len(file.Proxies) != 0 {
+		t.Fatalf("expected disabled nodes to be skipped, got %#v", file.Proxies)
+	}
+}
+
 func TestProviderHelpersNormalizePrimitiveValues(t *testing.T) {
 	if !truthy("YES") || truthy("0") {
 		t.Fatalf("unexpected truthy behavior")

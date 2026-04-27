@@ -272,6 +272,104 @@ func TestSearchReportsZeroMatchesWithTrimmedKeyword(t *testing.T) {
 	}
 }
 
+func TestQueryCommandsReturnValidationErrors(t *testing.T) {
+	dir := t.TempDir()
+	manifest := filepath.Join(dir, "manifest.yaml")
+	if err := os.WriteFile(manifest, []byte("rulesets:\n  - name: test\n    category: demo\n    type: domain\n    source: entries.txt\n    target: direct\n"), 0o640); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "entries.txt"), []byte("bad entry\n"), 0o640); err != nil {
+		t.Fatalf("write invalid entries: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		run  func() error
+	}{
+		{"describe", func() error {
+			_, err := Describe(manifest)
+			return err
+		}},
+		{"list", func() error {
+			_, err := ListEntries(manifest, "test", "")
+			return err
+		}},
+		{"describe-ruleset", func() error {
+			_, err := DescribeRuleset(manifest, "test")
+			return err
+		}},
+		{"search", func() error {
+			_, err := Search(manifest, "bad")
+			return err
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.run(); err == nil || !strings.Contains(err.Error(), "invalid domain entry") {
+				t.Fatalf("expected validation error, got %v", err)
+			}
+		})
+	}
+}
+
+func TestRemoveCommandsPropagateEntryReadErrors(t *testing.T) {
+	dir := t.TempDir()
+	manifest := filepath.Join(dir, "manifest.yaml")
+	if err := os.WriteFile(manifest, []byte("rulesets:\n  - name: test\n    category: demo\n    type: domain\n    source: entries.txt\n    target: direct\n"), 0o640); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "entries.txt"), []byte("example.com\nexample.com\n"), 0o640); err != nil {
+		t.Fatalf("write duplicate entries: %v", err)
+	}
+
+	if err := RemoveEntry(manifest, "test", "example.com"); err == nil || !strings.Contains(err.Error(), "duplicate rule entry") {
+		t.Fatalf("expected duplicate entry error from remove, got %v", err)
+	}
+	if err := RemoveEntryIndex(manifest, "test", 1); err == nil || !strings.Contains(err.Error(), "duplicate rule entry") {
+		t.Fatalf("expected duplicate entry error from remove-index, got %v", err)
+	}
+}
+
+func TestWriteEntriesReturnsErrorWhenParentPathIsBlocked(t *testing.T) {
+	root := t.TempDir()
+	blockedDir := filepath.Join(root, "blocked")
+	if err := os.WriteFile(blockedDir, []byte("blocked"), 0o640); err != nil {
+		t.Fatalf("write blocking file: %v", err)
+	}
+	if err := writeEntries(filepath.Join(blockedDir, "entries.txt"), []string{"example.com"}); err == nil || !strings.Contains(err.Error(), "not a directory") {
+		t.Fatalf("expected blocked path error, got %v", err)
+	}
+}
+
+func TestAppendEntryRejectsInvalidEntryAndRemoveEntryNoopsOnMissingValue(t *testing.T) {
+	dir := t.TempDir()
+	manifest := filepath.Join(dir, "manifest.yaml")
+	source := filepath.Join(dir, "entries.txt")
+	if err := os.WriteFile(manifest, []byte("rulesets:\n  - name: test\n    category: demo\n    type: domain\n    source: entries.txt\n    target: direct\n"), 0o640); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if err := os.WriteFile(source, []byte("example.com\n"), 0o640); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	before, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatalf("read source before: %v", err)
+	}
+	if err := AppendEntry(manifest, "test", "bad entry"); err == nil || !strings.Contains(err.Error(), "invalid domain entry") {
+		t.Fatalf("expected invalid append error, got %v", err)
+	}
+	if err := RemoveEntry(manifest, "test", "missing.example"); err != nil {
+		t.Fatalf("remove missing entry: %v", err)
+	}
+	after, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatalf("read source after: %v", err)
+	}
+	if string(before) != string(after) {
+		t.Fatalf("expected missing value removal to be a no-op, before=%q after=%q", string(before), string(after))
+	}
+}
+
 func TestAppendAndRemoveEntryIndexDeduplicateAndRewrite(t *testing.T) {
 	dir := t.TempDir()
 	manifest := filepath.Join(dir, "manifest.yaml")
