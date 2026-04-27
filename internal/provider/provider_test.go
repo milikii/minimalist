@@ -239,3 +239,56 @@ func TestParseVMessRejectsMissingIdentity(t *testing.T) {
 		t.Fatalf("expected invalid vmess uri")
 	}
 }
+
+func TestParseVlessCapturesRealityAndXHTTPDownloadSettings(t *testing.T) {
+	extra := `{"downloadSettings":{"address":"download.example.com","port":"8443","security":"reality","realitySettings":{"publicKey":"pub","shortId":"sid","spiderX":"/spider","serverName":"download-sni","fingerprint":"chrome"},"xhttpSettings":{"path":"/dl","host":"dl.example.com","mode":"stream-up"}}}`
+	info, err := parseVless("vless://12345678-1234-1234-1234-1234567890ab@example.com:443?type=xhttp&mode=packet-up&host=cdn.example.com&path=%2Fproxy&pbk=main-pub&sid=main-sid&spx=%2Fmain&extra=" + extra)
+	if err != nil {
+		t.Fatalf("parse vless: %v", err)
+	}
+	if info.Network != "xhttp" || info.Mode != "packet-up" {
+		t.Fatalf("unexpected xhttp fields: %#v", info)
+	}
+	if info.RealityOpts["public-key"] != "main-pub" || info.RealityOpts["short-id"] != "main-sid" {
+		t.Fatalf("unexpected reality opts: %#v", info.RealityOpts)
+	}
+	if info.DownloadSetting["server"] != "download.example.com" || info.DownloadSetting["port"] != 8443 {
+		t.Fatalf("unexpected download settings: %#v", info.DownloadSetting)
+	}
+	if info.DownloadSetting["tls"] != true || info.DownloadSetting["servername"] != "download-sni" {
+		t.Fatalf("unexpected download tls settings: %#v", info.DownloadSetting)
+	}
+	reality, ok := info.DownloadSetting["reality-opts"].(map[string]any)
+	if !ok || reality["public-key"] != "pub" || reality["spider-x"] != "/spider" {
+		t.Fatalf("unexpected nested reality opts: %#v", info.DownloadSetting)
+	}
+}
+
+func TestBuildVlessProviderIncludesXHTTPOptions(t *testing.T) {
+	info := uriInfo{
+		Scheme:  "vless",
+		Server:  "example.com",
+		Port:    443,
+		UUID:    "12345678-1234-1234-1234-1234567890ab",
+		Network: "xhttp",
+		Path:    "/proxy",
+		Host:    "cdn.example.com",
+		Mode:    "packet-up",
+		DownloadSetting: map[string]any{
+			"server": "download.example.com",
+			"port":   8443,
+		},
+		RealityOpts: map[string]any{"public-key": "pub"},
+	}
+	item := buildVlessProvider("xhttp-node", info)
+	if !item.TLS {
+		t.Fatalf("expected reality-backed vless provider to enable tls: %#v", item)
+	}
+	if item.XHTTPOpts["path"] != "/proxy" || item.XHTTPOpts["host"] != "cdn.example.com" || item.XHTTPOpts["mode"] != "packet-up" {
+		t.Fatalf("unexpected xhttp opts: %#v", item.XHTTPOpts)
+	}
+	download, ok := item.XHTTPOpts["download-settings"].(map[string]any)
+	if !ok || download["server"] != "download.example.com" {
+		t.Fatalf("unexpected xhttp download settings: %#v", item.XHTTPOpts)
+	}
+}
