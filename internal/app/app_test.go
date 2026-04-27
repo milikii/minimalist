@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"io"
@@ -210,6 +211,41 @@ func TestListRulesAndRemoveRuleSupportACLAndMainRules(t *testing.T) {
 	}
 	if len(st.Rules) != 0 || len(st.ACL) != 0 {
 		t.Fatalf("expected empty rules after removal, got rules=%+v acl=%+v", st.Rules, st.ACL)
+	}
+}
+
+func TestListSubscriptionsAndMenuViewPrintCurrentState(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("list-sub", "https://subscription.example.com/list.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	st.Subscriptions[0].Cache.LastSuccessAt = "2026-04-27T10:00:00+08:00"
+	st.Subscriptions[0].Cache.LastError = "boom"
+	st.Subscriptions[0].Enumeration.LastCount = 2
+	if err := state.Save(app.Paths.StatePath(), st); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
+	if err := app.ListSubscriptions(); err != nil {
+		t.Fatalf("list subscriptions: %v", err)
+	}
+	app.Stdout = &bytes.Buffer{}
+	app.Stdin = strings.NewReader("1\n")
+	if err := app.subscriptionsMenu(bufio.NewReader(app.Stdin)); err != nil {
+		t.Fatalf("subscriptions menu: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"1) 查看订阅",
+		"2) 更新订阅",
+		"1\tlist-sub\thttps://subscription.example.com/list.txt\t1\t2026-04-27T10:00:00+08:00\t2\tboom",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in subscriptions output:\n%s", needle, output)
+		}
 	}
 }
 
