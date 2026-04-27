@@ -744,6 +744,222 @@ func TestApplyRulesSkipsTransparentRulesForExplicitProxyOnlyConfig(t *testing.T)
 	}
 }
 
+func TestControllerRuntimeSummaryFallsBackToLoopbackAndUsesSecret(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg, err := config.Ensure(app.Paths.ConfigPath())
+	if err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	cfg.Controller.BindAddress = "0.0.0.0"
+	cfg.Controller.Secret = "runtime-secret"
+	if err := config.Save(app.Paths.ConfigPath(), cfg); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Host != "127.0.0.1:19090" {
+				t.Fatalf("unexpected host: %s", req.URL.Host)
+			}
+			if req.URL.Path != "/version" {
+				t.Fatalf("unexpected path: %s", req.URL.Path)
+			}
+			if got := req.Header.Get("Authorization"); got != "Bearer runtime-secret" {
+				t.Fatalf("unexpected auth header: %s", got)
+			}
+			return textResponse(http.StatusOK, "Mihomo Meta v9.9.9\n"), nil
+		}),
+	}
+	summary, err := app.controllerRuntimeSummary(cfg)
+	if err != nil {
+		t.Fatalf("controller runtime summary: %v", err)
+	}
+	if summary != "Mihomo Meta v9.9.9" {
+		t.Fatalf("unexpected summary: %q", summary)
+	}
+}
+
+func TestControllerConfigModeFallsBackToLoopbackAndUsesSecret(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg, err := config.Ensure(app.Paths.ConfigPath())
+	if err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	cfg.Controller.BindAddress = "*"
+	cfg.Controller.Secret = "config-secret"
+	if err := config.Save(app.Paths.ConfigPath(), cfg); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Host != "127.0.0.1:19090" {
+				t.Fatalf("unexpected host: %s", req.URL.Host)
+			}
+			if req.URL.Path != "/configs" {
+				t.Fatalf("unexpected path: %s", req.URL.Path)
+			}
+			if got := req.Header.Get("Authorization"); got != "Bearer config-secret" {
+				t.Fatalf("unexpected auth header: %s", got)
+			}
+			return textResponse(http.StatusOK, `{"mode":"direct"}`), nil
+		}),
+	}
+	mode, err := app.controllerConfigMode(cfg)
+	if err != nil {
+		t.Fatalf("controller config mode: %v", err)
+	}
+	if mode != "direct" {
+		t.Fatalf("unexpected mode: %q", mode)
+	}
+}
+
+func TestAppProviderHelpersCountAndDetectReadyProvidersWithState(t *testing.T) {
+	app, _ := newTestApp(t)
+	st := state.Empty()
+	if app.hasReadyProviders(st) {
+		t.Fatalf("expected no ready providers in empty state")
+	}
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#helper-node\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable node: %v", err)
+	}
+	if err := app.AddSubscription("helper-sub", "https://subscription.example.com/helper.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if err := os.WriteFile(app.Paths.SubscriptionFile(st.Subscriptions[0].ID), []byte("trojan://password@example.org:443?security=tls#helper-sub-node\n"), 0o640); err != nil {
+		t.Fatalf("write subscription cache: %v", err)
+	}
+	if got := app.manualNodeCount(st); got != 1 {
+		t.Fatalf("expected one manual node, got %d", got)
+	}
+	if !app.hasEnabledManualNodes(st) {
+		t.Fatalf("expected enabled manual node")
+	}
+	enabled, total, ready := app.subscriptionCounts(st)
+	if enabled != 1 || total != 1 || ready != 1 {
+		t.Fatalf("unexpected subscription counts: enabled=%d total=%d ready=%d", enabled, total, ready)
+	}
+	if !app.hasReadyProviders(st) {
+		t.Fatalf("expected ready providers")
+	}
+}
+
+func TestValidateRuleTargetsRejectsUnknownTargetAndAllowsBuiltins(t *testing.T) {
+	app, _ := newTestApp(t)
+	st := state.Empty()
+	st.Nodes = []state.Node{{
+		ID:         "1",
+		Name:       "manual-node",
+		Enabled:    true,
+		URI:        "trojan://password@example.org:443?security=tls#manual-node",
+		ImportedAt: state.NowISO(),
+		Source:     state.Source{Kind: "manual"},
+	}}
+	st.Rules = []state.Rule{{ID: "rule-1", Kind: "domain", Pattern: "example.com", Target: "manual-node"}}
+	st.ACL = []state.Rule{{ID: "rule-2", Kind: "src-cidr", Pattern: "192.168.2.10/32", Target: "DIRECT"}}
+	if err := app.validateRuleTargets(st); err != nil {
+		t.Fatalf("validate rule targets: %v", err)
+	}
+	st.Rules[0].Target = "ghost"
+	err := app.validateRuleTargets(st)
+	if err == nil || !strings.Contains(err.Error(), "无效规则目标: ghost") {
+		t.Fatalf("expected invalid target error, got %v", err)
+	}
+}
+
+func TestValidateTargetValueGuardsAUTOWithoutManualNodes(t *testing.T) {
+	app, _ := newTestApp(t)
+	st := state.Empty()
+	if err := app.validateTargetValue(st, "AUTO"); err == nil || !strings.Contains(err.Error(), "AUTO 需要至少一个启用的手动节点") {
+		t.Fatalf("expected AUTO guard, got %v", err)
+	}
+	if err := app.validateTargetValue(st, "DIRECT"); err != nil {
+		t.Fatalf("expected DIRECT to be allowed: %v", err)
+	}
+}
+
+func TestNodeAtAndSubscriptionAtReportRangeErrors(t *testing.T) {
+	app, _ := newTestApp(t)
+	st := state.Empty()
+	if _, err := app.nodeAt(&st, 1); err == nil || !strings.Contains(err.Error(), "node index out of range") {
+		t.Fatalf("expected node range error, got %v", err)
+	}
+	st.Subscriptions = []state.Subscription{{ID: "sub-1"}}
+	if _, err := subscriptionAt(&st, 2); err == nil || !strings.Contains(err.Error(), "subscription index out of range") {
+		t.Fatalf("expected subscription range error, got %v", err)
+	}
+}
+
+func TestCurrentModePrefersRuntimeModeAndFallsBackToProfileMode(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg := config.Default()
+	mode, source := app.currentMode(cfg)
+	if mode != "rule" || source != "config" {
+		t.Fatalf("expected config mode fallback, got mode=%q source=%q", mode, source)
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, `{"mode":"global"}`), nil
+		}),
+	}
+	mode, source = app.currentMode(cfg)
+	if mode != "global" || source != "runtime" {
+		t.Fatalf("expected runtime mode, got mode=%q source=%q", mode, source)
+	}
+}
+
+func TestNormalizeRuleHelpersMapLegacyKinds(t *testing.T) {
+	for _, tc := range []struct {
+		kind string
+		want string
+	}{
+		{"domain", "domain"},
+		{"suffix", "suffix"},
+		{"domain-suffix", "suffix"},
+		{"domain_keyword", "keyword"},
+		{"src", "src-cidr"},
+		{"dst", "ip-cidr"},
+		{"rule-set", "ruleset"},
+	} {
+		if got := normalizeRuleInput(tc.kind); got != tc.want {
+			t.Fatalf("kind=%q expected %q, got %q", tc.kind, tc.want, got)
+		}
+	}
+	for _, tc := range []struct {
+		kind string
+		want string
+	}{
+		{"domain", "DOMAIN"},
+		{"suffix", "DOMAIN-SUFFIX"},
+		{"keyword", "DOMAIN-KEYWORD"},
+		{"src-cidr", "SRC-IP-CIDR"},
+		{"ip-cidr", "IP-CIDR"},
+		{"ruleset", "RULE-SET"},
+	} {
+		if got := normalizeRuleKind(tc.kind); got != tc.want {
+			t.Fatalf("kind=%q expected %q, got %q", tc.kind, tc.want, got)
+		}
+	}
+}
+
+func TestSplitFieldsAndBoolIntHelpers(t *testing.T) {
+	if got := splitFields("  a  b   c "); len(got) != 3 || got[0] != "a" || got[2] != "c" {
+		t.Fatalf("unexpected split fields: %#v", got)
+	}
+	if splitFields("   ") != nil {
+		t.Fatalf("expected blank split to return nil")
+	}
+	if boolInt(true) != 1 || boolInt(false) != 0 {
+		t.Fatalf("unexpected boolInt output")
+	}
+}
+
 func TestMenuShowsInvalidSelectionThenExit(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("x\n0\n")
