@@ -3831,6 +3831,54 @@ func TestApplyRulesProgramsBypassAndDNSOutputRules(t *testing.T) {
 	}
 }
 
+func TestApplyRulesProgramsDNSHijackForUDPAndTCP(t *testing.T) {
+	app := newTestAppWithEnabledManualNode(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 0 }
+	defer func() { geteuid = oldGeteuid }()
+
+	var calls []commandCall
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			if name == "systemctl" && len(args) >= 2 && (args[0] == "is-active" || args[0] == "is-enabled") {
+				return errors.New("inactive")
+			}
+			if name == "iptables" {
+				for _, arg := range args {
+					if arg == "-C" || arg == "-S" {
+						return errors.New("missing")
+					}
+				}
+			}
+			if name == "ip" && len(args) >= 4 && args[0] == "-4" && args[1] == "rule" && args[2] == "del" {
+				return errors.New("missing")
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", nil
+		},
+	}
+
+	if err := app.ApplyRules(); err != nil {
+		t.Fatalf("apply rules: %v", err)
+	}
+	for _, expect := range []struct {
+		name string
+		args []string
+	}{
+		{"iptables", []string{"-w", "5", "-t", "mangle", "-A", "MIHOMO_PRE_HANDLE", "-p", "udp", "--dport", "53", "-j", "RETURN"}},
+		{"iptables", []string{"-w", "5", "-t", "mangle", "-A", "MIHOMO_PRE_HANDLE", "-p", "tcp", "--dport", "53", "-j", "RETURN"}},
+		{"iptables", []string{"-w", "5", "-t", "nat", "-A", "MIHOMO_DNS_HANDLE", "-p", "udp", "--dport", "53", "-j", "REDIRECT", "--to-ports", "1053"}},
+		{"iptables", []string{"-w", "5", "-t", "nat", "-A", "MIHOMO_DNS_HANDLE", "-p", "tcp", "--dport", "53", "-j", "REDIRECT", "--to-ports", "1053"}},
+	} {
+		if !hasRecordedCall(calls, expect.name, expect.args...) {
+			t.Fatalf("missing DNS hijack call %s %#v in %#v", expect.name, expect.args, calls)
+		}
+	}
+}
+
 func TestRenderConfigWritesRuntimeArtifacts(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#demo-node\n")
