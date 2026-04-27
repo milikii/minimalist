@@ -110,3 +110,44 @@ func TestURIBaseKeyIgnoresVMessPSField(t *testing.T) {
 		t.Fatalf("expected vmess base key to ignore ps field")
 	}
 }
+
+func TestGuessNamePrefersFragmentAndVMessPS(t *testing.T) {
+	vmessPayload, err := json.Marshal(map[string]any{
+		"v":    "2",
+		"ps":   "named-vmess",
+		"add":  "example.com",
+		"port": "443",
+		"id":   "12345678-1234-1234-1234-1234567890ab",
+	})
+	if err != nil {
+		t.Fatalf("marshal vmess: %v", err)
+	}
+	if name := GuessName("vmess://" + base64.StdEncoding.EncodeToString(vmessPayload)); name != "named-vmess" {
+		t.Fatalf("expected vmess ps name, got %q", name)
+	}
+	if name := GuessName("trojan://password@example.org:443?type=grpc#trojan-fragment"); name != "trojan-fragment" {
+		t.Fatalf("expected fragment name, got %q", name)
+	}
+	if name := GuessName("vmess://@@@"); name != "vmess-node" {
+		t.Fatalf("expected vmess fallback name, got %q", name)
+	}
+}
+
+func TestURIHelpersExposeSchemeHostPortAndQuery(t *testing.T) {
+	raw := "  VLESS://12345678-1234-1234-1234-1234567890ab@edge.example.com:8443?type=ws&security=tls  "
+	if scheme := uriScheme(raw); scheme != "vless" {
+		t.Fatalf("expected vless scheme, got %q", scheme)
+	}
+	if host := splitHost(raw); host != "edge.example.com" {
+		t.Fatalf("expected edge.example.com host, got %q", host)
+	}
+	if port := splitPort(raw); port != "8443" {
+		t.Fatalf("expected 8443 port, got %q", port)
+	}
+	if network := queryField(raw, "type", "tcp"); network != "ws" {
+		t.Fatalf("expected ws query field, got %q", network)
+	}
+	if fallback := queryField("::not a uri::", "type", "tcp"); fallback != "tcp" {
+		t.Fatalf("expected fallback query field, got %q", fallback)
+	}
+}
