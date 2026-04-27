@@ -635,6 +635,25 @@ func TestRulesRepoRemoveIndexRejectsOutOfRange(t *testing.T) {
 	}
 }
 
+func TestRulesRepoWrappersSurfaceEnsureAllErrors(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := os.WriteFile(app.Paths.ConfigDir, []byte("blocked"), 0o640); err != nil {
+		t.Fatalf("write blocking config dir: %v", err)
+	}
+	for _, tc := range []struct {
+		name string
+		err  error
+	}{
+		{"add", app.RulesRepoAdd("pt", "codex.example.com")},
+		{"remove", app.RulesRepoRemove("pt", "codex.example.com")},
+		{"remove-index", app.RulesRepoRemoveIndex("pt", 1)},
+	} {
+		if tc.err == nil {
+			t.Fatalf("expected ensureAll failure for %s", tc.name)
+		}
+	}
+}
+
 func TestImportLinksReportsUnsupportedOnlyAndMixedSkippedInputs(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("socks5://proxy.example.com:1080#legacy\n")
@@ -2563,6 +2582,115 @@ func TestApplyRulesSkipsDNSAndOutputJumpsWhenDisabled(t *testing.T) {
 	}
 	if !hasRecordedCall(calls, "iptables", "-w", "5", "-t", "mangle", "-A", "PREROUTING", "-j", "MIHOMO_PRE") {
 		t.Fatalf("expected mangle PREROUTING jump, calls=%#v", calls)
+	}
+}
+
+func TestDeleteJumpReturnsRunnerErrorAfterRemovalAttempt(t *testing.T) {
+	app, _ := newTestApp(t)
+	var calls []commandCall
+	checkHits := map[string]int{}
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			if name != "iptables" {
+				return nil
+			}
+			key := strings.Join(args, " ")
+			if strings.Contains(key, "-C PREROUTING -j MIHOMO_PRE") {
+				if checkHits[key] == 0 {
+					checkHits[key]++
+					return nil
+				}
+				return errors.New("missing")
+			}
+			if strings.Contains(key, "-D PREROUTING -j MIHOMO_PRE") {
+				return errors.New("delete failed")
+			}
+			return nil
+		},
+	}
+	err := app.deleteJump("mangle", "PREROUTING", "-j", "MIHOMO_PRE")
+	if err == nil || !strings.Contains(err.Error(), "delete failed") {
+		t.Fatalf("expected delete failure, got %v", err)
+	}
+	if !hasRecordedCall(calls, "iptables", "-w", "5", "-t", "mangle", "-D", "PREROUTING", "-j", "MIHOMO_PRE") {
+		t.Fatalf("expected delete call, calls=%#v", calls)
+	}
+}
+
+func TestApplyRulesProgramsBypassAndDNSOutputRules(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg, err := config.Ensure(app.Paths.ConfigPath())
+	if err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	cfg.Network.DNSHijackEnabled = true
+	cfg.Network.DNSHijackInterfaces = []string{"bridge1"}
+	cfg.Network.ProxyHostOutput = true
+	cfg.Network.Bypass.DstCIDRs = []string{"8.8.8.0/24"}
+	cfg.Network.Bypass.SrcCIDRs = []string{"192.168.50.0/24"}
+	cfg.Network.Bypass.ContainerNames = []string{"alpha", "beta"}
+	cfg.Network.Bypass.UIDs = []string{"1000", "1001"}
+	if err := config.Save(app.Paths.ConfigPath(), cfg); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	var calls []commandCall
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			if name == "docker" {
+				return errors.New("missing")
+			}
+			if name == "iptables" {
+				for _, arg := range args {
+					if arg == "-C" || arg == "-S" {
+						return errors.New("missing")
+					}
+				}
+			}
+			if name == "ip" && len(args) >= 4 && args[0] == "-4" && args[1] == "rule" && args[2] == "del" {
+				return errors.New("missing")
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			if name == "docker" && len(args) >= 2 && args[1] == "alpha" {
+				return "172.18.0.2\n", "", nil
+			}
+			if name == "docker" && len(args) >= 2 && args[1] == "beta" {
+				return "172.18.0.3\n", "", nil
+			}
+			return "", "", nil
+		},
+	}
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#apply-node\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable node: %v", err)
+	}
+	if err := app.ApplyRules(); err != nil {
+		t.Fatalf("apply rules: %v", err)
+	}
+	for _, expect := range []struct {
+		name string
+		args []string
+	}{
+		{"iptables", []string{"-w", "5", "-t", "mangle", "-A", "MIHOMO_PRE_HANDLE", "-d", "8.8.8.0/24", "-j", "RETURN"}},
+		{"iptables", []string{"-w", "5", "-t", "mangle", "-A", "MIHOMO_PRE_HANDLE", "-s", "192.168.50.0/24", "-j", "RETURN"}},
+		{"iptables", []string{"-w", "5", "-t", "mangle", "-A", "MIHOMO_PRE_HANDLE", "-s", "172.18.0.2/32", "-j", "RETURN"}},
+		{"iptables", []string{"-w", "5", "-t", "mangle", "-A", "MIHOMO_OUT", "-m", "owner", "--uid-owner", "1000", "-j", "RETURN"}},
+		{"iptables", []string{"-w", "5", "-t", "nat", "-A", "PREROUTING", "-j", "MIHOMO_DNS"}},
+		{"iptables", []string{"-w", "5", "-t", "nat", "-A", "MIHOMO_DNS_HANDLE", "-p", "udp", "--dport", "53", "-j", "REDIRECT", "--to-ports", "1053"}},
+		{"ip", []string{"-4", "route", "replace", "local", "0.0.0.0/0", "dev", "lo", "table", "233"}},
+	} {
+		if !hasRecordedCall(calls, expect.name, expect.args...) {
+			t.Fatalf("missing apply call %s %#v in %#v", expect.name, expect.args, calls)
+		}
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "已应用路由规则") {
+		t.Fatalf("unexpected apply output:\n%s", app.Stdout.(*bytes.Buffer).String())
 	}
 }
 

@@ -65,6 +65,7 @@
   - `internal/app` `SetSubscriptionEnabled` 启用/越界分支、`rulesMenu` ACL 增删、`Setup` 基于 subscription cache 启服务、`Status` active+manual node 统计
   - `internal/app` `promptList` / `promptBool` / `normalizeRuleInput` / `normalizeRuleKind` helper 扩展映射与显式输入分支
   - `internal/app` `ApplyRules` 无启用手动节点、DNS/OUTPUT 关闭时的跳转省略 smoke
+  - `internal/app` `RulesRepoAdd` / `RulesRepoRemove` / `RulesRepoRemoveIndex` 的成功与早失败分支
   - `internal/rulesrepo` `Describe` / `ListEntries` / `DescribeRuleset` / `RemoveEntry` / `ValidateEntry` 的成功路径与 `InitDefaultRepo` 幂等分支
 
 ## 质量状态
@@ -72,7 +73,7 @@
 - `go build -o /tmp/gobin/minimalist ./cmd/minimalist`：通过
 - `GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...`：通过
 - focused coverage 快照：
-  - `internal/app`: `88.2%`
+  - `internal/app`: `89.8%`
   - `internal/runtime`: `95.7%`
   - `internal/provider`: `87.2%`
   - `internal/rulesrepo`: `80.1%`
