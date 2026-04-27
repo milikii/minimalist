@@ -144,6 +144,13 @@ func TestSubscriptionProviderNameDerivesStablePrefix(t *testing.T) {
 	}
 }
 
+func TestSubscriptionProviderNameTrimsOnlyFirstDashSeparatedSegment(t *testing.T) {
+	paths := Paths{}
+	if got := paths.SubscriptionProviderName("alpha-beta-gamma"); got != "subscription-alpha" {
+		t.Fatalf("expected first segment prefix, got %q", got)
+	}
+}
+
 func TestSubscriptionFileAndRelPathUseSameID(t *testing.T) {
 	paths := Paths{RuntimeDir: "/var/lib/minimalist/mihomo"}
 	if paths.SubscriptionFile("sub-1") != "/var/lib/minimalist/mihomo/proxy_providers/subscriptions/sub-1.txt" {
