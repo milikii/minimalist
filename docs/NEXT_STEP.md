@@ -27,6 +27,7 @@
   - `install-self` 的 `rules-repo` / `state.json` 路径阻塞失败分支
   - `runtime.RenderFiles` 的 `manual.txt` / `custom.rules` / `builtin.rules` / 最终 `config.yaml` 路径阻塞失败分支
   - `Start` / `Restart` 的 manifest 损坏与 runtime 路径阻塞早失败、`Setup` 的 `manual.txt` / `custom.rules` / 最终 `config.yaml` 路径阻塞早失败、`RenderConfig` 的最终 `config.yaml` 路径阻塞补强
+  - `cli` `runWithApp` 的 `setup` / `render-config` / `start` / `restart` 失败透传补强
   - `rulesrepo` `Search` 空关键词 / `Render` 非法条目早失败分支
   - `rules-repo add/remove/remove-index` 的 `Run` 成功分发
   - `apply-rules` 的 `Run` 成功分发

@@ -202,6 +202,20 @@ func mustImportNode(t *testing.T, a *app.App, uri string) {
 	}
 }
 
+func expectRootOrSpecificError(t *testing.T, err error, want string) bool {
+	t.Helper()
+	if os.Geteuid() != 0 {
+		if err == nil || !strings.Contains(err.Error(), "请用 root 运行") {
+			t.Fatalf("expected root error, got %v", err)
+		}
+		return false
+	}
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected %q, got %v", want, err)
+	}
+	return true
+}
+
 func TestRunRulesRepoRequiresSubcommand(t *testing.T) {
 	a, _ := newCLIApp(t)
 	err := runRulesRepo(a, nil)
@@ -951,6 +965,57 @@ func TestRunWithAppDispatchesSetup(t *testing.T) {
 	}
 }
 
+func TestRunWithAppDispatchesSetupPropagatesManifestError(t *testing.T) {
+	a, _ := newCLIApp(t)
+	var calls []recordedCommand
+	a.Runner = system.CommandRunner(recordingRunner{calls: &calls})
+	if err := os.MkdirAll(filepath.Dir(a.Paths.RulesRepoPath()), 0o755); err != nil {
+		t.Fatalf("mkdir rules repo dir: %v", err)
+	}
+	if err := os.WriteFile(a.Paths.RulesRepoPath(), []byte("rulesets: [\n"), 0o640); err != nil {
+		t.Fatalf("write invalid manifest: %v", err)
+	}
+	err := runWithApp([]string{"setup"}, a, false)
+	if !expectRootOrSpecificError(t, err, "parse manifest") {
+		return
+	}
+	if len(calls) != 0 {
+		t.Fatalf("did not expect runner calls on render failure, got %#v", calls)
+	}
+}
+
+func TestRunWithAppDispatchesSetupPropagatesManualProviderFailure(t *testing.T) {
+	a, _ := newCLIApp(t)
+	var calls []recordedCommand
+	a.Runner = system.CommandRunner(recordingRunner{calls: &calls})
+	if err := os.MkdirAll(a.Paths.ManualProvider(), 0o755); err != nil {
+		t.Fatalf("mkdir blocking manual provider path: %v", err)
+	}
+	err := runWithApp([]string{"setup"}, a, false)
+	if !expectRootOrSpecificError(t, err, "is a directory") {
+		return
+	}
+	if len(calls) != 0 {
+		t.Fatalf("did not expect runner calls on render failure, got %#v", calls)
+	}
+}
+
+func TestRunWithAppDispatchesSetupPropagatesRuntimeConfigFailure(t *testing.T) {
+	a, _ := newCLIApp(t)
+	var calls []recordedCommand
+	a.Runner = system.CommandRunner(recordingRunner{calls: &calls})
+	if err := os.MkdirAll(a.Paths.RuntimeConfig(), 0o755); err != nil {
+		t.Fatalf("mkdir blocking runtime config path: %v", err)
+	}
+	err := runWithApp([]string{"setup"}, a, false)
+	if !expectRootOrSpecificError(t, err, "is a directory") {
+		return
+	}
+	if len(calls) != 0 {
+		t.Fatalf("did not expect runner calls on render failure, got %#v", calls)
+	}
+}
+
 func TestRunWithAppDispatchesRenderConfig(t *testing.T) {
 	a, stdout := newCLIApp(t)
 	mustImportNode(t, a, "trojan://password@example.org:443?security=tls#render-dispatch")
@@ -965,6 +1030,17 @@ func TestRunWithAppDispatchesRenderConfig(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "已生成 "+a.Paths.RuntimeConfig()) {
 		t.Fatalf("unexpected render-config output:\n%s", stdout.String())
+	}
+}
+
+func TestRunWithAppDispatchesRenderConfigPropagatesRuntimeConfigFailure(t *testing.T) {
+	a, _ := newCLIApp(t)
+	if err := os.MkdirAll(a.Paths.RuntimeConfig(), 0o755); err != nil {
+		t.Fatalf("mkdir blocking runtime config path: %v", err)
+	}
+	err := runWithApp([]string{"render-config"}, a, false)
+	if err == nil || !strings.Contains(err.Error(), "is a directory") {
+		t.Fatalf("expected runtime config write failure, got %v", err)
 	}
 }
 
@@ -988,6 +1064,57 @@ func TestRunWithAppDispatchesStart(t *testing.T) {
 	}
 	if !hasRecordedRunnerCall(calls, "systemctl", "enable", "--now", "minimalist.service") {
 		t.Fatalf("expected systemctl enable --now call, got %#v", calls)
+	}
+}
+
+func TestRunWithAppDispatchesStartPropagatesManifestError(t *testing.T) {
+	a, _ := newCLIApp(t)
+	var calls []recordedCommand
+	a.Runner = system.CommandRunner(recordingRunner{calls: &calls})
+	if err := os.MkdirAll(filepath.Dir(a.Paths.RulesRepoPath()), 0o755); err != nil {
+		t.Fatalf("mkdir rules repo dir: %v", err)
+	}
+	if err := os.WriteFile(a.Paths.RulesRepoPath(), []byte("rulesets: [\n"), 0o640); err != nil {
+		t.Fatalf("write invalid manifest: %v", err)
+	}
+	err := runWithApp([]string{"start"}, a, false)
+	if !expectRootOrSpecificError(t, err, "parse manifest") {
+		return
+	}
+	if len(calls) != 0 {
+		t.Fatalf("did not expect systemctl calls on render failure, got %#v", calls)
+	}
+}
+
+func TestRunWithAppDispatchesStartPropagatesManualProviderFailure(t *testing.T) {
+	a, _ := newCLIApp(t)
+	var calls []recordedCommand
+	a.Runner = system.CommandRunner(recordingRunner{calls: &calls})
+	if err := os.MkdirAll(a.Paths.ManualProvider(), 0o755); err != nil {
+		t.Fatalf("mkdir blocking manual provider path: %v", err)
+	}
+	err := runWithApp([]string{"start"}, a, false)
+	if !expectRootOrSpecificError(t, err, "is a directory") {
+		return
+	}
+	if len(calls) != 0 {
+		t.Fatalf("did not expect systemctl calls on render failure, got %#v", calls)
+	}
+}
+
+func TestRunWithAppDispatchesStartPropagatesRuntimeConfigFailure(t *testing.T) {
+	a, _ := newCLIApp(t)
+	var calls []recordedCommand
+	a.Runner = system.CommandRunner(recordingRunner{calls: &calls})
+	if err := os.MkdirAll(a.Paths.RuntimeConfig(), 0o755); err != nil {
+		t.Fatalf("mkdir blocking runtime config path: %v", err)
+	}
+	err := runWithApp([]string{"start"}, a, false)
+	if !expectRootOrSpecificError(t, err, "is a directory") {
+		return
+	}
+	if len(calls) != 0 {
+		t.Fatalf("did not expect systemctl calls on render failure, got %#v", calls)
 	}
 }
 
@@ -1030,6 +1157,57 @@ func TestRunWithAppDispatchesRestart(t *testing.T) {
 	}
 	if !hasRecordedRunnerCall(calls, "systemctl", "restart", "minimalist.service") {
 		t.Fatalf("expected systemctl restart call, got %#v", calls)
+	}
+}
+
+func TestRunWithAppDispatchesRestartPropagatesManifestError(t *testing.T) {
+	a, _ := newCLIApp(t)
+	var calls []recordedCommand
+	a.Runner = system.CommandRunner(recordingRunner{calls: &calls})
+	if err := os.MkdirAll(filepath.Dir(a.Paths.RulesRepoPath()), 0o755); err != nil {
+		t.Fatalf("mkdir rules repo dir: %v", err)
+	}
+	if err := os.WriteFile(a.Paths.RulesRepoPath(), []byte("rulesets: [\n"), 0o640); err != nil {
+		t.Fatalf("write invalid manifest: %v", err)
+	}
+	err := runWithApp([]string{"restart"}, a, false)
+	if !expectRootOrSpecificError(t, err, "parse manifest") {
+		return
+	}
+	if len(calls) != 0 {
+		t.Fatalf("did not expect systemctl calls on render failure, got %#v", calls)
+	}
+}
+
+func TestRunWithAppDispatchesRestartPropagatesCustomRulesFailure(t *testing.T) {
+	a, _ := newCLIApp(t)
+	var calls []recordedCommand
+	a.Runner = system.CommandRunner(recordingRunner{calls: &calls})
+	if err := os.MkdirAll(a.Paths.CustomRules(), 0o755); err != nil {
+		t.Fatalf("mkdir blocking custom rules path: %v", err)
+	}
+	err := runWithApp([]string{"restart"}, a, false)
+	if !expectRootOrSpecificError(t, err, "is a directory") {
+		return
+	}
+	if len(calls) != 0 {
+		t.Fatalf("did not expect systemctl calls on render failure, got %#v", calls)
+	}
+}
+
+func TestRunWithAppDispatchesRestartPropagatesRuntimeConfigFailure(t *testing.T) {
+	a, _ := newCLIApp(t)
+	var calls []recordedCommand
+	a.Runner = system.CommandRunner(recordingRunner{calls: &calls})
+	if err := os.MkdirAll(a.Paths.RuntimeConfig(), 0o755); err != nil {
+		t.Fatalf("mkdir blocking runtime config path: %v", err)
+	}
+	err := runWithApp([]string{"restart"}, a, false)
+	if !expectRootOrSpecificError(t, err, "is a directory") {
+		return
+	}
+	if len(calls) != 0 {
+		t.Fatalf("did not expect systemctl calls on render failure, got %#v", calls)
 	}
 }
 
