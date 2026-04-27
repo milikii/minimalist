@@ -62,6 +62,8 @@
   - `render-config` 的规则目标与 provider 组合断言
   - `render-config` 的“无 provider / auth+cors / 仅显式代理 / secret / external-controller / LAN 允许/禁止网段 / external-ui / nameserver-policy / default-nameserver / direct-nameserver / fake-ip-filter / profile / fallback-filter / proxy-server-nameserver / nameserver / geox-url / dns.listen / allow-lan / bind-address / log-level / mixed-port / tproxy-port / mode / ipv6 / geo flags / DNS behavior flags / manual & subscription provider / provider health-check / direct-only & AUTO proxy-groups / rules section & order / auth omission” 边界断言
   - `internal/app` `menu` 主入口分发、`SetNodeEnabled` 手动节点启停与订阅节点只读边界、`rulesMenu` 删除分支
+  - `internal/app` `SetSubscriptionEnabled` 启用/越界分支、`rulesMenu` ACL 增删、`Setup` 基于 subscription cache 启服务、`Status` active+manual node 统计
+  - `internal/app` `promptList` / `promptBool` / `normalizeRuleInput` / `normalizeRuleKind` helper 扩展映射与显式输入分支
   - `internal/rulesrepo` `Describe` / `ListEntries` / `DescribeRuleset` / `RemoveEntry` / `ValidateEntry` 的成功路径与 `InitDefaultRepo` 幂等分支
 
 ## 质量状态
@@ -69,13 +71,13 @@
 - `go build -o /tmp/gobin/minimalist ./cmd/minimalist`：通过
 - `GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...`：通过
 - focused coverage 快照：
-  - `internal/app`: `86.3%`
+  - `internal/app`: `88.0%`
   - `internal/runtime`: `95.7%`
   - `internal/provider`: `87.2%`
   - `internal/rulesrepo`: `80.1%`
 
 ## 当前风险与限制
 
-- 当前 Go 测试已覆盖配置、provider、rules-repo、核心 app 路径、status/healthcheck/runtime-audit 回退与 runtime 优先、top-level CLI 与 `runWithApp` 主要分发、runtime 文本生成、system runner 以及多组 helper 边界；当前剩余缺口进一步收缩到少量 root/真实环境依赖链路、`SetSubscriptionEnabled` / `rulesMenu` ACL 分支、以及更贴近真实运行环境的 smoke
+- 当前 Go 测试已覆盖配置、provider、rules-repo、核心 app 路径、status/healthcheck/runtime-audit 回退与 runtime 优先、top-level CLI 与 `runWithApp` 主要分发、runtime 文本生成、system runner 以及多组 helper 边界；当前剩余缺口进一步收缩到少量 root/真实环境依赖链路、`ApplyRules` 更深的 iptables/ip rule 编排分支、以及更贴近真实运行环境的 smoke
 - `docs/images/readme-overview.svg` 已移除，后续若需要项目总览图应按 `minimalist` 当前架构重画
 - 旧版本 `settings.env` / `router.env` / `state/*.json` 不兼容，不做迁移

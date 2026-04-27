@@ -770,6 +770,32 @@ func TestRulesMenuRemovesRuleByIndex(t *testing.T) {
 	}
 }
 
+func TestRulesMenuSupportsACLAddAndRemove(t *testing.T) {
+	app, _ := newTestApp(t)
+	reader := bufio.NewReader(strings.NewReader("2\nsrc\n192.168.2.10/32\nDIRECT\n"))
+	if err := app.rulesMenu(reader, true); err != nil {
+		t.Fatalf("rules menu acl add: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state after acl add: %v", err)
+	}
+	if len(st.ACL) != 1 || st.ACL[0].Kind != "src-cidr" || st.ACL[0].Pattern != "192.168.2.10/32" {
+		t.Fatalf("unexpected acl after add: %+v", st.ACL)
+	}
+	reader = bufio.NewReader(strings.NewReader("3\n1\n"))
+	if err := app.rulesMenu(reader, true); err != nil {
+		t.Fatalf("rules menu acl remove: %v", err)
+	}
+	st, err = state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state after acl remove: %v", err)
+	}
+	if len(st.ACL) != 0 {
+		t.Fatalf("expected acl to be removed, got %+v", st.ACL)
+	}
+}
+
 func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 	app, _ := newTestApp(t)
 	oldGeteuid := geteuid
@@ -841,6 +867,34 @@ func TestSetNodeEnabledUpdatesManualNodesAndRejectsSubscriptionNodes(t *testing.
 	err = app.SetNodeEnabled(1, true)
 	if err == nil || !strings.Contains(err.Error(), "subscription node is provider-managed") {
 		t.Fatalf("expected subscription ownership error, got %v", err)
+	}
+}
+
+func TestSetSubscriptionEnabledKeepsNodesWhenEnablingAndRejectsOutOfRange(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#sub-keep\n"), nil
+		}),
+	}
+	if err := app.AddSubscription("keep-sub", "https://subscription.example.com/keep.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
+	}
+	if err := app.SetSubscriptionEnabled(1, true); err != nil {
+		t.Fatalf("enable subscription: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if !st.Subscriptions[0].Enabled || len(st.Nodes) != 1 || st.Nodes[0].Source.Kind != "subscription" {
+		t.Fatalf("expected subscription nodes to stay present, got %+v", st)
+	}
+	if err := app.SetSubscriptionEnabled(2, true); err == nil || !strings.Contains(err.Error(), "subscription index out of range") {
+		t.Fatalf("expected subscription range error, got %v", err)
 	}
 }
 
@@ -981,6 +1035,39 @@ func TestSetupWithProvidersEnablesService(t *testing.T) {
 	output := app.Stdout.(*bytes.Buffer).String()
 	if !strings.Contains(output, "部署完成，服务已启用") {
 		t.Fatalf("unexpected setup output:\n%s", output)
+	}
+}
+
+func TestSetupEnablesServiceWhenSubscriptionCacheIsReady(t *testing.T) {
+	app, _ := newTestApp(t)
+	var calls []commandCall
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", nil
+		},
+	}
+	if err := app.AddSubscription("setup-sub", "https://subscription.example.com/setup.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if err := os.MkdirAll(app.Paths.SubscriptionDir(), 0o755); err != nil {
+		t.Fatalf("mkdir subscription dir: %v", err)
+	}
+	if err := os.WriteFile(app.Paths.SubscriptionFile(st.Subscriptions[0].ID), []byte("trojan://password@example.org:443?security=tls#cached\n"), 0o640); err != nil {
+		t.Fatalf("write subscription cache: %v", err)
+	}
+	if err := app.Setup(); err != nil {
+		t.Fatalf("setup with subscription cache: %v", err)
+	}
+	if !hasRecordedCall(calls, "systemctl", "enable", "--now", "minimalist.service") {
+		t.Fatalf("expected setup to enable service from subscription cache, calls=%#v", calls)
 	}
 }
 
@@ -1229,6 +1316,41 @@ func TestStatusPrefersRuntimeModeWhenControllerConfigResponds(t *testing.T) {
 	}
 	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "当前模式: global (runtime)") {
 		t.Fatalf("expected runtime mode in status output:\n%s", app.Stdout.(*bytes.Buffer).String())
+	}
+}
+
+func TestStatusReportsManualNodeCountWhenServiceActive(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#status-manual\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable manual node: %v", err)
+	}
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			if name == "systemctl" && len(args) >= 2 && (args[0] == "is-active" || args[0] == "is-enabled") {
+				return nil
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", nil
+		},
+	}
+	if err := app.Status(); err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"服务状态: active=true enabled=true",
+		"手动节点: 1",
+		"订阅: enabled=0 total=0 ready=0",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in status output:\n%s", needle, output)
+		}
 	}
 }
 
@@ -1848,6 +1970,36 @@ func TestNormalizeRuleHelpersMapLegacyKinds(t *testing.T) {
 	}
 }
 
+func TestNormalizeRuleHelpersCoverExtendedKindsAndFallbacks(t *testing.T) {
+	for _, tc := range []struct {
+		kind string
+		want string
+	}{
+		{"port", "port"},
+		{"dst-port", "port"},
+		{"geoip", "geoip"},
+		{"geosite", "geosite"},
+		{"  CUSTOM-KIND  ", "custom-kind"},
+	} {
+		if got := normalizeRuleInput(tc.kind); got != tc.want {
+			t.Fatalf("normalizeRuleInput(%q) expected %q, got %q", tc.kind, tc.want, got)
+		}
+	}
+	for _, tc := range []struct {
+		kind string
+		want string
+	}{
+		{"port", "DST-PORT"},
+		{"geoip", "GEOIP"},
+		{"geosite", "GEOSITE"},
+		{"custom-kind", "CUSTOM-KIND"},
+	} {
+		if got := normalizeRuleKind(tc.kind); got != tc.want {
+			t.Fatalf("normalizeRuleKind(%q) expected %q, got %q", tc.kind, tc.want, got)
+		}
+	}
+}
+
 func TestSplitFieldsAndBoolIntHelpers(t *testing.T) {
 	if got := splitFields("  a  b   c "); len(got) != 3 || got[0] != "a" || got[2] != "c" {
 		t.Fatalf("unexpected split fields: %#v", got)
@@ -1857,6 +2009,25 @@ func TestSplitFieldsAndBoolIntHelpers(t *testing.T) {
 	}
 	if boolInt(true) != 1 || boolInt(false) != 0 {
 		t.Fatalf("unexpected boolInt output")
+	}
+}
+
+func TestPromptHelpersKeepDefaultsAndAcceptExplicitValues(t *testing.T) {
+	var out bytes.Buffer
+	if got := promptList(bufio.NewReader(strings.NewReader("\n")), &out, "LAN 接口", []string{"lan0"}); len(got) != 1 || got[0] != "lan0" {
+		t.Fatalf("expected promptList to keep defaults, got %#v", got)
+	}
+	if got := promptList(bufio.NewReader(strings.NewReader("lan1 lan2\n")), &out, "LAN 接口", []string{"lan0"}); len(got) != 2 || got[1] != "lan2" {
+		t.Fatalf("expected promptList to parse explicit values, got %#v", got)
+	}
+	if got := promptBool(bufio.NewReader(strings.NewReader("\n")), &out, "宿主机流量接管", true); !got {
+		t.Fatalf("expected promptBool blank input to keep default")
+	}
+	if got := promptBool(bufio.NewReader(strings.NewReader("1\n")), &out, "宿主机流量接管", false); !got {
+		t.Fatalf("expected promptBool to accept explicit true")
+	}
+	if got := promptBool(bufio.NewReader(strings.NewReader("0\n")), &out, "宿主机流量接管", true); got {
+		t.Fatalf("expected promptBool to accept explicit false")
 	}
 }
 

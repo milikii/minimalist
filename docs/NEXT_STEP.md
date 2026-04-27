@@ -18,15 +18,17 @@
   - `requireRoot` 的可测错误分支
   - `start` / `restart` / `stop` / `apply-rules` / `clear-rules` 的 non-root smoke
   - `rules-repo` wrapper 的 manifest / ruleset / keyword / invalid entry / index range 错误透传
-  - `menu` 主入口分发、`SetNodeEnabled` 手动节点启停与订阅节点只读边界、`rulesMenu` 删除分支
+  - `menu` 主入口分发、`SetNodeEnabled` 手动节点启停与订阅节点只读边界、`SetSubscriptionEnabled` 启用/越界分支
+  - `rulesMenu` 主/ACL 增删分支、`promptList` / `promptBool` 显式输入、`normalizeRuleInput` / `normalizeRuleKind` 扩展映射
+  - `Setup` 基于 subscription cache 启服务、`Status` active+manual node 统计
   - `rules-repo add/remove/remove-index` 的 `Run` 成功分发
   - `apply-rules` 的 `Run` 成功分发
   - `render-config` 的 `Run` 成功分发
-  - `internal/app` focused coverage 已提升到 `86.3%`
+  - `internal/app` focused coverage 已提升到 `88.0%`
 
 ## 下一最小闭环
 
-- 继续补 `SetSubscriptionEnabled`、`rulesMenu` ACL 分支和 `normalizeRuleInput` / `normalizeRuleKind` 的边界 smoke
+- 继续补 `ApplyRules` 更深的 iptables / ip rule 编排 smoke 断言
 - 继续补 `setup` / `status` / `rules-repo` 更贴近真实运行环境的 smoke 断言
 - 保持 README / flows / STATUS 只描述 `minimalist` 当前真相，不回退到旧 `mihomo` 叙述
 
