@@ -1964,6 +1964,80 @@ func TestCutoverPreflightIsReadOnly(t *testing.T) {
 	}
 }
 
+func TestCutoverPlanReportsCurrentState(t *testing.T) {
+	tests := []struct {
+		name    string
+		runFn   func(name string, args ...string) error
+		needles []string
+	}{
+		{
+			name: "legacy-live",
+			runFn: func(name string, args ...string) error {
+				if name == "systemctl" && len(args) >= 3 && args[2] == "mihomo.service" {
+					return nil
+				}
+				return errors.New("inactive")
+			},
+			needles: []string{
+				"cutover-plan: legacy_live=true minimalist_service_live=false cutover_ready=false",
+				"next-action: prepare-minimalist-inputs",
+				"maintenance-window: disable --now mihomo.service",
+			},
+		},
+		{
+			name: "legacy-stopped",
+			runFn: func(name string, args ...string) error {
+				return errors.New("inactive")
+			},
+			needles: []string{
+				"cutover-plan: legacy_live=false minimalist_service_live=false cutover_ready=true",
+				"next-action: run-minimalist-setup",
+			},
+		},
+		{
+			name: "minimalist-active",
+			runFn: func(name string, args ...string) error {
+				if name == "systemctl" && len(args) >= 3 && args[2] == "minimalist.service" {
+					return nil
+				}
+				return errors.New("inactive")
+			},
+			needles: []string{
+				"cutover-plan: legacy_live=false minimalist_service_live=true cutover_ready=true",
+				"next-action: validate-minimalist",
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			app, _ := newTestApp(t)
+			var calls []commandCall
+			app.Runner = fakeRunner{
+				runFn: func(name string, args ...string) error {
+					calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+					return tc.runFn(name, args...)
+				},
+			}
+			if err := app.CutoverPlan(); err != nil {
+				t.Fatalf("cutover plan: %v", err)
+			}
+			output := app.Stdout.(*bytes.Buffer).String()
+			for _, needle := range tc.needles {
+				if !strings.Contains(output, needle) {
+					t.Fatalf("missing %q in cutover plan output:\n%s", needle, output)
+				}
+			}
+			if !strings.Contains(output, "rollback: disable --now minimalist.service; enable --now mihomo.service") {
+				t.Fatalf("missing rollback line in output:\n%s", output)
+			}
+			if _, err := os.Stat(app.Paths.ConfigPath()); !os.IsNotExist(err) {
+				t.Fatalf("cutover plan must not create config, stat err=%v", err)
+			}
+			assertOnlyCutoverPreflightCalls(t, calls)
+		})
+	}
+}
+
 func TestCutoverReadyStates(t *testing.T) {
 	t.Run("normal-empty-env", func(t *testing.T) {
 		app, _ := newTestApp(t)

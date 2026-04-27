@@ -275,6 +275,24 @@ func (a *App) CutoverPreflight() error {
 	return nil
 }
 
+func (a *App) CutoverPlan() error {
+	status := a.cutoverPreflightStatus()
+	fmt.Fprintf(a.Stdout, "cutover-plan: legacy_live=%t minimalist_service_live=%t cutover_ready=%t\n", status.legacyLive(), status.minimalistServiceLive(), status.Ready())
+	switch {
+	case status.legacyLive() && !status.minimalistServiceLive():
+		fmt.Fprintln(a.Stdout, "next-action: prepare-minimalist-inputs")
+		fmt.Fprintln(a.Stdout, "maintenance-window: disable --now mihomo.service; rerun cutover-preflight; run setup and restart")
+	case !status.legacyLive() && !status.minimalistServiceLive():
+		fmt.Fprintln(a.Stdout, "next-action: run-minimalist-setup")
+		fmt.Fprintln(a.Stdout, "maintenance-window: run setup, restart, healthcheck, status")
+	default:
+		fmt.Fprintln(a.Stdout, "next-action: validate-minimalist")
+		fmt.Fprintln(a.Stdout, "maintenance-window: keep rollback path until healthcheck and routing state are stable")
+	}
+	fmt.Fprintln(a.Stdout, "rollback: disable --now minimalist.service; enable --now mihomo.service")
+	return nil
+}
+
 func (a *App) printCutoverPreflight() {
 	status := a.cutoverPreflightStatus()
 	fmt.Fprintf(

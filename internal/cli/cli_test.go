@@ -745,6 +745,20 @@ func TestRunDispatchesCutoverPreflightThroughRun(t *testing.T) {
 	}
 }
 
+func TestRunDispatchesCutoverPlanThroughRun(t *testing.T) {
+	setCLIPathsEnv(t)
+	output := captureStdout(t, func() {
+		if err := Run([]string{"cutover-plan"}); err != nil {
+			t.Fatalf("run cutover-plan: %v", err)
+		}
+	})
+	for _, needle := range []string{"cutover-plan:", "next-action:", "rollback:"} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in cutover plan output:\n%s", needle, output)
+		}
+	}
+}
+
 func TestRunDispatchesImportLinksThroughRun(t *testing.T) {
 	setCLIPathsEnv(t)
 	withStdinFile(t, "trojan://password@example.org:443?security=tls#run-import\n", func() {

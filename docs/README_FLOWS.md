@@ -12,7 +12,8 @@
 6. `minimalist start`
 7. `minimalist healthcheck`
 8. `minimalist cutover-preflight`
-9. `minimalist status`
+9. `minimalist cutover-plan`
+10. `minimalist status`
 
 ## 配置与状态流
 
@@ -51,6 +52,7 @@
 - `minimalist router-wizard` 直接回写 `/etc/minimalist/config.yaml`
 - `minimalist rules-repo summary|entries|find` 用于查看当前内置规则仓库真相
 - `minimalist cutover-preflight` 只读检查 legacy `mihomo.service`、旧安装路径和 Go 版目标路径，不写配置、不停服务、不改规则
+- `minimalist cutover-plan` 只读输出当前 cutover 状态、下一步建议和回滚入口，不执行切换
 
 ## 运行态观测
 
@@ -59,3 +61,4 @@
 - `status` 当前会优先展示 runtime mode；控制面不可达时回退到 `config.yaml` 中的 mode
 - `runtime-audit` 在控制面不可达时不会伪造 runtime 摘要，只保留本地状态和日志告警计数
 - `cutover-preflight` 当前实机输出 `cutover-ready=false` 时，表示仍处于旧 `mihomo.service` live install 状态；高风险命令会返回 `cutover blocked`，不会自动停旧服务或清规则
+- `cutover-plan` 当前只服务人工 runbook，不替代维护窗口决策

@@ -13,7 +13,7 @@
 ## 当前保留能力
 
 - 核心主路径：`install-self`、`setup`、`render-config`、`start` / `stop` / `restart`
-- 运维查看：`status`、`show-secret`、`healthcheck`、`runtime-audit`、`cutover-preflight`
+- 运维查看：`status`、`show-secret`、`healthcheck`、`runtime-audit`、`cutover-preflight`、`cutover-plan`
 - 交互入口：`menu`、`router-wizard`、`import-links`
 - 规则与订阅：`nodes`、`subscriptions`、`rules`、`acl`、`rules-repo`
 
@@ -66,7 +66,8 @@ sudo /usr/local/bin/minimalist setup
 5. `minimalist router-wizard`
 6. `minimalist healthcheck`
 7. `minimalist cutover-preflight`
-8. `minimalist status`
+8. `minimalist cutover-plan`
+9. `minimalist status`
 
 补充当前行为：
 
@@ -83,4 +84,5 @@ sudo /usr/local/bin/minimalist setup
 - `setup` / `start` / `restart` 的真实验证需要 systemd 正常运行
 - `apply-rules` / `clear-rules` 的真实验证需要 `CAP_NET_ADMIN` 和可用的 `iptables` / `ip rule`
 - `cutover-preflight` 是只读实机检查；若检测到旧 `mihomo.service` 正在承载现网，默认只告警，不停服务、不清规则
+- `cutover-plan` 是只读计划输出；只给当前状态和下一步建议，不执行 cutover
 - 在旧 `mihomo.service` active/enabled 且 `minimalist.service` 尚未 active/enabled 时，`setup` / `start` / `restart` / `apply-rules` / `clear-rules` 会返回 `cutover blocked`

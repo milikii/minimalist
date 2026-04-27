@@ -9,10 +9,10 @@
 
 ## 下一最小闭环
 
-- 评估是否需要把 `docs/CUTOVER.md` 的人工步骤做成只读 `cutover-plan` 输出：
-  - 仅打印当前检查结果和下一步建议
+- 对 `cutover-plan` 做实机只读验证，并决定是否已经满足进入人工维护窗口的文档条件：
+  - 验证 legacy live 状态下输出 `prepare-minimalist-inputs`
+  - 验证命令不创建 `/etc/minimalist` / `/var/lib/minimalist`
   - 不停旧服务、不启新服务、不清规则
-  - 若实现，需要 focused tests 覆盖 legacy live、legacy stopped、minimalist active 三类状态
 - 在确认迁移策略前，不对现网 `MIHOMO_*` 规则做清理或重写。
 - 若确认要切换到 Go 版，再做最小迁移闭环并重新跑 `setup` / `start` / `restart` / `apply-rules` / `clear-rules` 实机 smoke。
 - 保持 README / flows 描述 Go 版 `minimalist` 目标真相；STATUS / NEXT_STEP 只记录 live host 差异，不恢复旧 `mihomo` 作为项目目标。
@@ -29,4 +29,4 @@
 
 - README 与权威文档只描述 Go 版 `minimalist` 当前真相。
 - `go test ./...` 覆盖核心命令与系统编排关键路径。
-- Go 版高风险命令在 legacy live install 存在时已有 guard，人工 cutover 步骤已文档化；下一步只允许只读 plan，不允许自动切换。
+- Go 版高风险命令在 legacy live install 存在时已有 guard，人工 cutover 步骤已文档化，`cutover-plan` 已落地为只读输出。

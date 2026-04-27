@@ -19,6 +19,7 @@
 
 ```bash
 sudo go run ./cmd/minimalist cutover-preflight
+sudo go run ./cmd/minimalist cutover-plan
 systemctl status mihomo --no-pager
 systemctl status minimalist --no-pager
 iptables -t mangle -S
@@ -27,7 +28,7 @@ ip rule show
 ip route show table 233
 ```
 
-若 `cutover-preflight` 输出 `cutover-ready=false`，表示旧 `mihomo.service` 仍处于 active/enabled，Go 版高风险命令会被 guard 阻断。
+若 `cutover-preflight` 输出 `cutover-ready=false`，表示旧 `mihomo.service` 仍处于 active/enabled，Go 版高风险命令会被 guard 阻断。`cutover-plan` 只打印下一步建议和回滚入口，不执行切换。
 
 ## 准备 Go 版输入
 
