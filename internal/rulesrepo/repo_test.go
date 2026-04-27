@@ -73,6 +73,127 @@ func TestFindRulesetAndDescribeRulesetReportMissingPaths(t *testing.T) {
 	}
 }
 
+func TestDescribeListEntriesDescribeRulesetAndRemoveEntry(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "rules-repo", "default")
+	if err := InitDefaultRepo(root); err != nil {
+		t.Fatalf("init repo: %v", err)
+	}
+	manifest := filepath.Join(root, "manifest.yaml")
+
+	describe, err := Describe(manifest)
+	if err != nil {
+		t.Fatalf("describe repo: %v", err)
+	}
+	for _, needle := range []string{
+		"规则仓库:",
+		"- fcm-site: type=domain target=proxy entries=14 source=rules/proxy/fcm-site.txt",
+		"总规则数:",
+	} {
+		if !strings.Contains(strings.Join(describe, "\n"), needle) {
+			t.Fatalf("missing %q in describe output:\n%s", needle, strings.Join(describe, "\n"))
+		}
+	}
+
+	list, err := ListEntries(manifest, "fcm-site", "google")
+	if err != nil {
+		t.Fatalf("list entries: %v", err)
+	}
+	if len(list) == 0 || !strings.Contains(list[0], "dl.google.com") {
+		t.Fatalf("expected google entries, got %#v", list)
+	}
+
+	allEntries, err := ListEntries(manifest, "fcm-site", "")
+	if err != nil {
+		t.Fatalf("list all entries: %v", err)
+	}
+	if len(allEntries) < len(list) {
+		t.Fatalf("expected unfiltered list to include at least the filtered rows, got %#v", allEntries)
+	}
+
+	ruleset, err := DescribeRuleset(manifest, "fcm-site")
+	if err != nil {
+		t.Fatalf("describe ruleset: %v", err)
+	}
+	for _, needle := range []string{
+		"ruleset=fcm-site",
+		"type=domain",
+		"target=proxy",
+		"source=rules/proxy/fcm-site.txt",
+	} {
+		if !strings.Contains(strings.Join(ruleset, "\n"), needle) {
+			t.Fatalf("missing %q in ruleset description:\n%s", needle, strings.Join(ruleset, "\n"))
+		}
+	}
+
+	if err := AppendEntry(manifest, "fcm-site", "codex.example.com"); err != nil {
+		t.Fatalf("append codex entry: %v", err)
+	}
+	if err := RemoveEntry(manifest, "fcm-site", "codex.example.com"); err != nil {
+		t.Fatalf("remove codex entry: %v", err)
+	}
+	removed, err := ListEntries(manifest, "fcm-site", "codex")
+	if err != nil {
+		t.Fatalf("list removed entry: %v", err)
+	}
+	if len(removed) != 0 {
+		t.Fatalf("expected codex entry to be removed, got %#v", removed)
+	}
+}
+
+func TestInitDefaultRepoIsNoopWhenManifestAlreadyExists(t *testing.T) {
+	root := t.TempDir()
+	manifest := filepath.Join(root, "manifest.yaml")
+	sentinel := filepath.Join(root, "keep.txt")
+	if err := os.WriteFile(manifest, []byte("rulesets:\n  - name: local\n    category: demo\n    type: domain\n    source: keep.txt\n    target: direct\n"), 0o640); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if err := os.WriteFile(sentinel, []byte("keep"), 0o640); err != nil {
+		t.Fatalf("write sentinel: %v", err)
+	}
+	if err := InitDefaultRepo(root); err != nil {
+		t.Fatalf("init default repo noop: %v", err)
+	}
+	body, err := os.ReadFile(sentinel)
+	if err != nil {
+		t.Fatalf("read sentinel: %v", err)
+	}
+	if string(body) != "keep" {
+		t.Fatalf("expected sentinel to stay untouched, got %q", string(body))
+	}
+}
+
+func TestValidateEntrySupportsKnownRuleTypes(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		ruleType string
+		value    string
+	}{
+		{name: "ip-cidr", ruleType: "ip_cidr", value: "192.168.1.0/24"},
+		{name: "suffix", ruleType: "domain_suffix", value: "example.com"},
+		{name: "keyword", ruleType: "domain_keyword", value: "google"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := ValidateEntry(tc.ruleType, tc.value, "entries.txt"); err != nil {
+				t.Fatalf("validate entry: %v", err)
+			}
+		})
+	}
+	for _, tc := range []struct {
+		name     string
+		ruleType string
+		value    string
+	}{
+		{name: "comma", ruleType: "domain", value: "bad,entry"},
+		{name: "newline", ruleType: "domain", value: "bad\nentry"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := ValidateEntry(tc.ruleType, tc.value, "entries.txt"); err == nil {
+				t.Fatalf("expected invalid entry error")
+			}
+		})
+	}
+}
+
 func TestAppendAndRemoveEntryIndexDeduplicateAndRewrite(t *testing.T) {
 	dir := t.TempDir()
 	manifest := filepath.Join(dir, "manifest.yaml")

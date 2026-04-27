@@ -752,6 +752,98 @@ func TestRulesMenuAddsRuleAndPromptStringKeepsDefaultOnBlankInput(t *testing.T) 
 	}
 }
 
+func TestRulesMenuRemovesRuleByIndex(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddRule(false, "domain", "menu.example.com", "DIRECT"); err != nil {
+		t.Fatalf("add rule: %v", err)
+	}
+	reader := bufio.NewReader(strings.NewReader("3\n1\n"))
+	if err := app.rulesMenu(reader, false); err != nil {
+		t.Fatalf("rules menu remove: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Rules) != 0 {
+		t.Fatalf("expected rules to be removed, got %+v", st.Rules)
+	}
+}
+
+func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 0 }
+	defer func() { geteuid = oldGeteuid }()
+
+	app.Stdin = strings.NewReader(strings.Join([]string{
+		"x",
+		"1",
+		"6",
+		"2",
+		"4",
+		"1",
+		"8",
+		"1",
+		"9",
+		"1",
+		"0",
+	}, "\n") + "\n")
+	if err := app.Menu(); err != nil {
+		t.Fatalf("menu: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"无效选择",
+		"部署完成，请先 import-links 或 subscriptions update 后再启动服务",
+		"1) 查看订阅",
+		"1) 查看",
+		"mixed-port=7890",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in menu output:\n%s", needle, output)
+		}
+	}
+}
+
+func TestSetNodeEnabledUpdatesManualNodesAndRejectsSubscriptionNodes(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#manual-node\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable manual node: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, false); err != nil {
+		t.Fatalf("disable manual node: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if st.Nodes[0].Enabled {
+		t.Fatalf("expected manual node to be disabled, got %+v", st.Nodes[0])
+	}
+
+	app, _ = newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#sub-node\n"), nil
+		}),
+	}
+	if err := app.AddSubscription("sub-node", "https://subscription.example.com/sub.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
+	}
+	err = app.SetNodeEnabled(1, true)
+	if err == nil || !strings.Contains(err.Error(), "subscription node is provider-managed") {
+		t.Fatalf("expected subscription ownership error, got %v", err)
+	}
+}
+
 func TestContainerBypassIPsAndEnsureChainHandleRunnerResponses(t *testing.T) {
 	app, _ := newTestApp(t)
 	var calls []commandCall
