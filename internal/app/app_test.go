@@ -390,6 +390,30 @@ func TestUpdateSubscriptionsRecordsHTTPAndTransportErrors(t *testing.T) {
 	}
 }
 
+func TestUpdateSubscriptionsFailsWhenSubscriptionDirCannotBeCreated(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("dir-blocked", "https://subscription.example.com/dir-blocked.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	blockRoot := filepath.Join(t.TempDir(), "blocked-runtime")
+	app.Paths.RuntimeDir = blockRoot
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#blocked\n"), nil
+		}),
+	}
+	if err := os.MkdirAll(filepath.Dir(app.Paths.ProviderDir()), 0o755); err != nil {
+		t.Fatalf("mkdir runtime parent: %v", err)
+	}
+	if err := os.WriteFile(app.Paths.ProviderDir(), []byte("occupied"), 0o640); err != nil {
+		t.Fatalf("write blocking file: %v", err)
+	}
+	err := app.UpdateSubscriptions()
+	if err == nil || (!strings.Contains(err.Error(), "not a directory") && !strings.Contains(err.Error(), "file exists")) {
+		t.Fatalf("expected subscription dir creation error, got %v", err)
+	}
+}
+
 func TestSetupWithoutProvidersDoesNotEnableService(t *testing.T) {
 	app, _ := newTestApp(t)
 	var calls []commandCall
