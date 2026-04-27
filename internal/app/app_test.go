@@ -42,6 +42,22 @@ func textResponse(status int, body string) *http.Response {
 	}
 }
 
+func TestNewInitializesDefaultDependencies(t *testing.T) {
+	app := New()
+	if app.Runner == nil {
+		t.Fatalf("expected runner to be initialized")
+	}
+	if app.Client == nil {
+		t.Fatalf("expected client to be initialized")
+	}
+	if app.Stdout == nil || app.Stderr == nil || app.Stdin == nil {
+		t.Fatalf("expected stdio to be initialized")
+	}
+	if app.Paths.ConfigDir == "" || app.Paths.DataDir == "" || app.Paths.RuntimeDir == "" {
+		t.Fatalf("expected default paths to be initialized: %+v", app.Paths)
+	}
+}
+
 func (f fakeRunner) Run(name string, args ...string) error {
 	if f.runFn != nil {
 		return f.runFn(name, args...)
