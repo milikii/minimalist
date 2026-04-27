@@ -43,6 +43,74 @@ func TestScanAndRenderProvider(t *testing.T) {
 	}
 }
 
+func TestRenderProviderFiltersAndHandlesEmptyAndUnsupportedNodes(t *testing.T) {
+	dir := t.TempDir()
+	manualPath := filepath.Join(dir, "manual.txt")
+	nodes := []state.Node{
+		{
+			ID:         "1",
+			Name:       "manual-node",
+			Enabled:    true,
+			URI:        "trojan://password@example.org:443?security=tls#manual-node",
+			ImportedAt: state.NowISO(),
+			Source:     state.Source{Kind: "manual"},
+		},
+		{
+			ID:         "2",
+			Name:       "disabled-node",
+			Enabled:    false,
+			URI:        "trojan://password@example.org:443?security=tls#disabled-node",
+			ImportedAt: state.NowISO(),
+			Source:     state.Source{Kind: "manual"},
+		},
+		{
+			ID:         "3",
+			Name:       "subscription-node",
+			Enabled:    true,
+			URI:        "trojan://password@example.org:443?security=tls#subscription-node",
+			ImportedAt: state.NowISO(),
+			Source:     state.Source{Kind: "subscription", ID: "sub-1"},
+		},
+	}
+	if err := RenderProvider(manualPath, nodes, "manual", "subscription"); err != nil {
+		t.Fatalf("render filtered provider: %v", err)
+	}
+	body, err := os.ReadFile(manualPath)
+	if err != nil {
+		t.Fatalf("read filtered provider: %v", err)
+	}
+	text := string(body)
+	if !strings.Contains(text, "manual-node") {
+		t.Fatalf("expected manual node in provider output:\n%s", text)
+	}
+	if strings.Contains(text, "disabled-node") || strings.Contains(text, "subscription-node") {
+		t.Fatalf("expected filters to exclude disabled/subscription nodes:\n%s", text)
+	}
+
+	emptyPath := filepath.Join(dir, "empty.txt")
+	if err := RenderProvider(emptyPath, nil, "", "subscription"); err != nil {
+		t.Fatalf("render empty provider: %v", err)
+	}
+	emptyBody, err := os.ReadFile(emptyPath)
+	if err != nil {
+		t.Fatalf("read empty provider: %v", err)
+	}
+	if !strings.Contains(string(emptyBody), "proxies: []") {
+		t.Fatalf("expected empty provider output, got:\n%s", string(emptyBody))
+	}
+
+	if err := RenderProvider(filepath.Join(dir, "bad.txt"), []state.Node{{
+		ID:         "4",
+		Name:       "bad-node",
+		Enabled:    true,
+		URI:        "socks5://proxy.example.com:1080#bad-node",
+		ImportedAt: state.NowISO(),
+		Source:     state.Source{Kind: "manual"},
+	}}, "", ""); err == nil || !strings.Contains(err.Error(), "unsupported scheme") {
+		t.Fatalf("expected unsupported scheme error, got %v", err)
+	}
+}
+
 func TestDecodeSubscriptionLinesAndScannableURIsHandleBase64Payload(t *testing.T) {
 	payload := base64.StdEncoding.EncodeToString([]byte(strings.Join([]string{
 		"trojan://password@example.org:443?security=tls#one",
