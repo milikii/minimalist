@@ -37,6 +37,7 @@
 - `proxy-groups` 与 `rules` 尾段当前也由 `render-config` 直接拼装，provider 存在与否会影响 `DIRECT` / `AUTO` 组形态
 - `BuildServiceUnit` 与 `BuildSysctl` 的输出当前也已被 focused tests 固定到当前真相
 - provider 的 `health-check` 默认段落、`AUTO` 组参数和 `rules` 渲染顺序当前也已被 focused tests 固定
+- provider 的命名、`ss` / `vmess` / `vless` / `trojan` 协议解析、`xhttp` / `grpc` / `ws` / `h2` / `httpupgrade` 网络分支当前也已被 focused tests 固定
 - 认证段落的省略条件、service unit 的 install/依赖/core bin 输出当前也已被 focused tests 固定
 - `DefaultPaths`、`EnsureLayout`、`RenderFiles`、`writeRules` 的当前输出与路径真相也已被 focused tests 固定
 - 顶层 `minimalist rules|acl|subscriptions|rules-repo ...` 当前都已直接分发到同一组底层 CLI helper
@@ -45,7 +46,9 @@
 
 - `import-links` 导入的是手动节点真相，默认 `disabled`
 - `subscriptions update` 拉取的是 provider 缓存真相，订阅节点只保留只读枚举
+- `render-config` 会把订阅缓存和手动节点分别渲染到不同 provider 文件；`manual.txt` 不包含订阅节点
 - provider 导入当前会按 `URIBaseKey` 去重，并为重名节点自动加后缀
+- provider 命名当前优先使用 URI fragment 或 `vmess.ps`，协议不支持时会落到保守回退命名
 - ACL / 自定义规则只允许指向手动节点与内置目标
 
 ## 辅助入口

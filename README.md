@@ -48,11 +48,14 @@ sudo /usr/local/bin/minimalist setup
 
 - 用户配置：`/etc/minimalist/config.yaml`
 - 程序状态：`/var/lib/minimalist/state.json`
+- 若配置缺失 `controller.secret`，当前会自动补齐默认值并回写配置文件
 - 运行产物：`/var/lib/minimalist/mihomo/`
   - `config.yaml`
-  - `proxy_providers/manual.txt`
+  - `proxy_providers/manual.txt`：仅包含启用的非订阅节点
   - `proxy_providers/subscriptions/*.txt`
   - `ruleset/*.rules`
+
+当前 provider 输入支持 `vless://`、`trojan://`、`ss://`、`vmess://`。
 
 ## 推荐使用顺序
 
@@ -63,6 +66,12 @@ sudo /usr/local/bin/minimalist setup
 5. `minimalist router-wizard`
 6. `minimalist healthcheck`
 7. `minimalist status`
+
+补充当前行为：
+
+- `subscriptions update` 更新的是订阅 provider 缓存；`render-config` 直接读取缓存生成订阅 provider
+- 即使当前没有手动节点或订阅 provider，`render-config` 仍会生成仅含 `DIRECT` 的 `PROXY` 组
+- provider 导入会按 `URIBaseKey` 去重，并为重名节点自动追加后缀
 
 ## 当前限制
 

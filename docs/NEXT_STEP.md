@@ -15,9 +15,9 @@
 
 ## 下一最小闭环
 
-- 继续为 `runtime` / `provider` 剩余 helper focused tests 做最小去重和命名收口
-- 为协议解析细节、规则渲染辅助函数补更多 focused assertions
-- 继续把 README / flows 文档收口到 `minimalist` 当前命令、secret 回写与回退行为真相
+- 为 `runtime` / `provider` 剩余真实 I/O 失败路径补 focused tests
+- 继续补贴近真实运行环境的 `render-config` / `setup` / `status` smoke 断言
+- 保持 README / flows / STATUS 只描述 `minimalist` 当前真相，不回退到旧 `mihomo` 叙述
 
 ## 本轮不做
 
