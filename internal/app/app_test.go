@@ -766,6 +766,45 @@ func TestSetupWithProvidersEnablesService(t *testing.T) {
 	}
 }
 
+func TestSetupPropagatesEnableFailureWhenProvidersReady(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			if name == "systemctl" && len(args) >= 2 && args[0] == "enable" {
+				return errors.New("enable failed")
+			}
+			if name == "iptables" {
+				for _, arg := range args {
+					if arg == "-C" || arg == "-S" {
+						return errors.New("missing")
+					}
+				}
+			}
+			if name == "ip" && len(args) >= 4 && args[0] == "-4" && args[1] == "rule" && args[2] == "del" {
+				return errors.New("missing")
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", nil
+		},
+	}
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#setup-node\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable node: %v", err)
+	}
+	err := app.Setup()
+	if err == nil || !strings.Contains(err.Error(), "enable failed") {
+		t.Fatalf("expected enable failure, got %v", err)
+	}
+	if strings.Contains(app.Stdout.(*bytes.Buffer).String(), "部署完成，服务已启用") {
+		t.Fatalf("did not expect success output on enable failure:\n%s", app.Stdout.(*bytes.Buffer).String())
+	}
+}
+
 func TestStartRendersConfigAndEnablesService(t *testing.T) {
 	app, _ := newTestApp(t)
 	var calls []commandCall

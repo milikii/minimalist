@@ -95,7 +95,9 @@ func (a *App) Setup() error {
 	_ = a.Runner.Run("systemctl", "daemon-reload")
 	hasProviders := a.hasReadyProviders(st)
 	if hasProviders {
-		_ = a.Runner.Run("systemctl", "enable", "--now", "minimalist.service")
+		if err := a.Runner.Run("systemctl", "enable", "--now", "minimalist.service"); err != nil {
+			return err
+		}
 		fmt.Fprintln(a.Stdout, "部署完成，服务已启用")
 	} else {
 		fmt.Fprintln(a.Stdout, "部署完成，请先 import-links 或 subscriptions update 后再启动服务")
