@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	yaml "gopkg.in/yaml.v2"
+
 	"minimalist/internal/state"
 )
 
@@ -351,5 +353,72 @@ func TestApplyNetworkFieldsCoversWSHTTPUpgradeH2AndTCPHeader(t *testing.T) {
 	})
 	if tcp.Header["type"] != "http" {
 		t.Fatalf("unexpected tcp header opts: %#v", tcp.Header)
+	}
+}
+
+func TestParseTrojanAndProviderItemPreserveTLSFields(t *testing.T) {
+	info, err := parseTrojan("trojan://secret@example.com:443?type=grpc&serviceName=svc&sni=edge.example.com&alpn=h2,http/1.1&fp=chrome&allowInsecure=yes")
+	if err != nil {
+		t.Fatalf("parse trojan: %v", err)
+	}
+	if info.Network != "grpc" || info.ServiceName != "svc" {
+		t.Fatalf("unexpected trojan network fields: %#v", info)
+	}
+	if info.ServerName != "edge.example.com" || info.Fingerprint != "chrome" {
+		t.Fatalf("unexpected trojan tls fields: %#v", info)
+	}
+	if info.SkipCertVerify == nil || !*info.SkipCertVerify {
+		t.Fatalf("expected trojan skip-cert-verify to be true: %#v", info)
+	}
+
+	itemAny, err := providerItemFromNode(state.Node{
+		Name: "trojan-grpc",
+		URI:  "trojan://secret@example.com:443?type=grpc&serviceName=svc&sni=edge.example.com&alpn=h2,http/1.1&fp=chrome&allowInsecure=yes",
+	})
+	if err != nil {
+		t.Fatalf("provider item from node: %v", err)
+	}
+	item, ok := itemAny.(trojanProvider)
+	if !ok {
+		t.Fatalf("expected trojan provider item, got %#v", itemAny)
+	}
+	if !item.TLS || item.GRPCOpts["grpc-service-name"] != "svc" {
+		t.Fatalf("unexpected trojan provider item: %#v", item)
+	}
+}
+
+func TestRenderProviderFiltersManualAndSubscriptionSources(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "provider.yaml")
+	nodes := []state.Node{
+		{
+			Name:    "manual-node",
+			Enabled: true,
+			URI:     "trojan://secret@example.com:443?security=tls#manual-node",
+			Source:  state.Source{Kind: "manual"},
+		},
+		{
+			Name:    "subscription-node",
+			Enabled: true,
+			URI:     "trojan://secret@subscription.example.com:443?security=tls#subscription-node",
+			Source:  state.Source{Kind: "subscription", ID: "sub-1"},
+		},
+	}
+	if err := RenderProvider(out, nodes, "", "subscription"); err != nil {
+		t.Fatalf("render provider: %v", err)
+	}
+	body, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("read provider: %v", err)
+	}
+	var file providerFile
+	if err := yaml.Unmarshal(body, &file); err != nil {
+		t.Fatalf("unmarshal provider yaml: %v", err)
+	}
+	if len(file.Proxies) != 1 {
+		t.Fatalf("expected only manual node after exclude filter, got %#v", file.Proxies)
+	}
+	rendered, ok := file.Proxies[0].(map[interface{}]interface{})
+	if !ok || rendered["name"] != "manual-node" {
+		t.Fatalf("unexpected rendered proxy: %#v", file.Proxies[0])
 	}
 }
