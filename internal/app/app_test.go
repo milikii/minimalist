@@ -2480,6 +2480,32 @@ func TestRenameNodeRejectsSubscriptionNode(t *testing.T) {
 	}
 }
 
+func TestRemoveNodeRejectsSubscriptionNode(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#sub-node\n"), nil
+		}),
+	}
+	if err := app.AddSubscription("remove-node-sub", "https://subscription.example.com/remove-node.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
+	}
+	err := app.RemoveNode(1)
+	if err == nil || !strings.Contains(err.Error(), "subscription node is provider-managed") {
+		t.Fatalf("expected provider-managed error, got %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Nodes) != 1 || st.Nodes[0].Source.Kind != "subscription" {
+		t.Fatalf("expected subscription node to remain, got %+v", st.Nodes)
+	}
+}
+
 func TestAddSubscriptionUpdatesExistingURLInPlace(t *testing.T) {
 	app, _ := newTestApp(t)
 	url := "https://subscription.example.com/shared.txt"

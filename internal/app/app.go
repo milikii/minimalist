@@ -504,6 +504,9 @@ func (a *App) RemoveNode(index int) error {
 	if index < 1 || index > len(st.Nodes) {
 		return errors.New("node index out of range")
 	}
+	if st.Nodes[index-1].Source.Kind == "subscription" {
+		return errors.New("subscription node is provider-managed")
+	}
 	st.Nodes = append(st.Nodes[:index-1], st.Nodes[index:]...)
 	return state.Save(a.Paths.StatePath(), st)
 }
