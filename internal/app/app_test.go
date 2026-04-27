@@ -137,6 +137,31 @@ func TestAppendIfMissingRuleAndTerminalHelpers(t *testing.T) {
 	}
 }
 
+func TestHasReadyProvidersAndHTTPClientFallback(t *testing.T) {
+	app, _ := newTestApp(t)
+	st := state.Empty()
+	if app.hasReadyProviders(st) {
+		t.Fatalf("expected no ready providers in empty state")
+	}
+	st.Subscriptions = []state.Subscription{{ID: "sub-1", Enabled: true}}
+	if app.hasReadyProviders(st) {
+		t.Fatalf("expected no ready providers without cache file")
+	}
+	if err := os.MkdirAll(app.Paths.SubscriptionDir(), 0o755); err != nil {
+		t.Fatalf("mkdir subscription dir: %v", err)
+	}
+	if err := os.WriteFile(app.Paths.SubscriptionFile("sub-1"), []byte("trojan://password@example.org:443\n"), 0o640); err != nil {
+		t.Fatalf("write subscription cache: %v", err)
+	}
+	if !app.hasReadyProviders(st) {
+		t.Fatalf("expected ready providers with subscription cache")
+	}
+	app.Client = nil
+	if client := app.httpClient(); client == nil {
+		t.Fatalf("expected fallback http client")
+	}
+}
+
 func (f fakeRunner) Run(name string, args ...string) error {
 	if f.runFn != nil {
 		return f.runFn(name, args...)
