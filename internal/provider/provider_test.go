@@ -483,6 +483,20 @@ func TestParseVlessCapturesRealityAndXHTTPDownloadSettings(t *testing.T) {
 	}
 }
 
+func TestParseVlessPreservesSkipCertVerifyAlias(t *testing.T) {
+	info, err := parseVless("vless://12345678-1234-1234-1234-1234567890ab@example.com:443?type=ws&host=cdn.example.com&path=%2Fws&skip-cert-verify=1")
+	if err != nil {
+		t.Fatalf("parse vless: %v", err)
+	}
+	if info.SkipCertVerify == nil || !*info.SkipCertVerify {
+		t.Fatalf("expected vless skip-cert-verify to be true: %#v", info)
+	}
+	item := buildVlessProvider("vless-ws", info)
+	if item.SkipCertVerify == nil || !*item.SkipCertVerify {
+		t.Fatalf("expected provider item to preserve skip-cert-verify: %#v", item)
+	}
+}
+
 func TestProviderHelpersCoverTypedValuesAndXHTTPDownloadAliases(t *testing.T) {
 	if anyString(float64(8443)) != "8443" || anyString(443) != "443" || anyString(nil) != "" {
 		t.Fatalf("unexpected anyString conversions")
