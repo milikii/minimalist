@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -108,8 +109,8 @@ func Default() Config {
 func Ensure(path string) (Config, error) {
 	cfg, err := Load(path)
 	if err == nil {
-		if cfg.Controller.Secret == "" {
-			cfg.Controller.Secret = randomSecret()
+		raw, readErr := os.ReadFile(path)
+		if readErr == nil && !strings.Contains(string(raw), "secret:") && cfg.Controller.Secret != "" {
 			if err := Save(path, cfg); err != nil {
 				return Config{}, err
 			}

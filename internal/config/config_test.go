@@ -1,7 +1,9 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -28,5 +30,27 @@ func TestEnsureAndLoadRoundTrip(t *testing.T) {
 	}
 	if loaded.Controller.Secret == "" {
 		t.Fatalf("secret should not be empty")
+	}
+}
+
+func TestEnsureBackfillsMissingSecret(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, []byte("version: 1\nprofile:\n  template: nas-single-lan-v4\n  mode: rule\n  rule_preset: default\ncontroller:\n  bind_address: 127.0.0.1\n"), 0o640); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	cfg, err := Ensure(path)
+	if err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	if cfg.Controller.Secret == "" {
+		t.Fatalf("expected generated secret")
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if !strings.Contains(string(raw), "secret:") {
+		t.Fatalf("expected secret to be persisted:\n%s", string(raw))
 	}
 }
