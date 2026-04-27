@@ -46,6 +46,7 @@
 - Go 版与旧 shell 版默认都会操作 `MIHOMO_*` 链名、`0x2333` mark 与 table `233`，所以未切换服务归属前运行 Go 版 `apply-rules` / `clear-rules` 会与现网旧服务争用同一组规则。
 - `cutover-preflight` 已在实机只读跑通，当前结果是 `cutover-ready=false`：旧 `mihomo.service` active/enabled，Go 版 `minimalist.service` / bin 尚未落地。
 - `setup` / `start` / `restart` / `apply-rules` / `clear-rules` 已接入执行前 cutover guard；旧 `mihomo.service` live 且 `minimalist.service` 未 active/enabled 时会返回 `cutover blocked`。当前实机 `setup` 已验证会阻断，且不会创建 `/etc/minimalist`、`/var/lib/minimalist`、`minimalist.service` 或 `/usr/local/bin/minimalist`。
+- `docs/CUTOVER.md` 已记录人工 cutover 与回滚步骤，当前不提供自动切换命令。
 
 ## 当前风险与限制
 

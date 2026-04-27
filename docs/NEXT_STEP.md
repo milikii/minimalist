@@ -9,11 +9,10 @@
 
 ## 下一最小闭环
 
-- 形成不自动执行的人工 cutover 步骤文档：
-  - 明确切换前检查：`cutover-preflight`、旧服务状态、当前规则状态、Go 版二进制安装状态
-  - 明确回滚点：旧 `mihomo.service`、`/etc/mihomo`、当前 `MIHOMO_*` 规则归属
-  - 明确切换顺序，但不自动停旧服务、不自动清规则
-  - 若后续要做命令化 cutover，先加 dry-run / plan 输出，不直接执行
+- 评估是否需要把 `docs/CUTOVER.md` 的人工步骤做成只读 `cutover-plan` 输出：
+  - 仅打印当前检查结果和下一步建议
+  - 不停旧服务、不启新服务、不清规则
+  - 若实现，需要 focused tests 覆盖 legacy live、legacy stopped、minimalist active 三类状态
 - 在确认迁移策略前，不对现网 `MIHOMO_*` 规则做清理或重写。
 - 若确认要切换到 Go 版，再做最小迁移闭环并重新跑 `setup` / `start` / `restart` / `apply-rules` / `clear-rules` 实机 smoke。
 - 保持 README / flows 描述 Go 版 `minimalist` 目标真相；STATUS / NEXT_STEP 只记录 live host 差异，不恢复旧 `mihomo` 作为项目目标。
@@ -30,4 +29,4 @@
 
 - README 与权威文档只描述 Go 版 `minimalist` 当前真相。
 - `go test ./...` 覆盖核心命令与系统编排关键路径。
-- Go 版高风险命令在 legacy live install 存在时已有 guard；下一步需要人工 cutover 步骤可验证、可回滚。
+- Go 版高风险命令在 legacy live install 存在时已有 guard，人工 cutover 步骤已文档化；下一步只允许只读 plan，不允许自动切换。

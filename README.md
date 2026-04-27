@@ -73,6 +73,7 @@ sudo /usr/local/bin/minimalist setup
 - `subscriptions update` 更新的是订阅 provider 缓存；`render-config` 直接读取缓存生成订阅 provider
 - 即使当前没有手动节点或订阅 provider，`render-config` 仍会生成仅含 `DIRECT` 的 `PROXY` 组
 - provider 导入会按 `URIBaseKey` 去重，并为重名节点自动追加后缀
+- 从旧 `mihomo.service` 切到 Go 版前，先按 `docs/CUTOVER.md` 做人工 cutover 检查与回滚准备
 
 ## 当前限制
 
