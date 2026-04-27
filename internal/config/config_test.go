@@ -56,6 +56,33 @@ func TestEnsureBackfillsMissingSecret(t *testing.T) {
 	}
 }
 
+func TestLoadBackfillsMissingSecretInMemoryWithoutPersisting(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	body := "version: 1\nprofile:\n  template: nas-single-lan-v4\n  mode: rule\n  rule_preset: default\ncontroller:\n  bind_address: 127.0.0.1\n"
+	if err := os.WriteFile(path, []byte(body), 0o640); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config before load: %v", err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.Controller.Secret == "" {
+		t.Fatalf("expected in-memory secret to be generated")
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config after load: %v", err)
+	}
+	if string(before) != string(after) {
+		t.Fatalf("expected load not to rewrite config file")
+	}
+}
+
 func TestEnsurePreservesExistingSecretWithoutRewriting(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
