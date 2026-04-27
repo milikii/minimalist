@@ -414,6 +414,37 @@ func TestUpdateSubscriptionsFailsWhenSubscriptionDirCannotBeCreated(t *testing.T
 	}
 }
 
+func TestRulesMenuAddsRuleAndPromptStringKeepsDefaultOnBlankInput(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#menu-rule-node\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable node: %v", err)
+	}
+
+	reader := bufio.NewReader(strings.NewReader("2\ndomain\nmenu.example.com\nAUTO\n"))
+	if err := app.rulesMenu(reader, false); err != nil {
+		t.Fatalf("rules menu add: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Rules) != 1 || st.Rules[0].Target != "AUTO" || st.Rules[0].Pattern != "menu.example.com" {
+		t.Fatalf("unexpected rule after menu add: %+v", st.Rules)
+	}
+
+	var out bytes.Buffer
+	if got := promptString(bufio.NewReader(strings.NewReader("\n")), &out, "index", "7"); got != "7" {
+		t.Fatalf("expected promptString to keep default, got %q", got)
+	}
+	if !strings.Contains(out.String(), "index [7]: ") {
+		t.Fatalf("unexpected prompt output: %q", out.String())
+	}
+}
+
 func TestSetupWithoutProvidersDoesNotEnableService(t *testing.T) {
 	app, _ := newTestApp(t)
 	var calls []commandCall
