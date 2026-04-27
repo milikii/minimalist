@@ -151,3 +151,34 @@ func TestURIHelpersExposeSchemeHostPortAndQuery(t *testing.T) {
 		t.Fatalf("expected fallback query field, got %q", fallback)
 	}
 }
+
+func TestParseSSSupportsBase64PrefixAndPluginOptions(t *testing.T) {
+	info, err := parseSS("ss://YWVzLTI1Ni1nY206c2VjcmV0@example.com:443?plugin=obfs-local%3Bobfs%3Dhttp%3Bobfs-host%3Dcdn.example%3Btls%3D1#mynode")
+	if err != nil {
+		t.Fatalf("parse ss: %v", err)
+	}
+	if info.Cipher != "aes-256-gcm" || info.Password != "secret" {
+		t.Fatalf("unexpected ss credentials: %#v", info)
+	}
+	if info.Server != "example.com" || info.Port != 443 {
+		t.Fatalf("unexpected ss endpoint: %#v", info)
+	}
+	if info.Plugin != "obfs-local" {
+		t.Fatalf("expected obfs-local plugin, got %#v", info.Plugin)
+	}
+	if got := info.PluginOpts["obfs"]; got != "http" {
+		t.Fatalf("expected obfs option, got %#v", got)
+	}
+	if got := info.PluginOpts["obfs-host"]; got != "cdn.example" {
+		t.Fatalf("expected obfs-host option, got %#v", got)
+	}
+	if got := info.PluginOpts["tls"]; got != true {
+		t.Fatalf("expected tls bool option, got %#v", got)
+	}
+}
+
+func TestDecodeSSAuthorityRejectsInvalidPayload(t *testing.T) {
+	if _, _, _, _, err := decodeSSAuthority("ss://not-valid"); err == nil {
+		t.Fatalf("expected invalid ss uri error")
+	}
+}
