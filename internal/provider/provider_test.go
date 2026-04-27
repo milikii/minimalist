@@ -471,3 +471,26 @@ func TestSecurityNameReflectsProtocolSpecificRules(t *testing.T) {
 		t.Fatalf("expected vmess tls security, got %q", got)
 	}
 }
+
+func TestParseVlessSupportsDashedDownloadSettingsKey(t *testing.T) {
+	extra := `{"download-settings":{"server":"download.example.com","port":8443,"security":"tls","serverName":"download-sni","fingerprint":"chrome","xhttpSettings":{"path":"/dl","host":"dl.example.com"}}}`
+	info, err := parseVless("vless://12345678-1234-1234-1234-1234567890ab@example.com:443?type=xhttp&extra=" + extra)
+	if err != nil {
+		t.Fatalf("parse vless: %v", err)
+	}
+	if info.DownloadSetting["server"] != "download.example.com" || info.DownloadSetting["port"] != 8443 {
+		t.Fatalf("unexpected dashed download settings: %#v", info.DownloadSetting)
+	}
+	if info.DownloadSetting["servername"] != "download-sni" || info.DownloadSetting["client-fingerprint"] != "chrome" {
+		t.Fatalf("unexpected dashed tls settings: %#v", info.DownloadSetting)
+	}
+}
+
+func TestParseURIInfoAndProviderItemRejectUnsupportedSchemes(t *testing.T) {
+	if _, err := parseURIInfo("socks5://proxy.example.com:1080"); err == nil {
+		t.Fatalf("expected unsupported scheme error")
+	}
+	if _, err := providerItemFromNode(state.Node{Name: "bad", URI: "socks5://proxy.example.com:1080"}); err == nil {
+		t.Fatalf("expected provider item error for unsupported scheme")
+	}
+}
