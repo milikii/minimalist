@@ -544,7 +544,13 @@ func (a *App) AddRule(acl bool, kind, pattern, target string) error {
 	if err != nil {
 		return err
 	}
-	rule := state.Rule{ID: newID(), Kind: normalizeRuleInput(kind), Pattern: pattern, Target: target}
+	normalizedKind := normalizeRuleInput(kind)
+	switch normalizedKind {
+	case "domain", "suffix", "keyword", "src-cidr", "ip-cidr", "port", "geoip", "geosite", "ruleset":
+	default:
+		return fmt.Errorf("unsupported rule kind: %s", normalizedKind)
+	}
+	rule := state.Rule{ID: newID(), Kind: normalizedKind, Pattern: pattern, Target: target}
 	if err := a.validateTargetValue(st, rule.Target); err != nil {
 		return err
 	}

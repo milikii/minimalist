@@ -2679,6 +2679,21 @@ func TestAddRuleRejectsAUTOWithoutEnabledManualNodes(t *testing.T) {
 	}
 }
 
+func TestAddRuleRejectsUnsupportedKindBeforePersisting(t *testing.T) {
+	app, _ := newTestApp(t)
+	err := app.AddRule(false, "custom-kind", "example.com", "DIRECT")
+	if err == nil || !strings.Contains(err.Error(), "unsupported rule kind: custom-kind") {
+		t.Fatalf("expected unsupported kind error, got %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Rules) != 0 || len(st.ACL) != 0 {
+		t.Fatalf("expected no invalid rules persisted, got rules=%+v acl=%+v", st.Rules, st.ACL)
+	}
+}
+
 func TestApplyRulesSkipsTransparentRulesForExplicitProxyOnlyConfig(t *testing.T) {
 	app, _ := newTestApp(t)
 	cfg, err := config.Ensure(app.Paths.ConfigPath())
