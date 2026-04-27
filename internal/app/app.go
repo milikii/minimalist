@@ -550,6 +550,9 @@ func (a *App) AddRule(acl bool, kind, pattern, target string) error {
 	default:
 		return fmt.Errorf("unsupported rule kind: %s", normalizedKind)
 	}
+	if strings.TrimSpace(pattern) == "" {
+		return errors.New("rule pattern is empty")
+	}
 	rule := state.Rule{ID: newID(), Kind: normalizedKind, Pattern: pattern, Target: target}
 	if err := a.validateTargetValue(st, rule.Target); err != nil {
 		return err

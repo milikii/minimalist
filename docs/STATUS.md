@@ -30,7 +30,7 @@
 
 - `go build` 已覆盖当前主入口。
 - `GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...` 作为当前全量回归入口。
-- 当前测试已经覆盖配置、状态、provider、rules-repo、runtime 渲染、核心 app 命令、CLI 分发、错误透传、路径阻塞、菜单/helper 边界与 system runner，并补上了 config/state/provider/system 的关键错误路径、missing-file 分支、订阅启停分流、订阅删除缓存清理失败、订阅节点 provider-managed 保护、手动节点删除前引用检查、规则输入 kind 校验、CLI/app 终端判断、runtime layout 阻塞、runtime rule read error、provider URI fallback、rules-repo 校验边界、controller body read error、`apply-rules` 的关键失败传播、provider 过滤边界，以及 config 随机 secret 回退与 state existing-state 复用。
+- 当前测试已经覆盖配置、状态、provider、rules-repo、runtime 渲染、核心 app 命令、CLI 分发、错误透传、路径阻塞、菜单/helper 边界与 system runner，并补上了 config/state/provider/system 的关键错误路径、missing-file 分支、订阅启停分流、订阅删除缓存清理失败、订阅节点 provider-managed 保护、手动节点删除前引用检查、规则输入 kind / pattern 校验、CLI/app 终端判断、runtime layout 阻塞、runtime rule read error、provider URI fallback、rules-repo 校验边界、controller body read error、`apply-rules` 的关键失败传播、provider 过滤边界，以及 config 随机 secret 回退与 state existing-state 复用。
 - 最近一轮补强重点继续收口在高风险路由编排边界：`ApplyRules` 现在对清理阶段的 jump 删除失败会直接返回，不再吞掉；仅显式代理分支的清理失败也已上浮；同时补了 chain flush、已有 jump、DNS hijack 和订阅文本 fallback 的 focused tests。
 
 ## 本机真实验证结论
@@ -48,7 +48,7 @@
 - `setup` / `start` / `restart` / `apply-rules` / `clear-rules` 已接入执行前 cutover guard；旧 `mihomo.service` live 且 `minimalist.service` 未 active/enabled 时会返回 `cutover blocked`。当前实机 `setup` 已验证会阻断，且不会创建 `/etc/minimalist`、`/var/lib/minimalist`、`minimalist.service` 或 `/usr/local/bin/minimalist`。
 - `docs/CUTOVER.md` 已记录人工 cutover 与回滚步骤，当前不提供自动切换命令。
 - `cutover-plan` 已实现并在实机只读跑通：当前输出 `legacy_live=true`、`minimalist_service_live=false`、`cutover_ready=false`、`next-action: prepare-minimalist-inputs`，且不会创建 Go 版目标文件。
-- 本轮验证结果：focused `go test ./internal/app -run 'Test(AddRuleRejectsUnsupportedKindBeforePersisting|AddRuleRejectsAUTOWithoutEnabledManualNodes|ListRulesAndRemoveRuleSupportACLAndMainRules|NormalizeRuleHelpersCoverExtendedKindsAndFallbacks)'` 与全量 `go test ./...` 通过。
+- 本轮验证结果：focused `go test ./internal/app -run 'Test(AddRuleRejectsEmptyPatternBeforePersisting|AddRuleRejectsUnsupportedKindBeforePersisting|AddRuleRejectsAUTOWithoutEnabledManualNodes|ListRulesAndRemoveRuleSupportACLAndMainRules)'` 与全量 `go test ./...` 通过。
 
 ## 当前风险与限制
 

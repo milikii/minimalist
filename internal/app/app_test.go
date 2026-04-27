@@ -2694,6 +2694,21 @@ func TestAddRuleRejectsUnsupportedKindBeforePersisting(t *testing.T) {
 	}
 }
 
+func TestAddRuleRejectsEmptyPatternBeforePersisting(t *testing.T) {
+	app, _ := newTestApp(t)
+	err := app.AddRule(false, "domain", "   ", "DIRECT")
+	if err == nil || !strings.Contains(err.Error(), "rule pattern is empty") {
+		t.Fatalf("expected empty pattern error, got %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Rules) != 0 || len(st.ACL) != 0 {
+		t.Fatalf("expected no empty-pattern rules persisted, got rules=%+v acl=%+v", st.Rules, st.ACL)
+	}
+}
+
 func TestApplyRulesSkipsTransparentRulesForExplicitProxyOnlyConfig(t *testing.T) {
 	app, _ := newTestApp(t)
 	cfg, err := config.Ensure(app.Paths.ConfigPath())

@@ -6,7 +6,7 @@
 - 单元与 focused 测试已经覆盖核心配置、状态、provider、rules-repo、runtime 渲染、app 命令编排、CLI 分发与多组失败路径。
 - 这台 Debian NAS 已经是可用实机：`systemd`、`iptables`、`ip rule` 都是真实可达的。
 - 现网仍在跑旧的 `mihomo.service`，而不是 `minimalist.service`，所以当前不是直接对 Go 版 `minimalist` 做收尾验收，而是先把 live install 归属理清。
-- 本轮已补上 `ApplyRules` 的 chain flush、已有 jump、DNS hijack、clear-rules 删除失败传播、仅显式代理分支清理失败传播、controller body read error、订阅删除缓存清理失败、订阅节点 provider-managed 保护、手动节点删除前引用检查、规则输入 kind 校验、runtime rule read error，以及 config/provider/runtime 的小边界测试；focused tests 与全量 `go test ./...` 已通过。
+- 本轮已补上 `ApplyRules` 的 chain flush、已有 jump、DNS hijack、clear-rules 删除失败传播、仅显式代理分支清理失败传播、controller body read error、订阅删除缓存清理失败、订阅节点 provider-managed 保护、手动节点删除前引用检查、规则输入 kind / pattern 校验、runtime rule read error，以及 config/provider/runtime 的小边界测试；focused tests 与全量 `go test ./...` 已通过。
 
 ## 下一最小闭环
 
