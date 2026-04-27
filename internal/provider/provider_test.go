@@ -292,3 +292,64 @@ func TestBuildVlessProviderIncludesXHTTPOptions(t *testing.T) {
 		t.Fatalf("unexpected xhttp download settings: %#v", item.XHTTPOpts)
 	}
 }
+
+func TestApplyNetworkFieldsCoversWSHTTPUpgradeH2AndTCPHeader(t *testing.T) {
+	ws := buildVlessProvider("ws-node", uriInfo{
+		Scheme:  "vless",
+		Server:  "example.com",
+		Port:    443,
+		UUID:    "12345678-1234-1234-1234-1234567890ab",
+		Network: "ws",
+		Path:    "/ws",
+		Host:    "cdn.example.com",
+	})
+	if ws.WSOpts["path"] != "/ws" {
+		t.Fatalf("expected ws path, got %#v", ws.WSOpts)
+	}
+	headers, ok := ws.WSOpts["headers"].(map[string]any)
+	if !ok || headers["Host"] != "cdn.example.com" {
+		t.Fatalf("expected ws host header, got %#v", ws.WSOpts)
+	}
+
+	upgrade := buildTrojanProvider("upgrade-node", uriInfo{
+		Scheme:     "trojan",
+		Server:     "example.com",
+		Port:       443,
+		Password:   "secret",
+		Network:    "httpupgrade",
+		Path:       "/up",
+		Host:       "upgrade.example.com",
+		ServerName: "upgrade.example.com",
+	})
+	if upgrade.HTTPUpgradeOpts["path"] != "/up" || upgrade.HTTPUpgradeOpts["host"] != "upgrade.example.com" {
+		t.Fatalf("unexpected httpupgrade opts: %#v", upgrade.HTTPUpgradeOpts)
+	}
+
+	h2 := buildVMessProvider("h2-node", uriInfo{
+		Scheme:  "vmess",
+		Server:  "example.com",
+		Port:    443,
+		UUID:    "12345678-1234-1234-1234-1234567890ab",
+		Network: "h2",
+		Path:    "/h2",
+		Host:    "h2.example.com",
+	})
+	if hosts, ok := h2.H2Opts["host"].([]string); !ok || len(hosts) != 1 || hosts[0] != "h2.example.com" {
+		t.Fatalf("unexpected h2 host opts: %#v", h2.H2Opts)
+	}
+	if h2.H2Opts["path"] != "/h2" {
+		t.Fatalf("unexpected h2 path opts: %#v", h2.H2Opts)
+	}
+
+	tcp := buildTrojanProvider("tcp-node", uriInfo{
+		Scheme:     "trojan",
+		Server:     "example.com",
+		Port:       443,
+		Password:   "secret",
+		Network:    "tcp",
+		HeaderType: "http",
+	})
+	if tcp.Header["type"] != "http" {
+		t.Fatalf("unexpected tcp header opts: %#v", tcp.Header)
+	}
+}
