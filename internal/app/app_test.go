@@ -839,6 +839,18 @@ func TestSetupPropagatesSysctlAndDaemonReloadFailures(t *testing.T) {
 	}
 }
 
+func TestReadImportInputReturnsAllLinesWhenNotTerminal(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#one\nsocks5://proxy.example.com:1080#two\n")
+	text, err := app.readImportInput()
+	if err != nil {
+		t.Fatalf("read import input: %v", err)
+	}
+	if text != "trojan://password@example.org:443?security=tls#one\nsocks5://proxy.example.com:1080#two" {
+		t.Fatalf("unexpected import input text: %q", text)
+	}
+}
+
 func TestStartRendersConfigAndEnablesService(t *testing.T) {
 	app, _ := newTestApp(t)
 	var calls []commandCall
