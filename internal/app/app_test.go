@@ -2494,6 +2494,25 @@ func TestRenameNodeRewritesRuleAndACLTargets(t *testing.T) {
 	}
 }
 
+func TestRenameNodeRejectsEmptyNameBeforePersisting(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#keep-name\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	err := app.RenameNode(1, "   ")
+	if err == nil || !strings.Contains(err.Error(), "node name is empty") {
+		t.Fatalf("expected empty node name error, got %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Nodes) != 1 || st.Nodes[0].Name != "keep-name" {
+		t.Fatalf("expected original node name to remain, got %+v", st.Nodes)
+	}
+}
+
 func TestRenameNodeRejectsSubscriptionNode(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Client = &http.Client{
