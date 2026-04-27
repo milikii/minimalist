@@ -162,6 +162,22 @@ func TestHasReadyProvidersAndHTTPClientFallback(t *testing.T) {
 	}
 }
 
+func TestRemoveCommandsRejectOutOfRangeIndexes(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.RemoveNode(1); err == nil || !strings.Contains(err.Error(), "node index out of range") {
+		t.Fatalf("expected node range error, got %v", err)
+	}
+	if err := app.RemoveRule(false, 1); err == nil || !strings.Contains(err.Error(), "rule index out of range") {
+		t.Fatalf("expected rule range error, got %v", err)
+	}
+	if err := app.RemoveRule(true, 1); err == nil || !strings.Contains(err.Error(), "rule index out of range") {
+		t.Fatalf("expected acl range error, got %v", err)
+	}
+	if err := app.RemoveSubscription(1); err == nil || !strings.Contains(err.Error(), "subscription index out of range") {
+		t.Fatalf("expected subscription range error, got %v", err)
+	}
+}
+
 func (f fakeRunner) Run(name string, args ...string) error {
 	if f.runFn != nil {
 		return f.runFn(name, args...)
