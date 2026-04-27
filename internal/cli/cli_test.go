@@ -1032,8 +1032,9 @@ func TestRunDispatchesSetupThroughRun(t *testing.T) {
 }
 
 func TestRunDispatchesClearRulesThroughRun(t *testing.T) {
-	setCLIPathsEnv(t)
-	err := Run([]string{"clear-rules"})
+	a, _ := newCLIApp(t)
+	a.Runner = system.CommandRunner(clearRulesSafeRunner{})
+	err := runWithApp([]string{"clear-rules"}, a, false)
 	if os.Geteuid() != 0 {
 		if err == nil || !strings.Contains(err.Error(), "请用 root 运行") {
 			t.Fatalf("expected root error, got %v", err)

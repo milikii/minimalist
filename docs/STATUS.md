@@ -31,7 +31,7 @@
 - `go build` 已覆盖当前主入口。
 - `GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...` 作为当前全量回归入口。
 - 当前测试已经覆盖配置、状态、provider、rules-repo、runtime 渲染、核心 app 命令、CLI 分发、错误透传、路径阻塞、菜单/helper 边界与 system runner，并补上了 config/state/provider/system 的关键错误路径、missing-file 分支、订阅输入空值保护、订阅启停分流、订阅删除缓存清理失败、订阅节点 provider-managed 保护、手动节点删除前引用检查、节点重命名空值保护、规则输入 kind / pattern 校验、CLI/app 终端判断、runtime layout 阻塞、runtime rule read error、provider URI fallback、rules-repo 校验边界、controller body read error、`apply-rules` 的关键失败传播、provider 过滤边界，以及 config 随机 secret 回退与 state existing-state 复用。
-- 最近一轮补强继续收口在 app 的失败路径和状态一致性：`setup` 现在区分空订阅缓存与可用 provider；`status` 只把启用且非空缓存算作 ready；`runtime-audit` 在 `journalctl` 失败时保持本地摘要；订阅更新失败会保留上次成功状态；订阅删除在缓存清理失败时保持订阅与节点真相；`apply-rules` 已覆盖 DNS redirect 和 OUTPUT jump 的失败传播；`cutover-plan`、显式代理清理路径、provider 订阅解析和 config 缺省 secret 的只读边界仍保持既有覆盖。
+- 最近一轮补强继续收口在 app / runtime / provider / rules-repo 的失败路径和状态一致性：`menu` 不再静默吞掉子命令错误；`deleteIPRule` 先通过 `ip rule show` 确认可删规则，并把 `ip rule` 异常上浮到 `apply-rules` / `clear-rules`；`rules-repo` 初始化会拒绝被目录占用的 `manifest.yaml`；`status` 覆盖控制面坏 JSON 回退；订阅输入空值、重复 URL 更新、节点重命名 provider-managed 保护、无 provider 的 `render-config` 输出、provider xhttp/reality 辅助解析，以及 CLI 高风险命令 fake runner 分发边界均已有 focused tests。
 
 ## 本机真实验证结论
 
@@ -48,7 +48,7 @@
 - `setup` / `start` / `restart` / `apply-rules` / `clear-rules` 已接入执行前 cutover guard；旧 `mihomo.service` live 且 `minimalist.service` 未 active/enabled 时会返回 `cutover blocked`。当前实机 `setup` 已验证会阻断，且不会创建 `/etc/minimalist`、`/var/lib/minimalist`、`minimalist.service` 或 `/usr/local/bin/minimalist`。
 - `docs/CUTOVER.md` 已记录人工 cutover 与回滚步骤，当前不提供自动切换命令。
 - `cutover-plan` 已实现并在实机只读跑通：当前输出 `legacy_live=true`、`minimalist_service_live=false`、`cutover_ready=false`、`next-action: prepare-minimalist-inputs`，且不会创建 Go 版目标文件。
-- 本轮最终验证结果：`go test ./...`、`go test -cover ./...`、`go build -o /tmp/minimalist-build-check ./cmd/minimalist` 全部通过。
+- 本轮最终验证结果：`GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...`、`GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test -cover ./...`、`GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go build -o /tmp/minimalist-build-check ./cmd/minimalist` 全部通过。
 
 ## 当前风险与限制
 

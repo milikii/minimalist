@@ -32,8 +32,14 @@ type Ruleset struct {
 var domainPattern = regexp.MustCompile(`^[A-Za-z0-9._*-]+$`)
 
 func InitDefaultRepo(targetRoot string) error {
-	if _, err := os.Stat(filepath.Join(targetRoot, "manifest.yaml")); err == nil {
+	manifest := filepath.Join(targetRoot, "manifest.yaml")
+	if info, err := os.Stat(manifest); err == nil {
+		if info.IsDir() {
+			return fmt.Errorf("manifest path is directory: %s", manifest)
+		}
 		return nil
+	} else if !os.IsNotExist(err) {
+		return err
 	}
 	entries, err := embedded.ReadDir("assets/default")
 	if err != nil {

@@ -402,6 +402,11 @@ func (a *App) RouterWizard() error {
 
 func (a *App) Menu() error {
 	reader := bufio.NewReader(a.Stdin)
+	report := func(err error) {
+		if err != nil {
+			fmt.Fprintln(a.Stderr, err)
+		}
+	}
 	for {
 		fmt.Fprintln(a.Stdout, "1) 状态")
 		fmt.Fprintln(a.Stdout, "2) 部署/修复")
@@ -417,23 +422,23 @@ func (a *App) Menu() error {
 		line, _ := reader.ReadString('\n')
 		switch strings.TrimSpace(line) {
 		case "1":
-			_ = a.Status()
+			report(a.Status())
 		case "2":
-			_ = a.Setup()
+			report(a.Setup())
 		case "3":
-			_ = a.ImportLinks()
+			report(a.ImportLinks())
 		case "4":
-			_ = a.subscriptionsMenu(reader)
+			report(a.subscriptionsMenu(reader))
 		case "5":
-			_ = a.RouterWizard()
+			report(a.RouterWizard())
 		case "6":
-			_ = a.Healthcheck()
+			report(a.Healthcheck())
 		case "7":
-			_ = a.RuntimeAudit()
+			report(a.RuntimeAudit())
 		case "8":
-			_ = a.rulesMenu(reader, false)
+			report(a.rulesMenu(reader, false))
 		case "9":
-			_ = a.rulesMenu(reader, true)
+			report(a.rulesMenu(reader, true))
 		case "0":
 			return nil
 		default:
@@ -951,7 +956,9 @@ func (a *App) ApplyRules() error {
 			return err
 		}
 	}
-	_ = a.deleteIPRule(routeTable, priority)
+	if err := a.deleteIPRule(routeTable, priority); err != nil {
+		return err
+	}
 	if err := a.Runner.Run("ip", "-4", "route", "replace", "local", "0.0.0.0/0", "dev", "lo", "table", routeTable); err != nil {
 		return err
 	}
@@ -997,7 +1004,9 @@ func (a *App) ClearRules() error {
 		_ = a.ipt(item.table, "-F", item.chain)
 		_ = a.ipt(item.table, "-X", item.chain)
 	}
-	_ = a.deleteIPRule("233", "100")
+	if err := a.deleteIPRule("233", "100"); err != nil {
+		return err
+	}
 	_ = a.Runner.Run("ip", "-4", "route", "flush", "table", "233")
 	return nil
 }
@@ -1269,11 +1278,32 @@ func (a *App) deleteJump(table, chain string, rule ...string) error {
 
 func (a *App) deleteIPRule(routeTable, priority string) error {
 	for {
-		err := a.Runner.Run("ip", "-4", "rule", "del", "fwmark", "9011", "table", routeTable, "priority", priority)
+		stdout, _, err := a.Runner.Output("ip", "-4", "rule", "show")
 		if err != nil {
+			return err
+		}
+		if !ipRulePresent(stdout, routeTable, priority) {
 			return nil
 		}
+		if err := a.Runner.Run("ip", "-4", "rule", "del", "fwmark", "9011", "table", routeTable, "priority", priority); err != nil {
+			return err
+		}
 	}
+}
+
+func ipRulePresent(output, routeTable, priority string) bool {
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, priority+":") {
+			continue
+		}
+		hasMark := strings.Contains(line, "fwmark 0x2333") || strings.Contains(line, "fwmark 9011")
+		hasTable := strings.Contains(line, "lookup "+routeTable) || strings.Contains(line, "table "+routeTable)
+		if hasMark && hasTable {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *App) containerBypassIPs(names []string) []string {

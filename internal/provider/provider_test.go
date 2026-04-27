@@ -483,6 +483,65 @@ func TestParseVlessCapturesRealityAndXHTTPDownloadSettings(t *testing.T) {
 	}
 }
 
+func TestProviderHelpersCoverTypedValuesAndXHTTPDownloadAliases(t *testing.T) {
+	if anyString(float64(8443)) != "8443" || anyString(443) != "443" || anyString(nil) != "" {
+		t.Fatalf("unexpected anyString conversions")
+	}
+	if intFromAny(8080) != 8080 || intFromAny(float64(8443)) != 8443 || intFromAny("443") != 443 || intFromAny("bad") != 0 {
+		t.Fatalf("unexpected intFromAny conversions")
+	}
+	if firstNonEmpty("", "", "fallback") != "fallback" {
+		t.Fatalf("expected first non-empty value")
+	}
+	if got := xhttpDownloadSettings(map[string]any{}); got != nil {
+		t.Fatalf("expected empty xhttp download settings to stay nil, got %#v", got)
+	}
+
+	settings := xhttpDownloadSettings(map[string]any{
+		"server":   "download.example.com",
+		"port":     float64(8443),
+		"security": "reality",
+		"xhttpSettings": map[string]any{
+			"path": "/dl",
+			"host": "dl.example.com",
+			"mode": "packet-up",
+		},
+		"realitySettings": map[string]any{
+			"public-key": "pub",
+			"short-id":   "sid",
+			"spider-x":   "/spider",
+			"sni":        "reality.example.com",
+			"fp":         "firefox",
+		},
+	})
+	for key, want := range map[string]any{
+		"path":               "/dl",
+		"host":               "dl.example.com",
+		"mode":               "packet-up",
+		"server":             "download.example.com",
+		"port":               8443,
+		"tls":                true,
+		"servername":         "reality.example.com",
+		"client-fingerprint": "firefox",
+	} {
+		if settings[key] != want {
+			t.Fatalf("expected %s=%#v, got %#v in %#v", key, want, settings[key], settings)
+		}
+	}
+	reality, ok := settings["reality-opts"].(map[string]any)
+	if !ok || reality["public-key"] != "pub" || reality["short-id"] != "sid" || reality["spider-x"] != "/spider" {
+		t.Fatalf("unexpected reality opts: %#v", settings)
+	}
+
+	plugin, opts := parseSSPlugin("obfs-local; mux = true ; no-value ; host = cdn.example")
+	if plugin != "obfs-local" || opts["mux"] != true || opts["host"] != "cdn.example" {
+		t.Fatalf("unexpected ss plugin opts: plugin=%q opts=%#v", plugin, opts)
+	}
+	if _, ok := opts["no-value"]; ok {
+		t.Fatalf("did not expect no-value option to be recorded: %#v", opts)
+	}
+}
+
 func TestBuildVlessProviderIncludesXHTTPOptions(t *testing.T) {
 	info := uriInfo{
 		Scheme:  "vless",

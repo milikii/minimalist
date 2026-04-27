@@ -6,7 +6,7 @@
 - 单元与 focused 测试已经覆盖核心配置、状态、provider、rules-repo、runtime 渲染、app 命令编排、CLI 分发与多组失败路径。
 - 这台 Debian NAS 已经是可用实机：`systemd`、`iptables`、`ip rule` 都是真实可达的。
 - 现网仍在跑旧的 `mihomo.service`，而不是 `minimalist.service`，所以当前不是直接对 Go 版 `minimalist` 做收尾验收，而是先把 live install 归属理清。
-- 本轮继续补上 app failure-path 与状态一致性边界：空订阅缓存不会让 `setup` 启服务；订阅节点不能成为手动规则目标；持久化的订阅节点目标会被 `render-config` 阻断；`status` ready 订阅计数只接受启用且非空缓存；`runtime-audit` 可在 `journalctl` 失败时保持本地摘要；订阅更新/删除失败不会破坏上次成功状态；`apply-rules` 覆盖 DNS redirect 和 OUTPUT jump 失败传播。focused tests、全量 `go test ./...`、`go test -cover ./...` 和 build 已通过。
+- 本轮继续补上 app / runtime / provider / rules-repo 的失败路径与状态一致性边界：`menu` 不再静默吞掉错误；`deleteIPRule` 先检查现存规则并把异常上浮到 `apply-rules` / `clear-rules`；`status` 覆盖控制面坏 JSON 回退；订阅空值、重复 URL、节点重命名 provider-managed 保护、无 provider 的 `render-config`、provider xhttp/reality 辅助解析、rules-repo `manifest.yaml` 目录占用都已有 focused tests。全量 `go test ./...`、`go test -cover ./...` 和 build 已通过。
 
 ## 下一最小闭环
 

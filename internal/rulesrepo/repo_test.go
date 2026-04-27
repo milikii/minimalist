@@ -206,6 +206,16 @@ func TestInitDefaultRepoReturnsErrorWhenTargetRootIsFile(t *testing.T) {
 	}
 }
 
+func TestInitDefaultRepoReturnsErrorWhenManifestPathIsDirectory(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "manifest.yaml"), 0o755); err != nil {
+		t.Fatalf("mkdir blocking manifest path: %v", err)
+	}
+	if err := InitDefaultRepo(root); err == nil || !strings.Contains(err.Error(), "manifest path is directory") {
+		t.Fatalf("expected manifest path error, got %v", err)
+	}
+}
+
 func TestValidateEntrySupportsKnownRuleTypes(t *testing.T) {
 	for _, tc := range []struct {
 		name     string

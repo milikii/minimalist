@@ -255,6 +255,54 @@ func TestRenderFilesWritesAllRuntimeArtifacts(t *testing.T) {
 	}
 }
 
+func TestRenderFilesWritesDirectOnlyRuntimeConfigWithoutActiveProviders(t *testing.T) {
+	paths := Paths{
+		ConfigDir:   filepath.Join(t.TempDir(), "etc"),
+		DataDir:     filepath.Join(t.TempDir(), "var"),
+		RuntimeDir:  filepath.Join(t.TempDir(), "runtime"),
+		InstallDir:  filepath.Join(t.TempDir(), "install"),
+		BinPath:     filepath.Join(t.TempDir(), "bin", "minimalist"),
+		ServiceUnit: filepath.Join(t.TempDir(), "systemd", "minimalist.service"),
+		SysctlPath:  filepath.Join(t.TempDir(), "sysctl", "99-minimalist-router.conf"),
+	}
+	if err := rulesrepo.InitDefaultRepo(filepath.Dir(paths.RulesRepoPath())); err != nil {
+		t.Fatalf("init rules repo: %v", err)
+	}
+	cfg := config.Default()
+	cfg.Controller.CORSAllowOrigins = []string{"https://panel.example"}
+	cfg.Controller.CORSAllowPrivateNetwork = true
+	cfg.Access.Authentication = []string{"user:pass"}
+	cfg.Access.SkipAuthPrefixes = []string{"192.168.2."}
+	if err := RenderFiles(paths, cfg, state.Empty()); err != nil {
+		t.Fatalf("render files: %v", err)
+	}
+	body, err := os.ReadFile(paths.RuntimeConfig())
+	if err != nil {
+		t.Fatalf("read runtime config: %v", err)
+	}
+	text := string(body)
+	for _, needle := range []string{
+		"proxy-groups:\n  - name: \"PROXY\"\n    type: select\n    proxies:\n      - DIRECT\n",
+		"external-controller-cors:",
+		"authentication:",
+		"skip-auth-prefixes:",
+	} {
+		if !strings.Contains(text, needle) {
+			t.Fatalf("missing %q in runtime config:\n%s", needle, text)
+		}
+	}
+	if strings.Contains(text, "- name: \"AUTO\"") || strings.Contains(text, "proxy-providers:") {
+		t.Fatalf("did not expect active provider sections:\n%s", text)
+	}
+	manualBody, err := os.ReadFile(paths.ManualProvider())
+	if err != nil {
+		t.Fatalf("read manual provider: %v", err)
+	}
+	if !strings.Contains(string(manualBody), "proxies: []") {
+		t.Fatalf("expected empty manual provider:\n%s", string(manualBody))
+	}
+}
+
 func TestRenderFilesReturnsErrorForInvalidRulesRepo(t *testing.T) {
 	root := t.TempDir()
 	paths := Paths{

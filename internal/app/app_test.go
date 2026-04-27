@@ -1187,6 +1187,29 @@ func TestNodeMutationCommandsRejectOutOfRangeIndexes(t *testing.T) {
 	}
 }
 
+func TestRenameNodeRejectsEmptyNamesAndSubscriptionNodes(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.RenameNode(1, "   "); err == nil || !strings.Contains(err.Error(), "node name is empty") {
+		t.Fatalf("expected empty rename error, got %v", err)
+	}
+
+	app, _ = newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#sub-rename\n"), nil
+		}),
+	}
+	if err := app.AddSubscription("rename-sub", "https://subscription.example.com/rename.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.UpdateSubscriptions(); err != nil {
+		t.Fatalf("update subscriptions: %v", err)
+	}
+	if err := app.RenameNode(1, "manual-name"); err == nil || !strings.Contains(err.Error(), "subscription node is provider-managed") {
+		t.Fatalf("expected subscription rename guard, got %v", err)
+	}
+}
+
 func TestSetSubscriptionEnabledKeepsNodesWhenEnablingAndRejectsOutOfRange(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Client = &http.Client{
@@ -1212,6 +1235,32 @@ func TestSetSubscriptionEnabledKeepsNodesWhenEnablingAndRejectsOutOfRange(t *tes
 	}
 	if err := app.SetSubscriptionEnabled(2, true); err == nil || !strings.Contains(err.Error(), "subscription index out of range") {
 		t.Fatalf("expected subscription range error, got %v", err)
+	}
+}
+
+func TestAddSubscriptionRejectsEmptyInputsAndUpdatesExistingURL(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("", "https://subscription.example.com/sub.txt", true); err == nil || !strings.Contains(err.Error(), "subscription name is empty") {
+		t.Fatalf("expected empty name error, got %v", err)
+	}
+	if err := app.AddSubscription("demo", "   ", true); err == nil || !strings.Contains(err.Error(), "subscription url is empty") {
+		t.Fatalf("expected empty url error, got %v", err)
+	}
+	if err := app.AddSubscription("first", "https://subscription.example.com/sub.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.AddSubscription("second", "https://subscription.example.com/sub.txt", false); err != nil {
+		t.Fatalf("update existing subscription: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Subscriptions) != 1 {
+		t.Fatalf("expected one subscription after dedupe, got %+v", st.Subscriptions)
+	}
+	if st.Subscriptions[0].Name != "second" || st.Subscriptions[0].Enabled {
+		t.Fatalf("expected existing subscription to be updated, got %+v", st.Subscriptions[0])
 	}
 }
 
@@ -1266,22 +1315,40 @@ func TestDeleteIPRuleRetriesUntilRuleIsMissing(t *testing.T) {
 			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
 			if name == "ip" && len(args) >= 9 && args[0] == "-4" && args[1] == "rule" && args[2] == "del" {
 				hits++
-				if hits == 1 {
-					return nil
-				}
-				return errors.New("missing")
+				return nil
 			}
 			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			if name == "ip" && len(args) >= 3 && args[0] == "-4" && args[1] == "rule" && args[2] == "show" {
+				if hits == 0 {
+					return "100: from all fwmark 0x2333 lookup 233\n", "", nil
+				}
+				return "", "", nil
+			}
+			return "", "", nil
 		},
 	}
 	if err := app.deleteIPRule("233", "100"); err != nil {
 		t.Fatalf("delete ip rule: %v", err)
 	}
-	if hits != 2 {
+	if hits != 1 {
 		t.Fatalf("expected delete loop to stop after missing rule, hits=%d calls=%#v", hits, calls)
 	}
 	if !hasRecordedCall(calls, "ip", "-4", "rule", "del", "fwmark", "9011", "table", "233", "priority", "100") {
 		t.Fatalf("expected ip rule delete call, calls=%#v", calls)
+	}
+}
+
+func TestDeleteIPRuleReturnsShowError(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Runner = fakeRunner{
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", errors.New("show failed")
+		},
+	}
+	if err := app.deleteIPRule("233", "100"); err == nil || !strings.Contains(err.Error(), "show failed") {
+		t.Fatalf("expected show error, got %v", err)
 	}
 }
 
@@ -1993,6 +2060,24 @@ func TestStatusPrefersRuntimeModeWhenControllerConfigResponds(t *testing.T) {
 	}
 	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "当前模式: global (runtime)") {
 		t.Fatalf("expected runtime mode in status output:\n%s", app.Stdout.(*bytes.Buffer).String())
+	}
+}
+
+func TestStatusFallsBackToConfigModeWhenControllerConfigIsInvalidJSON(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path != "/configs" {
+				t.Fatalf("unexpected request path: %s", req.URL.Path)
+			}
+			return textResponse(http.StatusOK, "{"), nil
+		}),
+	}
+	if err := app.Status(); err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "当前模式: rule (config)") {
+		t.Fatalf("expected config mode fallback for invalid json:\n%s", app.Stdout.(*bytes.Buffer).String())
 	}
 }
 
@@ -3715,6 +3800,36 @@ func TestMenuShowsInvalidSelectionThenExit(t *testing.T) {
 	}
 	if strings.Count(output, "0) 退出") < 2 {
 		t.Fatalf("expected menu to render twice:\n%s", output)
+	}
+}
+
+func TestMenuReportsActionErrorsToStderr(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 0 }
+	defer func() { geteuid = oldGeteuid }()
+
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			if name == "systemctl" && len(args) >= 2 && args[0] == "enable" {
+				return errors.New("enable failed")
+			}
+			return nil
+		},
+	}
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#menu-error-node\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable node: %v", err)
+	}
+	app.Stdin = strings.NewReader("2\n0\n")
+	if err := app.Menu(); err != nil {
+		t.Fatalf("menu: %v", err)
+	}
+	if !strings.Contains(app.Stderr.(*bytes.Buffer).String(), "enable failed") {
+		t.Fatalf("expected menu to report action error, stderr=%q", app.Stderr.(*bytes.Buffer).String())
 	}
 }
 
