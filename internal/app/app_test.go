@@ -684,6 +684,35 @@ func TestListSubscriptionsAndMenuViewPrintCurrentState(t *testing.T) {
 	}
 }
 
+func TestSubscriptionsMenuUpdateRefreshesEnabledSubscriptions(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("menu-update", "https://subscription.example.com/menu.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() != "https://subscription.example.com/menu.txt" {
+				t.Fatalf("unexpected subscription fetch: %s", req.URL.String())
+			}
+			return textResponse(http.StatusOK, "trojan://password@example.org:443?security=tls#menu-sub-node\n"), nil
+		}),
+	}
+	app.Stdin = strings.NewReader("2\n")
+	if err := app.subscriptionsMenu(bufio.NewReader(app.Stdin)); err != nil {
+		t.Fatalf("subscriptions menu update: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if st.Subscriptions[0].Enumeration.LastCount != 1 || st.Subscriptions[0].Cache.LastSuccessAt == "" {
+		t.Fatalf("expected subscription update state, got %+v", st.Subscriptions[0])
+	}
+	if len(st.Nodes) != 1 || st.Nodes[0].Name != "menu-sub-node" {
+		t.Fatalf("expected subscription node from menu update, got %+v", st.Nodes)
+	}
+}
+
 func TestRulesRepoCommandsExposeAndMutateRepoState(t *testing.T) {
 	app, _ := newTestApp(t)
 	if err := app.RulesRepoAdd("fcm-site", "codex.example.com"); err != nil {
