@@ -35,15 +35,16 @@
 
 ## 本机真实验证结论
 
-- 本机当前用户是 `root`。
-- 使用临时路径隔离环境后，`import-links`、`nodes enable`、`render-config` 均已实际跑通，并生成了 runtime 产物。
-- `setup`、`start`、`restart` 已实际触达 `systemctl`，但当前宿主机无法连接 system scope bus，不能视为 systemd 实机通过。
-- `apply-rules` 已实际触达 `iptables`，但当前宿主机缺少可用的 nft/netlink 权限，返回 `Operation not permitted`，不能视为透明路由实机通过。
-- `clear-rules` 命令返回成功，但由于当前宿主机同样不允许读取/操作 `iptables`，只能说明命令未崩溃，不能证明规则真实清理完成。
+- 这台 Debian NAS 本身就是实机环境，`systemd` 可达，但当前 `systemd is-system-running` 结果是 `degraded`。
+- 当前真正运行的是旧的 `mihomo.service`，不是 `minimalist.service`。它已 `enabled` 且 `active`，`ExecStart=/usr/local/bin/mihomo-core -d /etc/mihomo`，并通过 `ExecStartPre=/usr/local/bin/mihomo apply-rules`、`ExecStopPost=/usr/local/bin/mihomo clear-rules` 管理规则。
+- 这台机子上 `/usr/local/bin/minimalist`、`/etc/minimalist`、`/var/lib/minimalist` 目前都不存在，`minimalist.service` 也不存在。
+- 现网 `iptables` / `ip rule` 已有真实的 MIHOMO 透明代理状态：`MIHOMO_PRE`、`MIHOMO_PRE_HANDLE`、`MIHOMO_OUT`、`MIHOMO_DNS` 都在，`fwmark 0x2333 lookup 233` 规则和 table `233` 也都在。
+- 之前那轮“系统调用不可用”的判断只代表 Codex 沙箱限制，不代表这台 NAS 的真实宿主机状态。
 
 ## 当前风险与限制
 
-- root 权限本身不足以完成网络栈 smoke；仍需要具备 `CAP_NET_ADMIN` / 可用 `iptables` / 可用 `ip rule` 的目标主机。
-- `setup` / `start` / `restart` 的完整实机验证需要 systemd 正常运行的目标主机。
+- 这台 NAS 现在跑的是 legacy `mihomo.service`，不能直接当作 `minimalist.service` 的验收环境。
+- 在未确认迁移策略前，不要清理或重写现网 `MIHOMO_*` 规则，以免打断正在运行的透明代理。
+- 后续如果要验收 Go 版 `minimalist`，需要先把 live install 从 `/etc/mihomo` / `mihomo.service` 迁到 `/etc/minimalist` / `minimalist.service`。
 - 旧版本 `settings.env` / `router.env` / `state/*.json` 不兼容，不做迁移。
 - 不恢复 `alpha/stable` 核心通道切换、core 回滚、自动同步安装目录、自定义更新/重启定时器和 `external-controller-tls`。
