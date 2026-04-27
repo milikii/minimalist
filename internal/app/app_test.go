@@ -2567,6 +2567,51 @@ func TestRemoveSubscriptionDeletesCacheAndNodes(t *testing.T) {
 	}
 }
 
+func TestRemoveSubscriptionIgnoresMissingCache(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("missing-cache", "https://subscription.example.com/missing.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.RemoveSubscription(1); err != nil {
+		t.Fatalf("remove subscription with missing cache: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Subscriptions) != 0 {
+		t.Fatalf("expected subscription removed, got %+v", st.Subscriptions)
+	}
+}
+
+func TestRemoveSubscriptionReturnsCacheRemovalFailure(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("remove-fail", "https://subscription.example.com/remove-fail.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if err := os.MkdirAll(app.Paths.SubscriptionFile(st.Subscriptions[0].ID), 0o755); err != nil {
+		t.Fatalf("mkdir blocking cache path: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(app.Paths.SubscriptionFile(st.Subscriptions[0].ID), "keep"), []byte("blocked"), 0o640); err != nil {
+		t.Fatalf("write blocking cache child: %v", err)
+	}
+	err = app.RemoveSubscription(1)
+	if err == nil || !strings.Contains(err.Error(), "directory not empty") {
+		t.Fatalf("expected cache removal failure, got %v", err)
+	}
+	st, err = state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("reload state: %v", err)
+	}
+	if len(st.Subscriptions) != 1 {
+		t.Fatalf("expected subscription to remain after cache removal failure, got %+v", st.Subscriptions)
+	}
+}
+
 func TestAddRuleRejectsAUTOWithoutEnabledManualNodes(t *testing.T) {
 	app, _ := newTestApp(t)
 	err := app.AddRule(false, "domain", "example.com", "AUTO")

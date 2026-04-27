@@ -629,7 +629,9 @@ func (a *App) RemoveSubscription(index int) error {
 	sub := st.Subscriptions[index-1]
 	st.Subscriptions = append(st.Subscriptions[:index-1], st.Subscriptions[index:]...)
 	st.Nodes = purgeSubscriptionNodes(st.Nodes, sub.ID)
-	_ = os.Remove(a.Paths.SubscriptionFile(sub.ID))
+	if err := os.Remove(a.Paths.SubscriptionFile(sub.ID)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	return state.Save(a.Paths.StatePath(), st)
 }
 
