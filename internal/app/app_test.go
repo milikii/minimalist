@@ -1182,6 +1182,16 @@ func TestSetupPropagatesSysctlAndDaemonReloadFailures(t *testing.T) {
 	}
 }
 
+func TestSetupSurfaceEnsureAllFailureWhenRuntimeLayoutBlocked(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := os.WriteFile(app.Paths.RuntimeDir, []byte("blocked"), 0o640); err != nil {
+		t.Fatalf("write blocking runtime dir: %v", err)
+	}
+	if err := app.Setup(); err == nil {
+		t.Fatalf("expected setup to fail when runtime layout is blocked")
+	}
+}
+
 func TestReadImportInputReturnsAllLinesWhenNotTerminal(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#one\nsocks5://proxy.example.com:1080#two\n")

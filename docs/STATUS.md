@@ -66,6 +66,7 @@
   - `internal/app` `promptList` / `promptBool` / `normalizeRuleInput` / `normalizeRuleKind` helper 扩展映射与显式输入分支
   - `internal/app` `ApplyRules` 无启用手动节点、DNS/OUTPUT 关闭时的跳转省略 smoke
   - `internal/app` `RulesRepoAdd` / `RulesRepoRemove` / `RulesRepoRemoveIndex` 的成功与早失败分支
+  - `internal/app` `Setup` runtime layout 阻塞的早失败分支
   - `internal/rulesrepo` `Describe` / `ListEntries` / `DescribeRuleset` / `RemoveEntry` / `ValidateEntry` 的成功路径与 `InitDefaultRepo` 幂等分支
 
 ## 质量状态

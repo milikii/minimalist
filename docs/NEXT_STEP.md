@@ -23,6 +23,7 @@
   - `Setup` 基于 subscription cache 启服务、`Status` active+manual node 统计
   - `ApplyRules` 无启用手动节点、DNS/OUTPUT 关闭时的跳转省略 smoke
   - `RulesRepoAdd` / `RulesRepoRemove` / `RulesRepoRemoveIndex` 的成功与早失败分支
+  - `Setup` runtime layout 阻塞的早失败分支
   - `rules-repo add/remove/remove-index` 的 `Run` 成功分发
   - `apply-rules` 的 `Run` 成功分发
   - `render-config` 的 `Run` 成功分发
