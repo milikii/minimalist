@@ -275,6 +275,28 @@ func TestSearchReportsZeroMatchesWithTrimmedKeyword(t *testing.T) {
 	}
 }
 
+func TestRenderDeduplicatesAcrossRulesetsAndNormalizesManifestCase(t *testing.T) {
+	dir := t.TempDir()
+	manifest := filepath.Join(dir, "manifest.yaml")
+	if err := os.WriteFile(manifest, []byte("rulesets:\n  - name: first\n    category: demo\n    type: DOMAIN_SUFFIX\n    source: first.txt\n    target: DIRECT\n  - name: second\n    category: demo\n    type: domain_suffix\n    source: second.txt\n    target: direct\n"), 0o640); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "first.txt"), []byte("example.com\n"), 0o640); err != nil {
+		t.Fatalf("write first entries: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "second.txt"), []byte("example.com\n"), 0o640); err != nil {
+		t.Fatalf("write second entries: %v", err)
+	}
+	lines, err := Render(manifest)
+	if err != nil {
+		t.Fatalf("render manifest: %v", err)
+	}
+	rendered := strings.Join(lines, "\n")
+	if strings.Count(rendered, "DOMAIN-SUFFIX,example.com,DIRECT") != 1 {
+		t.Fatalf("expected one deduped normalized rule, got %#v", lines)
+	}
+}
+
 func TestQueryCommandsReturnValidationErrors(t *testing.T) {
 	dir := t.TempDir()
 	manifest := filepath.Join(dir, "manifest.yaml")
