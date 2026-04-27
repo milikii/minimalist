@@ -2755,6 +2755,41 @@ func TestApplyRulesPropagatesRouteProgrammingFailures(t *testing.T) {
 	}
 }
 
+func TestApplyRulesPropagatesClearRulesFailureBeforeProgramming(t *testing.T) {
+	app := newTestAppWithEnabledManualNode(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 0 }
+	defer func() { geteuid = oldGeteuid }()
+
+	var calls []commandCall
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			if name == "systemctl" && len(args) >= 2 && (args[0] == "is-active" || args[0] == "is-enabled") {
+				return errors.New("inactive")
+			}
+			if name == "iptables" && hasArgSequence(args, "-C", "PREROUTING", "-j", "MIHOMO_PRE") {
+				return nil
+			}
+			if name == "iptables" && hasArgSequence(args, "-D", "PREROUTING", "-j", "MIHOMO_PRE") {
+				return errors.New("clear jump failed")
+			}
+			return errors.New("missing")
+		},
+	}
+
+	err := app.ApplyRules()
+	if err == nil || !strings.Contains(err.Error(), "clear jump failed") {
+		t.Fatalf("expected clear-rules failure, got %v, calls=%#v", err, calls)
+	}
+	if hasRecordedCall(calls, "iptables", "-w", "5", "-t", "mangle", "-N", "MIHOMO_PRE") {
+		t.Fatalf("did not expect rule programming after clear failure, calls=%#v", calls)
+	}
+	if strings.Contains(app.Stdout.(*bytes.Buffer).String(), "已应用路由规则") {
+		t.Fatalf("did not expect success output after clear failure:\n%s", app.Stdout.(*bytes.Buffer).String())
+	}
+}
+
 func TestApplyRulesReturnsRootErrorWhenNotRoot(t *testing.T) {
 	app, _ := newTestApp(t)
 	oldGeteuid := geteuid

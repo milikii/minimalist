@@ -936,7 +936,9 @@ func (a *App) ClearRules() error {
 		{"nat", "PREROUTING", []string{"-j", "MIHOMO_DNS"}},
 		{"nat", "OUTPUT", []string{"-j", "MIHOMO_DNS_OUT"}},
 	} {
-		_ = a.deleteJump(item.table, item.chain, item.rule...)
+		if err := a.deleteJump(item.table, item.chain, item.rule...); err != nil {
+			return err
+		}
 	}
 	for _, item := range []struct {
 		table string
