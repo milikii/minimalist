@@ -570,6 +570,52 @@ func TestRulesRepoCommandsExposeAndMutateRepoState(t *testing.T) {
 	}
 }
 
+func TestRulesRepoSummaryReturnsManifestError(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := rulesrepo.InitDefaultRepo(filepath.Dir(app.Paths.RulesRepoPath())); err != nil {
+		t.Fatalf("init rules repo: %v", err)
+	}
+	if err := os.WriteFile(app.Paths.RulesRepoPath(), []byte("bad: [\n"), 0o640); err != nil {
+		t.Fatalf("write invalid manifest: %v", err)
+	}
+	err := app.RulesRepoSummary()
+	if err == nil || !strings.Contains(err.Error(), "parse manifest") {
+		t.Fatalf("expected manifest parse error, got %v", err)
+	}
+}
+
+func TestRulesRepoEntriesReturnsUnknownRulesetError(t *testing.T) {
+	app, _ := newTestApp(t)
+	err := app.RulesRepoEntries("missing-ruleset", "")
+	if err == nil || !strings.Contains(err.Error(), "unknown ruleset: missing-ruleset") {
+		t.Fatalf("expected unknown ruleset error, got %v", err)
+	}
+}
+
+func TestRulesRepoFindRejectsEmptyKeyword(t *testing.T) {
+	app, _ := newTestApp(t)
+	err := app.RulesRepoFind("   ")
+	if err == nil || !strings.Contains(err.Error(), "empty keyword") {
+		t.Fatalf("expected empty keyword error, got %v", err)
+	}
+}
+
+func TestRulesRepoAddRejectsInvalidEntry(t *testing.T) {
+	app, _ := newTestApp(t)
+	err := app.RulesRepoAdd("pt", "bad entry")
+	if err == nil || !strings.Contains(err.Error(), "invalid") {
+		t.Fatalf("expected invalid entry error, got %v", err)
+	}
+}
+
+func TestRulesRepoRemoveIndexRejectsOutOfRange(t *testing.T) {
+	app, _ := newTestApp(t)
+	err := app.RulesRepoRemoveIndex("pt", 9999)
+	if err == nil || !strings.Contains(err.Error(), "entry index out of range") {
+		t.Fatalf("expected index out of range error, got %v", err)
+	}
+}
+
 func TestImportLinksReportsUnsupportedOnlyAndMixedSkippedInputs(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("socks5://proxy.example.com:1080#legacy\n")
@@ -984,6 +1030,18 @@ func TestStartRendersConfigAndEnablesService(t *testing.T) {
 	}
 }
 
+func TestStartReturnsRootErrorWhenNotRoot(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 1000 }
+	defer func() { geteuid = oldGeteuid }()
+
+	err := app.Start()
+	if err == nil || !strings.Contains(err.Error(), "请用 root 运行") {
+		t.Fatalf("expected root error, got %v", err)
+	}
+}
+
 func TestRestartRendersConfigAndRestartsService(t *testing.T) {
 	app, _ := newTestApp(t)
 	var calls []commandCall
@@ -1018,6 +1076,18 @@ func TestRestartRendersConfigAndRestartsService(t *testing.T) {
 	}
 	if !strings.Contains(string(body), "manual:") {
 		t.Fatalf("unexpected runtime config:\n%s", string(body))
+	}
+}
+
+func TestRestartReturnsRootErrorWhenNotRoot(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 1000 }
+	defer func() { geteuid = oldGeteuid }()
+
+	err := app.Restart()
+	if err == nil || !strings.Contains(err.Error(), "请用 root 运行") {
+		t.Fatalf("expected root error, got %v", err)
 	}
 }
 
@@ -1257,6 +1327,18 @@ func TestStopRunsSystemctlStop(t *testing.T) {
 	}
 }
 
+func TestStopReturnsRootErrorWhenNotRoot(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 1000 }
+	defer func() { geteuid = oldGeteuid }()
+
+	err := app.Stop()
+	if err == nil || !strings.Contains(err.Error(), "请用 root 运行") {
+		t.Fatalf("expected root error, got %v", err)
+	}
+}
+
 func TestRenderConfigRejectsInvalidPersistedRuleTarget(t *testing.T) {
 	app, _ := newTestApp(t)
 	st := state.Empty()
@@ -1455,6 +1537,18 @@ func TestApplyRulesSkipsTransparentRulesForExplicitProxyOnlyConfig(t *testing.T)
 	}
 	if hasRecordedCall(calls, "iptables", "-A", "MIHOMO_PRE_HANDLE", "-p", "tcp", "-j", "TPROXY") {
 		t.Fatalf("did not expect transparent routing rules in explicit-proxy-only mode: %#v", calls)
+	}
+}
+
+func TestApplyRulesReturnsRootErrorWhenNotRoot(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 1000 }
+	defer func() { geteuid = oldGeteuid }()
+
+	err := app.ApplyRules()
+	if err == nil || !strings.Contains(err.Error(), "请用 root 运行") {
+		t.Fatalf("expected root error, got %v", err)
 	}
 }
 
@@ -2032,6 +2126,18 @@ func TestClearRulesRunsExpectedCleanupCommands(t *testing.T) {
 		if !hasRecordedCall(calls, expect.name, expect.args...) {
 			t.Fatalf("missing cleanup call %s %#v in %#v", expect.name, expect.args, calls)
 		}
+	}
+}
+
+func TestClearRulesReturnsRootErrorWhenNotRoot(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 1000 }
+	defer func() { geteuid = oldGeteuid }()
+
+	err := app.ClearRules()
+	if err == nil || !strings.Contains(err.Error(), "请用 root 运行") {
+		t.Fatalf("expected root error, got %v", err)
 	}
 }
 
