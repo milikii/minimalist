@@ -16,6 +16,7 @@
 ## 配置与状态流
 
 1. `minimalist` 读取 `/etc/minimalist/config.yaml`
+   - 若配置文件缺少 `controller.secret`，当前会在 `Ensure` 阶段补齐并回写
 2. 资源型命令更新 `/var/lib/minimalist/state.json`
 3. `render-config` 生成：
    - `/var/lib/minimalist/mihomo/config.yaml`
@@ -44,6 +45,7 @@
 
 - `import-links` 导入的是手动节点真相，默认 `disabled`
 - `subscriptions update` 拉取的是 provider 缓存真相，订阅节点只保留只读枚举
+- provider 导入当前会按 `URIBaseKey` 去重，并为重名节点自动加后缀
 - ACL / 自定义规则只允许指向手动节点与内置目标
 
 ## 辅助入口

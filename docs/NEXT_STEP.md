@@ -15,9 +15,9 @@
 
 ## 下一最小闭环
 
-- 继续为 `app` / `cli` helper focused tests 做最小去重和命名收口
-- 为 rules / subscriptions / rules-repo 的 helper 层补更多 focused assertions
-- 继续把 README / flows 文档收口到 `minimalist` 当前命令与回退行为真相
+- 继续为 `runtime` / `provider` 剩余 helper focused tests 做最小去重和命名收口
+- 为协议解析细节、规则渲染辅助函数补更多 focused assertions
+- 继续把 README / flows 文档收口到 `minimalist` 当前命令、secret 回写与回退行为真相
 
 ## 本轮不做
 
