@@ -1369,6 +1369,42 @@ func TestSetupEnablesServiceWhenSubscriptionCacheIsReady(t *testing.T) {
 	}
 }
 
+func TestSetupDoesNotEnableServiceWhenSubscriptionCacheIsEmpty(t *testing.T) {
+	app, _ := newTestApp(t)
+	var calls []commandCall
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", nil
+		},
+	}
+	if err := app.AddSubscription("empty-cache-sub", "https://subscription.example.com/empty.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if err := os.MkdirAll(app.Paths.SubscriptionDir(), 0o755); err != nil {
+		t.Fatalf("mkdir subscription dir: %v", err)
+	}
+	if err := os.WriteFile(app.Paths.SubscriptionFile(st.Subscriptions[0].ID), nil, 0o640); err != nil {
+		t.Fatalf("write empty subscription cache: %v", err)
+	}
+	if err := app.Setup(); err != nil {
+		t.Fatalf("setup with empty subscription cache: %v", err)
+	}
+	if hasRecordedCall(calls, "systemctl", "enable", "--now", "minimalist.service") {
+		t.Fatalf("service should not be enabled with an empty subscription cache, calls=%#v", calls)
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "部署完成，请先 import-links 或 subscriptions update 后再启动服务") {
+		t.Fatalf("unexpected setup output:\n%s", app.Stdout.(*bytes.Buffer).String())
+	}
+}
+
 func TestSetupPropagatesEnableFailureWhenProvidersReady(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Runner = fakeRunner{
