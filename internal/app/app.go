@@ -346,11 +346,15 @@ func (a *App) cutoverPreflightStatus() cutoverPreflightStatus {
 }
 
 func (a *App) ImportLinks() error {
+	return a.importLinksWithReader(bufio.NewReader(a.Stdin))
+}
+
+func (a *App) importLinksWithReader(reader *bufio.Reader) error {
 	_, st, err := a.ensureAll()
 	if err != nil {
 		return err
 	}
-	text, err := a.readImportInput()
+	text, err := a.readImportInputFrom(reader)
 	if err != nil {
 		return err
 	}
@@ -1215,10 +1219,13 @@ func (a *App) controllerRequest(cfg config.Config, path string) (*http.Request, 
 }
 
 func (a *App) readImportInput() (string, error) {
+	return a.readImportInputFrom(bufio.NewReader(a.Stdin))
+}
+
+func (a *App) readImportInputFrom(reader *bufio.Reader) (string, error) {
 	if terminalCheck(a.Stdin) {
 		fmt.Fprintln(a.Stdout, "请粘贴节点链接，输入 end 结束：")
 	}
-	reader := bufio.NewReader(a.Stdin)
 	lines := []string{}
 	for {
 		line, err := reader.ReadString('\n')
@@ -1327,7 +1334,7 @@ func (a *App) nodesMenu(reader *bufio.Reader) error {
 		case "1":
 			return a.ListNodes()
 		case "2":
-			return a.ImportLinks()
+			return a.importLinksWithReader(reader)
 		case "3":
 			return a.TestNodes()
 		case "4":

@@ -2210,8 +2210,8 @@ func TestNodesMenuDispatchesListNodes(t *testing.T) {
 
 func TestNodesMenuDispatchesImportLinks(t *testing.T) {
 	app, _ := newTestApp(t)
-	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#imported-via-menu\n")
-	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("2\n"))); err != nil {
+	app.Stdin = strings.NewReader("2\ntrojan://password@example.org:443?security=tls#imported-via-menu\n")
+	if err := app.nodesMenu(bufio.NewReader(app.Stdin)); err != nil {
 		t.Fatalf("nodes menu import: %v", err)
 	}
 	st, err := state.Load(app.Paths.StatePath())
