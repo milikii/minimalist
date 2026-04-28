@@ -231,6 +231,42 @@ func TestAppendImportedNodesDeduplicatesByBaseKeyAndRenamesConflicts(t *testing.
 	}
 }
 
+func TestAppendImportedNodesSkipsUnsupportedRowsAndAutoNamesBlankNodes(t *testing.T) {
+	existing := []state.Node{{
+		ID:         "1",
+		Name:       "node",
+		Enabled:    true,
+		URI:        "trojan://password@example.org:443?security=tls#existing",
+		ImportedAt: state.NowISO(),
+		Source:     state.Source{Kind: "manual"},
+	}}
+	rows := []ScanRow{
+		{
+			URI:       "socks5://proxy.example.com:1080#unsupported",
+			Name:      "ignored",
+			Supported: "0",
+		},
+		{
+			URI:       "trojan://password@two.example.org:443?security=tls#blank-name",
+			Name:      "",
+			Supported: "1",
+		},
+	}
+	nodes := AppendImportedNodes(existing, rows, "subscription", "sub-2", false)
+	if len(nodes) != 2 {
+		t.Fatalf("expected one appended node, got %#v", nodes)
+	}
+	if nodes[1].Name != "node-2" {
+		t.Fatalf("expected auto-renamed blank node, got %q", nodes[1].Name)
+	}
+	if nodes[1].Enabled {
+		t.Fatalf("expected appended node enabled flag to follow argument, got %#v", nodes[1])
+	}
+	if nodes[1].Source.Kind != "subscription" || nodes[1].Source.ID != "sub-2" {
+		t.Fatalf("unexpected source metadata: %#v", nodes[1])
+	}
+}
+
 func TestURIBaseKeyIgnoresVMessPSField(t *testing.T) {
 	makeVMess := func(name string) string {
 		payload, err := json.Marshal(map[string]any{
