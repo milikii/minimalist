@@ -118,6 +118,8 @@ systemctl is-enabled minimalist.service
 sudo /usr/local/bin/minimalist verify-runtime-assets
 sudo /usr/local/bin/minimalist healthcheck
 sudo /usr/local/bin/minimalist runtime-audit
+iptables -t mangle -S
+iptables -t nat -S
 ip rule show
 ip route show table 233
 ```

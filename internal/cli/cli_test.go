@@ -690,7 +690,7 @@ func TestRunHelpPrintsUsage(t *testing.T) {
 	for _, needle := range []string{
 		"minimalist commands:",
 		"minimalist core-upgrade-alpha",
-		"minimalist verify-runtime-assets",
+		"  minimalist verify-runtime-assets\n",
 		"minimalist rules-repo summary|entries|find|add|remove|remove-index",
 	} {
 		if !strings.Contains(output, needle) {
@@ -899,18 +899,6 @@ func TestRunWithAppDispatchesNodesTest(t *testing.T) {
 func TestRunWithAppDispatchesNodeManagementSubcommands(t *testing.T) {
 	a, stdout := newCLIApp(t)
 	mustImportNode(t, a, "trojan://password@example.org:443?security=tls#managed-node")
-	a.Client = &http.Client{
-		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/proxies/managed-renamed/delay" {
-				t.Fatalf("unexpected controller path: %s", req.URL.Path)
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(`{"delay":8}`)),
-				Header:     make(http.Header),
-			}, nil
-		}),
-	}
 	if err := runWithApp([]string{"nodes", "rename", "1", "managed-renamed"}, a, false); err != nil {
 		t.Fatalf("rename node through dispatcher: %v", err)
 	}

@@ -28,7 +28,7 @@
 
 - 核心主路径：`install-self`、`setup`、`render-config`、`start`、`stop`、`restart`
 - 内核维护：`core-upgrade-alpha`（官方 alpha release 单次升级，成功替换后自动重启 `minimalist.service`）
-- 运维查看：`status`、`show-secret`、`healthcheck`、`runtime-audit`、`cutover-preflight`、`cutover-plan`
+- 运维查看：`status`、`show-secret`、`healthcheck`、`runtime-audit`、`verify-runtime-assets`、`cutover-preflight`、`cutover-plan`
 - 交互与资源入口：`menu`、`router-wizard`、`import-links`
 - 规则与订阅：`nodes`、`subscriptions`、`rules`、`acl`、`rules-repo`
 
