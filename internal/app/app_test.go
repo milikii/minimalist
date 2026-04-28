@@ -1624,6 +1624,27 @@ func TestNodesMenuDispatchesRemoveNode(t *testing.T) {
 	}
 }
 
+func TestNodesMenuDispatchesRenameNode(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#old-menu-name\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("4\n1\nnew-menu-name\n"))); err != nil {
+		t.Fatalf("nodes menu rename: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Nodes) != 1 || st.Nodes[0].Name != "new-menu-name" {
+		t.Fatalf("expected renamed node via menu, got %+v", st.Nodes)
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "4) 节点改名") {
+		t.Fatalf("expected nodes menu output:\n%s", app.Stdout.(*bytes.Buffer).String())
+	}
+}
+
 func TestNodesMenuEnablesAndDisablesManualNode(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#toggle-node\n")
