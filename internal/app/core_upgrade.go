@@ -408,9 +408,12 @@ func (a *App) downloadReleaseAsset(asset githubReleaseAsset, coreBin string) (st
 }
 
 func (a *App) readBinaryVersion(path string) (string, error) {
-	stdout, _, err := a.Runner.Output(path, "-v")
+	stdout, stderr, err := a.Runner.Output(path, "-v")
 	if err != nil {
 		return "", err
+	}
+	if strings.TrimSpace(stdout) == "" {
+		stdout = stderr
 	}
 	return strings.TrimSpace(stdout), nil
 }

@@ -282,6 +282,23 @@ func TestReadBinaryVersionUsesCandidatePath(t *testing.T) {
 	}
 }
 
+func TestReadBinaryVersionFallsBackToStderr(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Runner = fakeRunner{
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "Mihomo Meta alpha-c59c99a\n", nil
+		},
+	}
+
+	version, err := app.readBinaryVersion("/tmp/mihomo-core")
+	if err != nil {
+		t.Fatalf("read binary version: %v", err)
+	}
+	if version != "Mihomo Meta alpha-c59c99a" {
+		t.Fatalf("expected stderr version fallback, got %q", version)
+	}
+}
+
 func TestCoreUpgradeAlphaRequiresRoot(t *testing.T) {
 	app, _ := newTestApp(t)
 	oldGeteuid := geteuid
