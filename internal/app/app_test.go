@@ -485,6 +485,23 @@ func TestCommandsReturnEnsureAllErrors(t *testing.T) {
 	}
 }
 
+func TestEnsureAllReturnsRulesRepoInitError(t *testing.T) {
+	app, _ := newTestApp(t)
+	if _, err := config.Ensure(app.Paths.ConfigPath()); err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	if _, err := state.Ensure(app.Paths.StatePath()); err != nil {
+		t.Fatalf("ensure state: %v", err)
+	}
+	blocked := filepath.Join(app.Paths.ConfigDir, "rules-repo")
+	if err := os.WriteFile(blocked, []byte("blocked"), 0o640); err != nil {
+		t.Fatalf("write blocking rules repo path: %v", err)
+	}
+	if _, _, err := app.ensureAll(); err == nil || (!strings.Contains(err.Error(), "not a directory") && !strings.Contains(err.Error(), "file exists")) {
+		t.Fatalf("expected rules repo init error, got %v", err)
+	}
+}
+
 func TestStartRestartAndStopPropagateSystemctlErrors(t *testing.T) {
 	prepare := func(t *testing.T) *App {
 		t.Helper()

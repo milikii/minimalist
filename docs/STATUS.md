@@ -36,6 +36,7 @@
 - 2026-04-28 继续新增 focused app tests，补上安装路径阻断、`ImportLinks` 读取错误、`RenderConfig` 非法规则目标、`ensureAll` 失败传播，以及 `apply-rules` 的链创建 / 入口 / 绕行失败分支；当前 `internal/app` 包覆盖率已提升到 95.3%。
 - 2026-04-28 本轮又连续补了 `updateSubscriptions` 的 mixed/disabled 边界、`apply-rules` 的空 bypass 输入、菜单 `0` 返回、`config/state` 直写目录失败、`persistedSecretPresent` 解析回退、runtime ready-subscription provider 选择、rules-repo 嵌入资产落盘失败、provider 空名自动命名，以及 CLI `subscriptions update` 分发；当前 `internal/app` 包覆盖率已到 95.6%，`internal/config` 也提升到 94.3%。
 - 2026-04-28 本次继续按质量硬化主线补了 `Setup` root guard、`Status` ensureAll 失败传播、`ImportLinks` / `RouterWizard` / `UpdateSubscriptions` 的真相写回失败路径，以及 `Menu -> nodes/network/rules/service/audit` 的主分发链路；全量 `go test ./...` 继续通过，`internal/app` 包覆盖率进一步提升到 97.1%。
+- 2026-04-28 本次继续连续十轮 focused hardening：补上 `nodesMenu -> TestNodes`、`subscriptions/network/service/audit` 的 invalid-choice retry、`rulesAndACLMenu -> List ACL`、`hasReadyProviders` 手动节点与空缓存边界、controller `mode` 缺失键分支、订阅更新的非法 URL 与缓存写入失败记录，以及 `ensureAll` 的 rules-repo 初始化失败传播；当前 `internal/app` 包覆盖率已提升到 97.8%，`subscriptionsMenu` / `networkMenu` / `serviceMenu` / `auditMenu` / `ensureAll` / `hasReadyProviders` 已到 100%。
 
 ## 本机真实验证结论
 
@@ -54,6 +55,7 @@
 - 旧服务快速回滚入口已移除；`cutover-plan` 在旧资产不存在时会输出 `rollback: unavailable; legacy mihomo assets are not present`。
 - 本轮最终验证结果：`GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...`、`GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go build -o /tmp/minimalist-build-check ./cmd/minimalist`、`/usr/local/bin/minimalist runtime-audit`、`systemctl is-active minimalist.service`、`systemctl is-enabled minimalist.service`、`ip rule show`、`ip route show table 233` 全部通过；当前轮次新增的 `internal/app` focused tests 也已通过。
 - 2026-04-28 本次连续十轮硬化后的复验结果保持稳定：全量 `go test ./...` 与 build 继续通过，`runtime-audit` 仍显示 `providers-ready=true`、`cutover-ready=true`，当前 live 路由仍为 `fwmark 0x2333 lookup 233` 与 `local default dev lo scope host`。
+- 2026-04-28 本次最新十轮 focused tests 完成后再次复验：`GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...`、`GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./internal/app -coverprofile=/tmp/minimalist-app.cover` 与 `GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go build -o /tmp/minimalist-build-check ./cmd/minimalist` 全部通过；`internal/app` 当前覆盖率为 97.8%。
 
 ## 当前风险与限制
 
