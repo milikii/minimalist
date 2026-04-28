@@ -1306,6 +1306,33 @@ func TestServiceMenuDispatchesStatus(t *testing.T) {
 	}
 }
 
+func TestAuditMenuDispatchesCutoverChecks(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			return errors.New("inactive")
+		},
+	}
+	if err := app.auditMenu(bufio.NewReader(strings.NewReader("3\n"))); err != nil {
+		t.Fatalf("audit menu preflight: %v", err)
+	}
+	if err := app.auditMenu(bufio.NewReader(strings.NewReader("4\n"))); err != nil {
+		t.Fatalf("audit menu plan: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"3) Cutover 检查",
+		"4) Cutover 计划",
+		"cutover-preflight:",
+		"cutover-plan: legacy_live=false minimalist_service_live=false cutover_ready=true",
+		"next-action: run-minimalist-setup",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in audit menu output:\n%s", needle, output)
+		}
+	}
+}
+
 func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 	app, _ := newTestApp(t)
 	oldGeteuid := geteuid
