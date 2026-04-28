@@ -1254,6 +1254,41 @@ func TestRulesAndACLMenuSupportsACLAddAndRemove(t *testing.T) {
 	}
 }
 
+func TestNetworkMenuDispatchesRulesRepoFlows(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.networkMenu(bufio.NewReader(strings.NewReader("6\npt\nmenu.example.com\n"))); err != nil {
+		t.Fatalf("network menu add rules repo entry: %v", err)
+	}
+	if err := app.networkMenu(bufio.NewReader(strings.NewReader("4\npt\nmenu\n"))); err != nil {
+		t.Fatalf("network menu list rules repo entries: %v", err)
+	}
+	lines, err := rulesrepo.ListEntries(app.Paths.RulesRepoPath(), "pt", "menu")
+	if err != nil {
+		t.Fatalf("list entries after add: %v", err)
+	}
+	if len(lines) != 1 {
+		t.Fatalf("expected one matching rules repo entry, got %#v", lines)
+	}
+	indexText, _, ok := strings.Cut(lines[0], "\t")
+	if !ok {
+		t.Fatalf("unexpected rules repo line: %q", lines[0])
+	}
+	if err := app.networkMenu(bufio.NewReader(strings.NewReader("7\npt\n" + indexText + "\n"))); err != nil {
+		t.Fatalf("network menu remove rules repo entry: %v", err)
+	}
+	lines, err = rulesrepo.ListEntries(app.Paths.RulesRepoPath(), "pt", "menu")
+	if err != nil {
+		t.Fatalf("list entries after remove: %v", err)
+	}
+	if len(lines) != 0 {
+		t.Fatalf("expected rules repo entry to be removed, got %#v", lines)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	if !strings.Contains(output, "4) 查看规则集条目") || !strings.Contains(output, "6) 添加规则集条目") {
+		t.Fatalf("unexpected network menu output:\n%s", output)
+	}
+}
+
 func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 	app, _ := newTestApp(t)
 	oldGeteuid := geteuid
