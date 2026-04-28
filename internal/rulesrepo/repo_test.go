@@ -101,6 +101,17 @@ func TestCopyTreeAndRenderRejectUnsupportedManifestEntries(t *testing.T) {
 	}
 }
 
+func TestCopyTreeReturnsDestinationWriteError(t *testing.T) {
+	root := t.TempDir()
+	blocked := filepath.Join(root, "blocked")
+	if err := os.WriteFile(blocked, []byte("blocked"), 0o640); err != nil {
+		t.Fatalf("write blocking file: %v", err)
+	}
+	if err := copyTree("assets/default/manifest.yaml", filepath.Join(blocked, "manifest.yaml")); err == nil || !strings.Contains(err.Error(), "not a directory") {
+		t.Fatalf("expected copyTree write error, got %v", err)
+	}
+}
+
 func TestFindRulesetAndDescribeRulesetReportMissingPaths(t *testing.T) {
 	dir := t.TempDir()
 	manifest := filepath.Join(dir, "manifest.yaml")
@@ -257,6 +268,17 @@ func TestInitDefaultRepoReturnsErrorWhenTargetRootIsFile(t *testing.T) {
 	}
 	if err := InitDefaultRepo(root); err == nil || (!strings.Contains(err.Error(), "not a directory") && !strings.Contains(err.Error(), "file exists")) {
 		t.Fatalf("expected init repo path error, got %v", err)
+	}
+}
+
+func TestInitDefaultRepoReturnsErrorWhenManifestParentIsBlocked(t *testing.T) {
+	root := t.TempDir()
+	blocked := filepath.Join(root, "blocked")
+	if err := os.WriteFile(blocked, []byte("blocked"), 0o640); err != nil {
+		t.Fatalf("write blocking file: %v", err)
+	}
+	if err := InitDefaultRepo(filepath.Join(blocked, "default")); err == nil || !strings.Contains(err.Error(), "not a directory") {
+		t.Fatalf("expected init repo parent error, got %v", err)
 	}
 }
 
