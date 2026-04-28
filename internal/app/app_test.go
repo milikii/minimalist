@@ -1237,6 +1237,25 @@ func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 	}
 }
 
+func TestDeployMenuIgnoresInvalidChoiceThenRendersConfig(t *testing.T) {
+	app := newTestAppWithEnabledManualNode(t)
+	reader := bufio.NewReader(strings.NewReader("x\n2\n"))
+	if err := app.deployMenu(reader); err != nil {
+		t.Fatalf("deploy menu: %v", err)
+	}
+	body, err := os.ReadFile(app.Paths.RuntimeConfig())
+	if err != nil {
+		t.Fatalf("read runtime config: %v", err)
+	}
+	if !strings.Contains(string(body), "proxy-groups:") {
+		t.Fatalf("unexpected runtime config:\n%s", string(body))
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	if !strings.Contains(output, "无效选择") || !strings.Contains(output, "2) 重新渲染配置") {
+		t.Fatalf("unexpected deploy menu output:\n%s", output)
+	}
+}
+
 func TestNodesMenuReturnsMutationErrors(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#menu-node\n")
