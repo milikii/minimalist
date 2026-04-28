@@ -1471,14 +1471,20 @@ func (a *App) rulesAndACLMenu(reader *bufio.Reader) error {
 		case "2":
 			return a.promptAddRule(reader, false)
 		case "3":
-			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "规则 ID", "1"))
+			index, err := promptIndex(reader, a.Stdout, "规则 ID")
+			if err != nil {
+				return err
+			}
 			return a.RemoveRule(false, index)
 		case "4":
 			return a.ListRules(true)
 		case "5":
 			return a.promptAddRule(reader, true)
 		case "6":
-			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "规则 ID", "1"))
+			index, err := promptIndex(reader, a.Stdout, "规则 ID")
+			if err != nil {
+				return err
+			}
 			return a.RemoveRule(true, index)
 		case "0":
 			return nil

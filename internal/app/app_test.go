@@ -1743,6 +1743,15 @@ func TestRulesAndACLMenuDispatchesACLList(t *testing.T) {
 	}
 }
 
+func TestRulesAndACLMenuRejectsInvalidRuleID(t *testing.T) {
+	app, _ := newTestApp(t)
+	reader := bufio.NewReader(strings.NewReader("3\nabc\n"))
+	err := app.rulesAndACLMenu(reader)
+	if err == nil || !strings.Contains(err.Error(), "invalid 规则 ID") {
+		t.Fatalf("expected invalid rule id error, got %v", err)
+	}
+}
+
 func TestNetworkMenuDispatchesRulesRepoFlows(t *testing.T) {
 	app, _ := newTestApp(t)
 	if err := app.networkMenu(bufio.NewReader(strings.NewReader("6\npt\nmenu.example.com\n"))); err != nil {
