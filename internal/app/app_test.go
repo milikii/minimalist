@@ -1330,6 +1330,30 @@ func TestServiceMenuDispatchesStart(t *testing.T) {
 	}
 }
 
+func TestServiceMenuDispatchesRestart(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 0 }
+	defer func() { geteuid = oldGeteuid }()
+
+	var calls []commandCall
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			return nil
+		},
+	}
+	if err := app.serviceMenu(bufio.NewReader(strings.NewReader("2\n"))); err != nil {
+		t.Fatalf("service menu restart: %v", err)
+	}
+	if !hasRecordedCall(calls, "systemctl", "restart", "minimalist.service") {
+		t.Fatalf("expected restart command for minimalist.service, calls=%#v", calls)
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "已生成 ") {
+		t.Fatalf("expected render output before service restart:\n%s", app.Stdout.(*bytes.Buffer).String())
+	}
+}
+
 func TestAuditMenuDispatchesCutoverChecks(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Runner = fakeRunner{
