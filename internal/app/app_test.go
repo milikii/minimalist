@@ -1946,6 +1946,34 @@ func TestNodesMenuDispatchesImportLinks(t *testing.T) {
 	}
 }
 
+func TestNodesMenuDispatchesTestNodes(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#tested-via-menu\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable node: %v", err)
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, `{"delay":24}`), nil
+		}),
+	}
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("3\n"))); err != nil {
+		t.Fatalf("nodes menu test: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"3) 测试节点",
+		"tested-via-menu\t24ms",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in nodes menu output:\n%s", needle, output)
+		}
+	}
+}
+
 func TestNodesMenuDispatchesRemoveNode(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#removed-via-menu\n")
