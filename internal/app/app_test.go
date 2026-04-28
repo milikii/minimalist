@@ -798,6 +798,43 @@ func TestSubscriptionsMenuAddsSubscriptionFromPrompts(t *testing.T) {
 	}
 }
 
+func TestSubscriptionsMenuTogglesAndRemovesSubscription(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("menu-toggle", "https://subscription.example.com/menu-toggle.txt", false); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	if err := app.subscriptionsMenu(bufio.NewReader(strings.NewReader("3\n1\n"))); err != nil {
+		t.Fatalf("enable subscription via menu: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state after enable: %v", err)
+	}
+	if !st.Subscriptions[0].Enabled {
+		t.Fatalf("expected subscription to be enabled, got %+v", st.Subscriptions[0])
+	}
+	if err := app.subscriptionsMenu(bufio.NewReader(strings.NewReader("4\n1\n"))); err != nil {
+		t.Fatalf("disable subscription via menu: %v", err)
+	}
+	st, err = state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state after disable: %v", err)
+	}
+	if st.Subscriptions[0].Enabled {
+		t.Fatalf("expected subscription to be disabled, got %+v", st.Subscriptions[0])
+	}
+	if err := app.subscriptionsMenu(bufio.NewReader(strings.NewReader("5\n1\n"))); err != nil {
+		t.Fatalf("remove subscription via menu: %v", err)
+	}
+	st, err = state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state after remove: %v", err)
+	}
+	if len(st.Subscriptions) != 0 {
+		t.Fatalf("expected subscription to be removed, got %+v", st.Subscriptions)
+	}
+}
+
 func TestRulesRepoCommandsExposeAndMutateRepoState(t *testing.T) {
 	app, _ := newTestApp(t)
 	if err := app.RulesRepoAdd("fcm-site", "codex.example.com"); err != nil {
