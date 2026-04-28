@@ -386,11 +386,14 @@ func (a *App) importLinksWithReader(reader *bufio.Reader) error {
 }
 
 func (a *App) RouterWizard() error {
+	return a.routerWizardWithReader(bufio.NewReader(a.Stdin))
+}
+
+func (a *App) routerWizardWithReader(reader *bufio.Reader) error {
 	cfg, _, err := a.ensureAll()
 	if err != nil {
 		return err
 	}
-	reader := bufio.NewReader(a.Stdin)
 	fmt.Fprintf(a.Stdout, "当前模板: %s\n", cfg.Profile.Template)
 	cfg.Network.LANInterfaces = promptList(reader, a.Stdout, "LAN 接口", cfg.Network.LANInterfaces)
 	cfg.Network.ProxyIngressInterfaces = promptList(reader, a.Stdout, "透明代理入口接口", cfg.Network.ProxyIngressInterfaces)
@@ -1430,7 +1433,7 @@ func (a *App) networkMenu(reader *bufio.Reader) error {
 		line, _ := reader.ReadString('\n')
 		switch strings.TrimSpace(line) {
 		case "1":
-			return a.RouterWizard()
+			return a.routerWizardWithReader(reader)
 		case "2":
 			return a.RenderConfig()
 		case "3":

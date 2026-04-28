@@ -1798,6 +1798,39 @@ func TestNetworkMenuDispatchesRouterWizard(t *testing.T) {
 	}
 }
 
+func TestNetworkMenuRouterWizardUsesSharedBufferedInput(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader(strings.Join([]string{
+		"1",
+		"lan9",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+		"",
+	}, "\n") + "\n")
+
+	if err := app.networkMenu(bufio.NewReader(app.Stdin)); err != nil {
+		t.Fatalf("network menu shared router wizard: %v", err)
+	}
+
+	cfg, err := config.Load(app.Paths.ConfigPath())
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if len(cfg.Network.LANInterfaces) != 1 || cfg.Network.LANInterfaces[0] != "lan9" {
+		t.Fatalf("expected shared router wizard input to persist lan9, got %#v", cfg.Network.LANInterfaces)
+	}
+}
+
 func TestNetworkMenuDispatchesRenderConfig(t *testing.T) {
 	app := newTestAppWithEnabledManualNode(t)
 	if err := app.networkMenu(bufio.NewReader(strings.NewReader("2\n"))); err != nil {
