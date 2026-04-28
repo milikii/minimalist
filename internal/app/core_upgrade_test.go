@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"minimalist/internal/config"
 )
 
 func TestSelectLatestAlphaAssetChoosesLatestMatchingAlphaRelease(t *testing.T) {
@@ -279,6 +282,185 @@ func TestReadBinaryVersionUsesCandidatePath(t *testing.T) {
 	}
 }
 
+func TestCoreUpgradeAlphaRequiresRoot(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 1000 }
+	defer func() { geteuid = oldGeteuid }()
+
+	err := app.CoreUpgradeAlpha()
+	if err == nil || !strings.Contains(err.Error(), "请用 root 运行") {
+		t.Fatalf("expected root error, got %v", err)
+	}
+}
+
+func TestCoreUpgradeAlphaReplacesBinaryAndRestartsService(t *testing.T) {
+	app, root := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 0 }
+	defer func() { geteuid = oldGeteuid }()
+	oldCurrentGOOS := currentGOOS
+	oldCurrentGOARCH := currentGOARCH
+	currentGOOS = func() string { return "linux" }
+	currentGOARCH = func() string { return "arm64" }
+	defer func() {
+		currentGOOS = oldCurrentGOOS
+		currentGOARCH = oldCurrentGOARCH
+	}()
+
+	cfg, err := config.Ensure(app.Paths.ConfigPath())
+	if err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	corePath := filepath.Join(root, "bin", "mihomo-core")
+	cfg.Install.CoreBin = corePath
+	if err := config.Save(app.Paths.ConfigPath(), cfg); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(corePath), 0o755); err != nil {
+		t.Fatalf("mkdir core dir: %v", err)
+	}
+	if err := os.WriteFile(corePath, []byte("old-core"), 0o755); err != nil {
+		t.Fatalf("write old core: %v", err)
+	}
+
+	var calls []commandCall
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			switch {
+			case name == "systemctl" && len(args) == 2 && args[0] == "is-active" && args[1] == "minimalist.service":
+				return "active\n", "", nil
+			case strings.HasSuffix(name, "mihomo-core") && len(args) == 1 && args[0] == "-v":
+				body, err := os.ReadFile(name)
+				if err != nil {
+					t.Fatalf("read version target: %v", err)
+				}
+				if bytes.Equal(body, []byte("old-core")) {
+					return "Mihomo Meta alpha-old\n", "", nil
+				}
+				return "Mihomo Meta alpha-new\n", "", nil
+			default:
+				t.Fatalf("unexpected output call: %s %v", name, args)
+				return "", "", nil
+			}
+		},
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.String() {
+			case mihomoReleasesAPI:
+				return textResponse(http.StatusOK, `[{"tag_name":"Prerelease-Alpha","name":"Prerelease-Alpha","prerelease":true,"published_at":"2026-04-28T00:00:00Z","assets":[{"name":"mihomo-linux-arm64-v1.19.23.gz","browser_download_url":"https://example.com/mihomo.gz"}]}]`), nil
+			case "https://example.com/mihomo.gz":
+				return gzippedResponse(t, []byte("new-core")), nil
+			default:
+				t.Fatalf("unexpected url: %s", req.URL.String())
+				return nil, nil
+			}
+		}),
+	}
+
+	if err := app.CoreUpgradeAlpha(); err != nil {
+		t.Fatalf("core upgrade alpha: %v", err)
+	}
+	if !hasRecordedCall(calls, "systemctl", "restart", "minimalist.service") {
+		t.Fatalf("expected restart call, got %#v", calls)
+	}
+	if !hasRecordedCall(calls, "systemctl", "is-active", "minimalist.service") {
+		t.Fatalf("expected is-active call, got %#v", calls)
+	}
+	body, err := os.ReadFile(corePath)
+	if err != nil {
+		t.Fatalf("read core path: %v", err)
+	}
+	if string(body) != "new-core" {
+		t.Fatalf("expected replaced core, got %q", string(body))
+	}
+	stdout := app.Stdout.(*bytes.Buffer).String()
+	for _, want := range []string{
+		"core path: " + corePath,
+		"release: Prerelease-Alpha",
+		"asset: mihomo-linux-arm64-v1.19.23.gz",
+		"old version: Mihomo Meta alpha-old",
+		"new version: Mihomo Meta alpha-new",
+		"service restarted: minimalist.service",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("expected %q in stdout:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestCoreUpgradeAlphaSurfacesRestartFailureWithLogs(t *testing.T) {
+	app, root := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 0 }
+	defer func() { geteuid = oldGeteuid }()
+	oldCurrentGOOS := currentGOOS
+	oldCurrentGOARCH := currentGOARCH
+	currentGOOS = func() string { return "linux" }
+	currentGOARCH = func() string { return "arm64" }
+	defer func() {
+		currentGOOS = oldCurrentGOOS
+		currentGOARCH = oldCurrentGOARCH
+	}()
+
+	cfg, err := config.Ensure(app.Paths.ConfigPath())
+	if err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	cfg.Install.CoreBin = filepath.Join(root, "bin", "mihomo-core")
+	if err := config.Save(app.Paths.ConfigPath(), cfg); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(cfg.Install.CoreBin), 0o755); err != nil {
+		t.Fatalf("mkdir core dir: %v", err)
+	}
+	if err := os.WriteFile(cfg.Install.CoreBin, []byte("old-core"), 0o755); err != nil {
+		t.Fatalf("write old core: %v", err)
+	}
+
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			if name == "systemctl" && len(args) == 2 && args[0] == "restart" && args[1] == "minimalist.service" {
+				return errors.New("restart failed")
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			switch {
+			case name == "journalctl":
+				return "line1\nline2\n", "", nil
+			case strings.HasSuffix(name, "mihomo-core") && len(args) == 1 && args[0] == "-v":
+				return "Mihomo Meta alpha-version\n", "", nil
+			default:
+				return "", "", nil
+			}
+		},
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.String() == mihomoReleasesAPI {
+				return textResponse(http.StatusOK, `[{"tag_name":"Prerelease-Alpha","name":"Prerelease-Alpha","prerelease":true,"published_at":"2026-04-28T00:00:00Z","assets":[{"name":"mihomo-linux-arm64-v1.19.23.gz","browser_download_url":"https://example.com/mihomo.gz"}]}]`), nil
+			}
+			return gzippedResponse(t, []byte("new-core")), nil
+		}),
+	}
+
+	err = app.CoreUpgradeAlpha()
+	if err == nil || !strings.Contains(err.Error(), "restart failed") {
+		t.Fatalf("expected restart failure, got %v", err)
+	}
+	stderr := app.Stderr.(*bytes.Buffer).String()
+	if !strings.Contains(stderr, "line1") || !strings.Contains(stderr, "line2") {
+		t.Fatalf("expected journal output in stderr:\n%s", stderr)
+	}
+}
+
 func TestDownloadReleaseAssetRejectsHTTPFailures(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -306,6 +488,23 @@ func TestDownloadReleaseAssetRejectsHTTPFailures(t *testing.T) {
 				t.Fatalf("expected %s failure, got %v", tc.want, err)
 			}
 		})
+	}
+}
+
+func gzippedResponse(t *testing.T, payload []byte) *http.Response {
+	t.Helper()
+	var body bytes.Buffer
+	zw := gzip.NewWriter(&body)
+	if _, err := zw.Write(payload); err != nil {
+		t.Fatalf("gzip write: %v", err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("gzip close: %v", err)
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(bytes.NewReader(body.Bytes())),
+		Header:     make(http.Header),
 	}
 }
 
