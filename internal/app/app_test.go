@@ -846,6 +846,23 @@ func TestTestNodeDelayReturnsTransportError(t *testing.T) {
 	}
 }
 
+func TestControllerConfigModeReturnsEmptyModeWhenFieldMissing(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg := config.Default()
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, `{"listeners":1}`), nil
+		}),
+	}
+	mode, err := app.controllerConfigMode(cfg)
+	if err != nil {
+		t.Fatalf("expected missing mode payload to return nil error, got %v", err)
+	}
+	if mode != "" {
+		t.Fatalf("expected empty mode for payload without mode, got %q", mode)
+	}
+}
+
 func TestRemoveNodeRejectsReferencedManualNode(t *testing.T) {
 	for _, tc := range []struct {
 		name string
