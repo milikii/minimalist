@@ -1634,6 +1634,23 @@ func TestNetworkMenuDispatchesRulesRepoSummaryAndFind(t *testing.T) {
 	}
 }
 
+func TestNetworkMenuRetriesAfterInvalidChoice(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.networkMenu(bufio.NewReader(strings.NewReader("x\n3\n"))); err != nil {
+		t.Fatalf("network menu retry summary: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"无效选择",
+		"3) 查看规则仓库",
+		"规则仓库:",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in network menu output:\n%s", needle, output)
+		}
+	}
+}
+
 func TestServiceMenuDispatchesStatus(t *testing.T) {
 	app, _ := newTestApp(t)
 	if err := app.serviceMenu(bufio.NewReader(strings.NewReader("4\n"))); err != nil {
