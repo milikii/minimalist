@@ -26,6 +26,25 @@ func TestLoadBackfillsNilSlicesAndVersion(t *testing.T) {
 	}
 }
 
+func TestLoadBackfillsMissingVersionWithoutDroppingNodes(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.json")
+	body := "{\"nodes\":[{\"id\":\"node-1\",\"name\":\"legacy\",\"enabled\":true,\"uri\":\"trojan://password@example.org:443#legacy\",\"imported_at\":\"2026-04-27T00:00:00Z\",\"source\":{\"kind\":\"manual\"}}]}\n"
+	if err := os.WriteFile(path, []byte(body), 0o640); err != nil {
+		t.Fatalf("write state: %v", err)
+	}
+	st, err := Load(path)
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if st.Version != 1 {
+		t.Fatalf("expected version 1, got %d", st.Version)
+	}
+	if len(st.Nodes) != 1 || st.Nodes[0].Name != "legacy" {
+		t.Fatalf("expected legacy node to be preserved, got %#v", st.Nodes)
+	}
+}
+
 func TestEnsureCreatesDefaultState(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "state.json")
