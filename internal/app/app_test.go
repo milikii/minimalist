@@ -1256,6 +1256,24 @@ func TestDeployMenuIgnoresInvalidChoiceThenRendersConfig(t *testing.T) {
 	}
 }
 
+func TestDeployMenuDispatchesInstallSelf(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 0 }
+	defer func() { geteuid = oldGeteuid }()
+
+	reader := bufio.NewReader(strings.NewReader("3\n"))
+	if err := app.deployMenu(reader); err != nil {
+		t.Fatalf("deploy menu install-self: %v", err)
+	}
+	if _, err := os.Stat(app.Paths.BinPath); err != nil {
+		t.Fatalf("expected installed binary to exist: %v", err)
+	}
+	if output := app.Stdout.(*bytes.Buffer).String(); !strings.Contains(output, "3) 安装/刷新 minimalist") {
+		t.Fatalf("unexpected deploy menu output:\n%s", output)
+	}
+}
+
 func TestNodesMenuReturnsMutationErrors(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#menu-node\n")
