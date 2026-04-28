@@ -4897,6 +4897,22 @@ func TestMenuDispatchesNetworkMenu(t *testing.T) {
 	}
 }
 
+func TestMenuDispatchesRulesAndACLMenu(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("6\n2\ndomain\nmenu-rule.example\nDIRECT\n0\n")
+
+	if err := app.Menu(); err != nil {
+		t.Fatalf("menu: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Rules) != 1 || st.Rules[0].Pattern != "menu-rule.example" || st.Rules[0].Target != "DIRECT" {
+		t.Fatalf("expected rule to be added via menu, got %+v", st.Rules)
+	}
+}
+
 func TestRouterWizardPersistsUpdatedConfig(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader(strings.Join([]string{
