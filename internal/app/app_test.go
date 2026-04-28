@@ -1435,6 +1435,37 @@ func TestUpdateSubscriptionsFailsWhenSubscriptionDirCannotBeCreated(t *testing.T
 	}
 }
 
+func TestUpdateSubscriptionsReturnsStateSaveError(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddSubscription("save-blocked", "https://subscription.example.com/save-blocked.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(&readerWithAfter{
+					data: "trojan://password@example.org:443?security=tls#save-blocked-node\n",
+					after: func() {
+						if err := os.Remove(app.Paths.StatePath()); err != nil {
+							t.Fatalf("remove state file: %v", err)
+						}
+						if err := os.MkdirAll(app.Paths.StatePath(), 0o755); err != nil {
+							t.Fatalf("mkdir blocking state path: %v", err)
+						}
+					},
+				}),
+				Header: make(http.Header),
+			}, nil
+		}),
+	}
+
+	err := app.UpdateSubscriptions()
+	if err == nil || !strings.Contains(err.Error(), "is a directory") {
+		t.Fatalf("expected state save error, got %v", err)
+	}
+}
+
 func TestRulesAndACLMenuAddsRuleAndPromptStringKeepsDefaultOnBlankInput(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#menu-rule-node\n")
