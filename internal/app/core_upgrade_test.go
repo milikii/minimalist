@@ -70,6 +70,40 @@ func TestSelectLatestAlphaAssetChoosesArm64Asset(t *testing.T) {
 	}
 }
 
+func TestSelectLatestAlphaAssetChoosesNewestAlphaWithMatchingAsset(t *testing.T) {
+	releases := []githubRelease{
+		{
+			TagName:     "v1.19.25-alpha-1",
+			Name:        "v1.19.25 alpha 1",
+			Prerelease:  true,
+			PublishedAt: mustParseRFC3339(t, "2026-04-25T10:00:00Z"),
+			Assets: []githubReleaseAsset{
+				{Name: "mihomo-darwin-arm64-v1.19.25.gz", BrowserDownloadURL: "https://example.com/darwin.gz"},
+			},
+		},
+		{
+			TagName:     "v1.19.24-alpha-1",
+			Name:        "v1.19.24 alpha 1",
+			Prerelease:  true,
+			PublishedAt: mustParseRFC3339(t, "2026-04-24T10:00:00Z"),
+			Assets: []githubReleaseAsset{
+				{Name: "mihomo-linux-arm64-v1.19.24.gz", BrowserDownloadURL: "https://example.com/linux-arm64.gz"},
+			},
+		},
+	}
+
+	release, asset, err := selectLatestAlphaAsset(releases, "linux", "arm64")
+	if err != nil {
+		t.Fatalf("select latest matching alpha asset: %v", err)
+	}
+	if release.TagName != "v1.19.24-alpha-1" {
+		t.Fatalf("expected newest alpha with matching asset, got %+v", release)
+	}
+	if asset.Name != "mihomo-linux-arm64-v1.19.24.gz" {
+		t.Fatalf("expected matching arm64 asset, got %+v", asset)
+	}
+}
+
 func TestSelectLatestAlphaAssetRejectsAMD64CPUVariants(t *testing.T) {
 	releases := []githubRelease{
 		{

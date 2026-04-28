@@ -47,19 +47,21 @@ func selectLatestAlphaAsset(releases []githubRelease, goos, goarch string) (gith
 	}
 
 	assetPrefix := "mihomo-linux-" + arch + "-"
-	release, err := latestAlphaRelease(releases)
-	if err != nil {
-		return githubRelease{}, githubReleaseAsset{}, err
+	alphaReleases := alphaReleasesByNewest(releases)
+	if len(alphaReleases) == 0 {
+		return githubRelease{}, githubReleaseAsset{}, fmt.Errorf("no alpha prerelease found")
 	}
-
-	asset, err := selectLinuxReleaseAsset(release.Assets, goarch, assetPrefix)
-	if err != nil {
+	for _, release := range alphaReleases {
+		asset, err := selectLinuxReleaseAsset(release.Assets, goarch, assetPrefix)
+		if err == nil {
+			return release, asset, nil
+		}
 		if errors.Is(err, errNoMatchingLinuxAsset) {
-			return githubRelease{}, githubReleaseAsset{}, fmt.Errorf("latest alpha release %s has no matching asset for %s/%s", release.TagName, goos, goarch)
+			continue
 		}
 		return githubRelease{}, githubReleaseAsset{}, fmt.Errorf("select asset for release %s: %w", release.TagName, err)
 	}
-	return release, asset, nil
+	return githubRelease{}, githubReleaseAsset{}, fmt.Errorf("no matching alpha asset for %s/%s", goos, goarch)
 }
 
 func selectLinuxReleaseAsset(assets []githubReleaseAsset, goarch, assetPrefix string) (githubReleaseAsset, error) {
@@ -129,22 +131,24 @@ func joinAssetNames(assets []githubReleaseAsset) string {
 	return strings.Join(names, ", ")
 }
 
-func latestAlphaRelease(releases []githubRelease) (githubRelease, error) {
-	var latest githubRelease
-	found := false
+func alphaReleasesByNewest(releases []githubRelease) []githubRelease {
+	alphaReleases := make([]githubRelease, 0, len(releases))
 	for _, release := range releases {
 		if !isAlphaPrerelease(release) {
 			continue
 		}
-		if !found || releaseIsNewer(release, latest) {
-			latest = release
-			found = true
+		alphaReleases = append(alphaReleases, release)
+	}
+	slices.SortFunc(alphaReleases, func(left, right githubRelease) int {
+		if releaseIsNewer(left, right) {
+			return -1
 		}
-	}
-	if !found {
-		return githubRelease{}, fmt.Errorf("no alpha prerelease found")
-	}
-	return latest, nil
+		if releaseIsNewer(right, left) {
+			return 1
+		}
+		return 0
+	})
+	return alphaReleases
 }
 
 func isAlphaPrerelease(release githubRelease) bool {
