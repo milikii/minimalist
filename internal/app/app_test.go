@@ -1724,6 +1724,28 @@ func TestAuditMenuDispatchesRuntimeAudit(t *testing.T) {
 	}
 }
 
+func TestMenusReturnNilOnZeroSelection(t *testing.T) {
+	app, _ := newTestApp(t)
+	for _, tc := range []struct {
+		name string
+		run  func(*bufio.Reader) error
+	}{
+		{"deploy", app.deployMenu},
+		{"nodes", app.nodesMenu},
+		{"subscriptions", app.subscriptionsMenu},
+		{"network", app.networkMenu},
+		{"rules-acl", app.rulesAndACLMenu},
+		{"service", app.serviceMenu},
+		{"audit", app.auditMenu},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.run(bufio.NewReader(strings.NewReader("0\n"))); err != nil {
+				t.Fatalf("expected zero selection to return nil, got %v", err)
+			}
+		})
+	}
+}
+
 func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 	app, _ := newTestApp(t)
 	oldGeteuid := geteuid
