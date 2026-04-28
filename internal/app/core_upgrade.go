@@ -177,7 +177,7 @@ func releaseIsNewer(left, right githubRelease) bool {
 	return left.Name > right.Name
 }
 
-func (a *App) downloadReleaseAsset(asset githubReleaseAsset) (string, error) {
+func (a *App) downloadReleaseAsset(asset githubReleaseAsset, coreBin string) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, asset.BrowserDownloadURL, nil)
 	if err != nil {
 		return "", err
@@ -194,7 +194,7 @@ func (a *App) downloadReleaseAsset(asset githubReleaseAsset) (string, error) {
 		return "", fmt.Errorf("unsupported asset format: %s", asset.Name)
 	}
 
-	tmpParent := filepath.Dir(a.Paths.BinPath)
+	tmpParent := filepath.Dir(coreBin)
 	if err := os.MkdirAll(tmpParent, 0o755); err != nil {
 		return "", err
 	}

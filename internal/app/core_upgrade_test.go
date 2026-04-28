@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -204,6 +205,7 @@ func TestDownloadReleaseAssetWritesExecutableCandidate(t *testing.T) {
 	app, _ := newTestApp(t)
 	var requested string
 	payload := []byte("#!/bin/sh\nexit 0\n")
+	coreBin := filepath.Join(t.TempDir(), "bin", "mihomo-core")
 	app.Client = &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			requested = req.URL.String()
@@ -226,9 +228,12 @@ func TestDownloadReleaseAssetWritesExecutableCandidate(t *testing.T) {
 	candidate, err := app.downloadReleaseAsset(githubReleaseAsset{
 		Name:               "mihomo-linux-amd64-v1.19.23.gz",
 		BrowserDownloadURL: "https://example.com/mihomo.gz",
-	})
+	}, coreBin)
 	if err != nil {
 		t.Fatalf("download release asset: %v", err)
+	}
+	if filepath.Dir(filepath.Dir(candidate)) != filepath.Dir(coreBin) {
+		t.Fatalf("expected candidate under core bin dir, got %s for core %s", candidate, coreBin)
 	}
 	if requested != "https://example.com/mihomo.gz" {
 		t.Fatalf("unexpected asset url: %s", requested)
@@ -296,7 +301,7 @@ func TestDownloadReleaseAssetRejectsHTTPFailures(t *testing.T) {
 			_, err := app.downloadReleaseAsset(githubReleaseAsset{
 				Name:               "mihomo-linux-amd64-v1.19.23.gz",
 				BrowserDownloadURL: "https://example.com/mihomo.gz",
-			})
+			}, filepath.Join(t.TempDir(), "bin", "mihomo-core"))
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("expected %s failure, got %v", tc.want, err)
 			}
