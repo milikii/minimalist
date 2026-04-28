@@ -132,7 +132,7 @@ ip route show table 233
 - `minimalist.service` 自动恢复到 `active/enabled`
 - runtime assets 完整
 - controller 可达
-- `runtime-audit` 没有新的 fatal gap
+- `runtime-audit` 输出 `fatal-gaps=0`
 - `MIHOMO_*` 规则和 route table 仍由 Go 版管理
 
 ## 回滚步骤

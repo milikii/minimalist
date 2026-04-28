@@ -691,6 +691,7 @@ func TestRunHelpPrintsUsage(t *testing.T) {
 		"minimalist commands:",
 		"minimalist core-upgrade-alpha",
 		"  minimalist verify-runtime-assets\n",
+		"  minimalist nodes list|test|rename|enable|disable|remove\n",
 		"minimalist rules-repo summary|entries|find|add|remove|remove-index",
 	} {
 		if !strings.Contains(output, needle) {
