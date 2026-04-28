@@ -67,12 +67,14 @@ func (a *App) CoreUpgradeAlpha() error {
 	if err != nil {
 		return fmt.Errorf("read candidate core version: %w", err)
 	}
-	if err := replaceCoreBinaryAtomically(cfg.Install.CoreBin, candidate); err != nil {
+	backupPath, err := replaceCoreBinaryAtomically(cfg.Install.CoreBin, candidate)
+	if err != nil {
 		return err
 	}
 	if err := a.restartMinimalistServiceAfterCoreUpgrade(); err != nil {
 		return err
 	}
+	_ = os.Remove(backupPath)
 
 	fmt.Fprintf(a.Stdout, "core path: %s\n", cfg.Install.CoreBin)
 	fmt.Fprintf(a.Stdout, "release: %s\n", release.TagName)
@@ -103,11 +105,21 @@ func (a *App) fetchMihomoReleases() ([]githubRelease, error) {
 	return releases, nil
 }
 
-func replaceCoreBinaryAtomically(coreBin, candidate string) error {
-	if err := os.Rename(candidate, coreBin); err != nil {
-		return fmt.Errorf("replace core binary: %w", err)
+func replaceCoreBinaryAtomically(coreBin, candidate string) (string, error) {
+	backupPath := coreBin + ".bak"
+	if err := os.Remove(backupPath); err != nil && !os.IsNotExist(err) {
+		return "", err
 	}
-	return nil
+	if err := os.Rename(coreBin, backupPath); err != nil {
+		return "", fmt.Errorf("backup core binary: %w", err)
+	}
+	if err := os.Rename(candidate, coreBin); err != nil {
+		if restoreErr := os.Rename(backupPath, coreBin); restoreErr != nil {
+			return backupPath, fmt.Errorf("replace core binary: %w; restore failed: %v", err, restoreErr)
+		}
+		return backupPath, fmt.Errorf("replace core binary: %w", err)
+	}
+	return backupPath, nil
 }
 
 func (a *App) restartMinimalistServiceAfterCoreUpgrade() error {

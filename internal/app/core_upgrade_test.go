@@ -380,6 +380,9 @@ func TestCoreUpgradeAlphaReplacesBinaryAndRestartsService(t *testing.T) {
 	if string(body) != "new-core" {
 		t.Fatalf("expected replaced core, got %q", string(body))
 	}
+	if _, err := os.Stat(corePath + ".bak"); !os.IsNotExist(err) {
+		t.Fatalf("expected successful restart to remove backup, err=%v", err)
+	}
 	stdout := app.Stdout.(*bytes.Buffer).String()
 	for _, want := range []string{
 		"core path: " + corePath,
@@ -458,6 +461,13 @@ func TestCoreUpgradeAlphaSurfacesRestartFailureWithLogs(t *testing.T) {
 	stderr := app.Stderr.(*bytes.Buffer).String()
 	if !strings.Contains(stderr, "line1") || !strings.Contains(stderr, "line2") {
 		t.Fatalf("expected journal output in stderr:\n%s", stderr)
+	}
+	backupBody, readErr := os.ReadFile(cfg.Install.CoreBin + ".bak")
+	if readErr != nil {
+		t.Fatalf("expected backup to remain after restart failure: %v", readErr)
+	}
+	if string(backupBody) != "old-core" {
+		t.Fatalf("expected backup to contain old core, got %q", string(backupBody))
 	}
 }
 
