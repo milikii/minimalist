@@ -380,6 +380,38 @@ func TestHasReadyProvidersAndHTTPClientFallback(t *testing.T) {
 	}
 }
 
+func TestHasReadyProvidersTreatsEnabledManualNodeAsReadyAndIgnoresEmptyCache(t *testing.T) {
+	app, _ := newTestApp(t)
+	st := state.Empty()
+	st.Nodes = []state.Node{{
+		ID:      "manual-1",
+		Name:    "manual-node",
+		Enabled: true,
+		Source:  state.Source{Kind: "manual"},
+	}}
+	if !app.hasReadyProviders(st) {
+		t.Fatalf("expected enabled manual node to count as ready provider")
+	}
+
+	st = state.Empty()
+	st.Subscriptions = []state.Subscription{
+		{ID: "disabled-sub", Enabled: false},
+		{ID: "empty-sub", Enabled: true},
+	}
+	if err := os.MkdirAll(app.Paths.SubscriptionDir(), 0o755); err != nil {
+		t.Fatalf("mkdir subscription dir: %v", err)
+	}
+	if err := os.WriteFile(app.Paths.SubscriptionFile("disabled-sub"), []byte("trojan://password@example.org:443\n"), 0o640); err != nil {
+		t.Fatalf("write disabled subscription cache: %v", err)
+	}
+	if err := os.WriteFile(app.Paths.SubscriptionFile("empty-sub"), nil, 0o640); err != nil {
+		t.Fatalf("write empty subscription cache: %v", err)
+	}
+	if app.hasReadyProviders(st) {
+		t.Fatalf("expected disabled or empty subscription caches to be ignored")
+	}
+}
+
 func TestRemoveCommandsRejectOutOfRangeIndexes(t *testing.T) {
 	app, _ := newTestApp(t)
 	if err := app.RemoveNode(1); err == nil || !strings.Contains(err.Error(), "node index out of range") {
