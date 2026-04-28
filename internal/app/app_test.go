@@ -1565,6 +1565,25 @@ func TestRulesAndACLMenuSupportsACLAddAndRemove(t *testing.T) {
 	}
 }
 
+func TestRulesAndACLMenuDispatchesACLList(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.AddRule(true, "src", "192.168.2.20/32", "DIRECT"); err != nil {
+		t.Fatalf("add acl: %v", err)
+	}
+	if err := app.rulesAndACLMenu(bufio.NewReader(strings.NewReader("4\n"))); err != nil {
+		t.Fatalf("rules and acl menu acl list: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"4) 查看 ACL 规则",
+		"1\tSRC-IP-CIDR,192.168.2.20/32,DIRECT",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in rules and acl menu output:\n%s", needle, output)
+		}
+	}
+}
+
 func TestNetworkMenuDispatchesRulesRepoFlows(t *testing.T) {
 	app, _ := newTestApp(t)
 	if err := app.networkMenu(bufio.NewReader(strings.NewReader("6\npt\nmenu.example.com\n"))); err != nil {
