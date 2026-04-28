@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -105,10 +106,18 @@ func selectLinuxReleaseAsset(assets []githubReleaseAsset, goarch, assetPrefix st
 
 func isAMD64CPULevelAsset(name, assetPrefix string) bool {
 	rest := strings.ToLower(strings.TrimPrefix(name, assetPrefix))
-	return strings.HasPrefix(rest, "compatible-") ||
-		strings.HasPrefix(rest, "v1-") ||
-		strings.HasPrefix(rest, "v2-") ||
-		strings.HasPrefix(rest, "v3-")
+	if strings.HasPrefix(rest, "compatible-") {
+		return true
+	}
+	if !strings.HasPrefix(rest, "v") {
+		return false
+	}
+	level, _, found := strings.Cut(rest[1:], "-")
+	if !found || level == "" {
+		return false
+	}
+	_, err := strconv.Atoi(level)
+	return err == nil
 }
 
 func joinAssetNames(assets []githubReleaseAsset) string {

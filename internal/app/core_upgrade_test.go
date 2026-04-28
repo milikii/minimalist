@@ -118,6 +118,27 @@ func TestSelectLatestAlphaAssetRejectsSingleAMD64CPUVariant(t *testing.T) {
 	}
 }
 
+func TestSelectLatestAlphaAssetRejectsAMD64HigherCPUVariant(t *testing.T) {
+	releases := []githubRelease{
+		{
+			TagName:    "v1.19.23-alpha-1",
+			Name:       "v1.19.23 alpha 1",
+			Prerelease: true,
+			Assets: []githubReleaseAsset{
+				{Name: "mihomo-linux-amd64-v4-v1.19.23.gz", BrowserDownloadURL: "https://example.com/v4.gz"},
+			},
+		},
+	}
+
+	_, _, err := selectLatestAlphaAsset(releases, "linux", "amd64")
+	if err == nil || !strings.Contains(err.Error(), "explicit amd64 cpu level") {
+		t.Fatalf("expected explicit cpu level error for v4 asset, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "mihomo-linux-amd64-v4-v1.19.23.gz") {
+		t.Fatalf("expected v4 asset name in error, got %v", err)
+	}
+}
+
 func TestSelectLatestAlphaAssetRejectsUnsupportedArch(t *testing.T) {
 	releases := []githubRelease{
 		{
