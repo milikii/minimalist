@@ -775,7 +775,7 @@ func TestRunDispatchesRuntimeAuditThroughRun(t *testing.T) {
 			t.Fatalf("run runtime-audit: %v", err)
 		}
 	})
-	for _, needle := range []string{"alerts:", "providers-ready="} {
+	for _, needle := range []string{"alerts-24h:", "alerts-recent:", "fatal-gaps=", "providers-ready="} {
 		if !strings.Contains(output, needle) {
 			t.Fatalf("missing %q in runtime audit output:\n%s", needle, output)
 		}

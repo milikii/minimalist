@@ -25,8 +25,8 @@
 - 本次新增 `core-upgrade-alpha` 最小闭环：显式从官方 `MetaCubeX/mihomo` alpha release 升级 `/usr/local/bin/mihomo-core`，成功替换后自动重启 `minimalist.service`；不新增菜单入口、不做 stable 通道、不提供 rollback 命令、不做定时自动更新。
 - 若继续施工，优先选择：
   - 继续观察 `minimalist.service` 24 小时日志；2026-04-28 08:34 CST 已确认 UI/geodata 资源复制后最近启动窗口不再出现启动下载错误，当前 warn/error 计数仍来自切换早期历史窗口。
-  - 先做 `runtime-audit` 收口：把当前 24 小时粗粒度 `warn/error` 计数改成可区分“历史窗口 / 当前窗口 / 致命缺口”的信号，避免长期值守时误判。
-  - 再做 runtime asset 自检：在 `setup` / `start` / `restart` / `healthcheck` 关键链路里明确检查 `Country.mmdb`、`GeoSite.dat`、`ui/` 是否齐备，缺失时给出一致的运维级报错。
+  - `runtime-audit` 收口已完成：当前已把 24 小时粗粒度 `warn/error` 计数拆成可区分“历史窗口 / 当前窗口 / 致命缺口”的信号。
+  - 下一闭环做 runtime asset 自检：在 `setup` / `start` / `restart` / `healthcheck` 关键链路里明确检查 `Country.mmdb`、`GeoSite.dat`、`ui/` 是否齐备，缺失时给出一致的运维级报错。
   - 再做 reboot / restart smoke runbook：把宿主机 reboot、服务 restart、规则重下发、controller 恢复和路由状态复核固定成一套可重复验证步骤。
   - 最后才回头补 `internal/app` / `core-upgrade-alpha` 的剩余低覆盖尾分支；稳定性闭环优先级高于继续追 coverage。
 - 旧 `/etc/mihomo`、`mihomo.service`、`/usr/local/bin/mihomo` 与 `/usr/local/lib/mihomo-manager` 已清理；下一步不再围绕旧服务回滚路径推进。

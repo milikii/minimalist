@@ -83,6 +83,7 @@ sudo minimalist core-upgrade-alpha
 - `subscriptions update` 更新的是订阅 provider 缓存；`render-config` 直接读取缓存生成订阅 provider
 - 即使当前没有手动节点或订阅 provider，`render-config` 仍会生成仅含 `DIRECT` 的 `PROXY` 组
 - provider 导入会按 `URIBaseKey` 去重，并为重名节点自动追加后缀
+- `runtime-audit` 当前会分开输出 `alerts-24h`、`alerts-recent` 与 `fatal-gaps`，用于区分历史噪音、当前异常和致命缺口
 - 从旧 `mihomo.service` 切到 Go 版前，先按 `docs/CUTOVER.md` 做人工 cutover 检查；当前本机旧服务资产已在切换验证后清理
 
 ## 当前限制

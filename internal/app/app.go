@@ -254,23 +254,26 @@ func (a *App) RuntimeAudit() error {
 	if err := a.Status(); err != nil {
 		return err
 	}
-	stdout, _, _ := a.Runner.Output("journalctl", "-u", "minimalist.service", "--since", "24 hours ago", "--no-pager")
-	warnCount := 0
-	errCount := 0
-	for _, line := range strings.Split(stdout, "\n") {
-		lowered := strings.ToLower(line)
-		if strings.Contains(lowered, "warn") {
-			warnCount++
-		}
-		if strings.Contains(lowered, "error") {
-			errCount++
-		}
+	warn24h, err24h := a.journalAlertCounts("24 hours ago")
+	recentWarn, recentErr := a.journalAlertCounts("15 minutes ago")
+	fmt.Fprintf(a.Stdout, "alerts-24h: warn=%d error=%d\n", warn24h, err24h)
+	fmt.Fprintf(a.Stdout, "alerts-recent: warn=%d error=%d\n", recentWarn, recentErr)
+	providersReady := a.hasReadyProviders(st)
+	fmt.Fprintf(a.Stdout, "providers-ready=%t\n", providersReady)
+	cutoverStatus := a.cutoverPreflightStatus()
+	a.printCutoverPreflightStatus(cutoverStatus)
+	fatalGaps := make([]string, 0, 2)
+	if !cutoverStatus.Ready() {
+		fatalGaps = append(fatalGaps, "cutover-not-ready")
 	}
-	fmt.Fprintf(a.Stdout, "alerts: warn=%d error=%d\n", warnCount, errCount)
-	fmt.Fprintf(a.Stdout, "providers-ready=%t\n", a.hasReadyProviders(st))
-	a.printCutoverPreflight()
 	if summary, err := a.controllerRuntimeSummary(cfg); err == nil {
 		fmt.Fprintf(a.Stdout, "runtime: %s\n", summary)
+	} else {
+		fatalGaps = append(fatalGaps, "controller-unreachable")
+	}
+	fmt.Fprintf(a.Stdout, "fatal-gaps=%d\n", len(fatalGaps))
+	for _, gap := range fatalGaps {
+		fmt.Fprintf(a.Stdout, "fatal-gap: %s\n", gap)
 	}
 	return nil
 }
@@ -303,7 +306,10 @@ func (a *App) CutoverPlan() error {
 }
 
 func (a *App) printCutoverPreflight() {
-	status := a.cutoverPreflightStatus()
+	a.printCutoverPreflightStatus(a.cutoverPreflightStatus())
+}
+
+func (a *App) printCutoverPreflightStatus(status cutoverPreflightStatus) {
 	fmt.Fprintf(
 		a.Stdout,
 		"cutover-preflight: legacy_service_active=%t legacy_service_enabled=%t legacy_bin=%t legacy_config_dir=%t minimalist_service_active=%t minimalist_service_enabled=%t minimalist_unit=%t minimalist_bin=%t\n",
@@ -323,6 +329,23 @@ func (a *App) printCutoverPreflight() {
 		fmt.Fprintln(a.Stdout, "cutover-note: legacy mihomo and minimalist use the same MIHOMO_* chains plus 0x2333/table 233 defaults")
 	}
 	fmt.Fprintf(a.Stdout, "cutover-ready=%t\n", status.Ready())
+}
+
+func (a *App) journalAlertCounts(since string) (warnCount int, errCount int) {
+	stdout, _, err := a.Runner.Output("journalctl", "-u", "minimalist.service", "--since", since, "--no-pager")
+	if err != nil {
+		return 0, 0
+	}
+	for _, line := range strings.Split(stdout, "\n") {
+		lowered := strings.ToLower(line)
+		if strings.Contains(lowered, "warn") {
+			warnCount++
+		}
+		if strings.Contains(lowered, "error") {
+			errCount++
+		}
+	}
+	return warnCount, errCount
 }
 
 func (a *App) ensureCutoverReady() error {

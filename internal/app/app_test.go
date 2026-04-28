@@ -2113,8 +2113,10 @@ func TestAuditMenuDispatchesRuntimeAudit(t *testing.T) {
 	output := app.Stdout.(*bytes.Buffer).String()
 	for _, needle := range []string{
 		"2) 运行审计",
-		"alerts: warn=1 error=1",
+		"alerts-24h: warn=1 error=1",
+		"alerts-recent: warn=1 error=1",
 		"runtime: Mihomo Meta v1.1.1",
+		"fatal-gaps=0",
 	} {
 		if !strings.Contains(output, needle) {
 			t.Fatalf("missing %q in audit menu output:\n%s", needle, output)
@@ -3548,9 +3550,56 @@ func TestRuntimeAuditCountsAlertsAndReportsRuntimeSummary(t *testing.T) {
 	for _, needle := range []string{
 		"当前模式: global (runtime)",
 		"服务状态: active=true enabled=true",
-		"alerts: warn=1 error=1",
+		"alerts-24h: warn=1 error=1",
+		"alerts-recent: warn=1 error=1",
 		"providers-ready=false",
 		"runtime: Mihomo Meta v1.0.1",
+		"fatal-gaps=0",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in runtime audit output:\n%s", needle, output)
+		}
+	}
+}
+
+func TestRuntimeAuditSeparatesHistoricalRecentAndFatalSignals(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			if name == "systemctl" && len(args) >= 2 && (args[0] == "is-active" || args[0] == "is-enabled") {
+				return nil
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			if name != "journalctl" {
+				return "", "", errors.New("unavailable")
+			}
+			if len(args) < 5 {
+				t.Fatalf("unexpected journalctl args: %v", args)
+			}
+			switch args[3] {
+			case "24 hours ago":
+				return "INFO booted\nWARN slow-provider\nERROR dial failed\n", "", nil
+			case "15 minutes ago":
+				return "ERROR recent dial failed\n", "", nil
+			default:
+				t.Fatalf("unexpected journalctl window: %v", args)
+				return "", "", nil
+			}
+		},
+	}
+
+	if err := app.RuntimeAudit(); err != nil {
+		t.Fatalf("runtime audit: %v", err)
+	}
+
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"alerts-24h: warn=1 error=1",
+		"alerts-recent: warn=0 error=1",
+		"fatal-gaps=1",
+		"fatal-gap: controller-unreachable",
 	} {
 		if !strings.Contains(output, needle) {
 			t.Fatalf("missing %q in runtime audit output:\n%s", needle, output)
@@ -3578,8 +3627,14 @@ func TestRuntimeAuditOmitsRuntimeSummaryWhenControllerUnavailable(t *testing.T) 
 		t.Fatalf("runtime audit: %v", err)
 	}
 	output := app.Stdout.(*bytes.Buffer).String()
-	if !strings.Contains(output, "alerts: warn=1 error=0") {
+	if !strings.Contains(output, "alerts-24h: warn=1 error=0") {
 		t.Fatalf("expected alert count in runtime audit output:\n%s", output)
+	}
+	if !strings.Contains(output, "alerts-recent: warn=1 error=0") {
+		t.Fatalf("expected recent alert count in runtime audit output:\n%s", output)
+	}
+	if !strings.Contains(output, "fatal-gaps=1") || !strings.Contains(output, "fatal-gap: controller-unreachable") {
+		t.Fatalf("expected controller fatal gap in runtime audit output:\n%s", output)
 	}
 	if strings.Contains(output, "runtime: ") {
 		t.Fatalf("did not expect runtime summary when controller is unavailable:\n%s", output)
@@ -3608,9 +3663,12 @@ func TestRuntimeAuditKeepsLocalSummaryWhenJournalctlFails(t *testing.T) {
 	output := app.Stdout.(*bytes.Buffer).String()
 	for _, needle := range []string{
 		"服务状态: active=true enabled=true",
-		"alerts: warn=0 error=0",
+		"alerts-24h: warn=0 error=0",
+		"alerts-recent: warn=0 error=0",
 		"providers-ready=false",
 		"cutover-preflight:",
+		"fatal-gaps=1",
+		"fatal-gap: controller-unreachable",
 	} {
 		if !strings.Contains(output, needle) {
 			t.Fatalf("missing %q in runtime audit output:\n%s", needle, output)
