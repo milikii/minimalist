@@ -3,6 +3,7 @@ package runtime
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -112,6 +113,8 @@ func TestPathsResolveExpectedArtifacts(t *testing.T) {
 		{paths.RulesRepoPath(), "/etc/minimalist/rules-repo/default/manifest.yaml"},
 		{paths.ProviderDir(), "/var/lib/minimalist/mihomo/proxy_providers"},
 		{paths.RulesDir(), "/var/lib/minimalist/mihomo/ruleset"},
+		{paths.CountryMMDBPath(), "/var/lib/minimalist/mihomo/Country.mmdb"},
+		{paths.GeoSitePath(), "/var/lib/minimalist/mihomo/GeoSite.dat"},
 		{paths.UIPath(), "/var/lib/minimalist/mihomo/ui"},
 		{paths.ManualProvider(), "/var/lib/minimalist/mihomo/proxy_providers/manual.txt"},
 		{paths.BuiltinRules(), "/var/lib/minimalist/mihomo/ruleset/builtin.rules"},
@@ -125,6 +128,58 @@ func TestPathsResolveExpectedArtifacts(t *testing.T) {
 		if tc.got != tc.want {
 			t.Fatalf("expected %s, got %s", tc.want, tc.got)
 		}
+	}
+}
+
+func TestMissingRuntimeAssetsReportsAbsentFilesAndDirectories(t *testing.T) {
+	root := t.TempDir()
+	paths := Paths{
+		ConfigDir:   filepath.Join(root, "etc"),
+		DataDir:     filepath.Join(root, "var"),
+		RuntimeDir:  filepath.Join(root, "runtime"),
+		InstallDir:  filepath.Join(root, "install"),
+		BinPath:     filepath.Join(root, "bin", "minimalist"),
+		ServiceUnit: filepath.Join(root, "systemd", "minimalist.service"),
+		SysctlPath:  filepath.Join(root, "sysctl", "99-minimalist-router.conf"),
+	}
+	if err := EnsureLayout(paths); err != nil {
+		t.Fatalf("ensure layout: %v", err)
+	}
+	if err := os.RemoveAll(paths.UIPath()); err != nil {
+		t.Fatalf("remove ui dir: %v", err)
+	}
+
+	missing := MissingRuntimeAssets(paths)
+	want := []string{"Country.mmdb", "GeoSite.dat", "ui/"}
+	if !reflect.DeepEqual(missing, want) {
+		t.Fatalf("missing assets = %#v, want %#v", missing, want)
+	}
+}
+
+func TestMissingRuntimeAssetsReturnsNilWhenAssetsPresent(t *testing.T) {
+	root := t.TempDir()
+	paths := Paths{
+		ConfigDir:   filepath.Join(root, "etc"),
+		DataDir:     filepath.Join(root, "var"),
+		RuntimeDir:  filepath.Join(root, "runtime"),
+		InstallDir:  filepath.Join(root, "install"),
+		BinPath:     filepath.Join(root, "bin", "minimalist"),
+		ServiceUnit: filepath.Join(root, "systemd", "minimalist.service"),
+		SysctlPath:  filepath.Join(root, "sysctl", "99-minimalist-router.conf"),
+	}
+	if err := EnsureLayout(paths); err != nil {
+		t.Fatalf("ensure layout: %v", err)
+	}
+	if err := os.WriteFile(paths.CountryMMDBPath(), []byte("mmdb"), 0o640); err != nil {
+		t.Fatalf("write mmdb: %v", err)
+	}
+	if err := os.WriteFile(paths.GeoSitePath(), []byte("geosite"), 0o640); err != nil {
+		t.Fatalf("write geosite: %v", err)
+	}
+
+	missing := MissingRuntimeAssets(paths)
+	if len(missing) != 0 {
+		t.Fatalf("expected no missing assets, got %#v", missing)
 	}
 }
 

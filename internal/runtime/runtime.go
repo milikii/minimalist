@@ -41,6 +41,8 @@ func (p Paths) RulesRepoPath() string {
 }
 func (p Paths) ProviderDir() string     { return filepath.Join(p.RuntimeDir, "proxy_providers") }
 func (p Paths) RulesDir() string        { return filepath.Join(p.RuntimeDir, "ruleset") }
+func (p Paths) CountryMMDBPath() string { return filepath.Join(p.RuntimeDir, "Country.mmdb") }
+func (p Paths) GeoSitePath() string     { return filepath.Join(p.RuntimeDir, "GeoSite.dat") }
 func (p Paths) UIPath() string          { return filepath.Join(p.RuntimeDir, "ui") }
 func (p Paths) ManualProvider() string  { return filepath.Join(p.ProviderDir(), "manual.txt") }
 func (p Paths) BuiltinRules() string    { return filepath.Join(p.RulesDir(), "builtin.rules") }
@@ -82,6 +84,35 @@ func EnsureLayout(paths Paths) error {
 		}
 	}
 	return nil
+}
+
+func MissingRuntimeAssets(paths Paths) []string {
+	missing := make([]string, 0, 3)
+	for _, item := range []struct {
+		label string
+		path  string
+		dir   bool
+	}{
+		{label: "Country.mmdb", path: paths.CountryMMDBPath()},
+		{label: "GeoSite.dat", path: paths.GeoSitePath()},
+		{label: "ui/", path: paths.UIPath(), dir: true},
+	} {
+		info, err := os.Stat(item.path)
+		if err != nil {
+			missing = append(missing, item.label)
+			continue
+		}
+		if item.dir {
+			if !info.IsDir() {
+				missing = append(missing, item.label)
+			}
+			continue
+		}
+		if info.IsDir() || info.Size() == 0 {
+			missing = append(missing, item.label)
+		}
+	}
+	return missing
 }
 
 func RenderFiles(paths Paths, cfg config.Config, st state.State) error {
