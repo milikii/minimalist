@@ -3,7 +3,7 @@
 ## 当前阶段
 
 - Go 版 `minimalist` 主实现已经落地，默认分支保持可构建、可测试。
-- 单元与 focused 测试已经覆盖核心配置、状态、provider、rules-repo、runtime 渲染、app 命令编排、CLI 分发与多组失败路径；`internal/app` 经过最新二十轮小步硬化已提升到 97.8% 语句覆盖率，`internal/config` 维持 94.3%。
+- 单元与 focused 测试已经覆盖核心配置、状态、provider、rules-repo、runtime 渲染、app 命令编排、CLI 分发与多组失败路径；`internal/app` 经过最新十轮小步硬化已提升到 93.2% 语句覆盖率，`internal/config` 维持 94.3%。
 - 这台 Debian NAS 已经是可用实机：`systemd`、`iptables`、`ip rule` 都是真实可达的。
 - 现网已经从旧 `mihomo.service` 切换到 Go 版 `minimalist.service`；旧服务当前 `inactive/disabled`，新服务 `active/enabled`。
 - 本轮全量 `go test ./...` 和 build 已通过；新增 `core-upgrade-alpha` focused app/CLI tests 也已通过。此前实机 `healthcheck` / `runtime-audit` / systemd / ip rule / route table smoke 已通过；十轮连续硬化后复验仍保持同样结果。
@@ -11,6 +11,7 @@
 ## 下一最小闭环
 
 - 当前没有新的功能缺口；下一步优先做切换后观察与最小硬化，不扩协议、不恢复旧运维能力。
+- 本轮十个最小闭环已补上 `controllerRuntimeSummary` / `controllerConfigMode` 的 HTTP 失败判定、`testNodeDelay` 的 missing/negative delay 保护、`restartMinimalistServiceAfterCoreUpgrade` 的 active 状态校验、`releaseIsNewer` 的自然排序，以及 nodes / subscriptions / network / rules 菜单索引校验；这些都已经通过 `go test ./...` 和 `go build` 复验。
 - 当前轮次已额外补稳 runtime asset、menu/CLI 节点管理、controller delay 错误输出、空白 rules manifest、空白 secret 持久化、legacy state version 回填、`testNodeDelay` 失败分支、`networkMenu` 关键分发、安装路径阻断、导入读取错误、非法规则目标、`ensureAll` 失败传播、`updateSubscriptions` mixed/disabled 边界、`apply-rules` 空 bypass 输入、菜单 `0` 返回，以及 config/state/rules-repo/provider/CLI 的一组 focused 错误路径。
 - 当前轮次又补稳了 `Setup` root guard、`Status` ensureAll 失败传播、`ImportLinks` / `RouterWizard` / `UpdateSubscriptions` 写回失败，以及 `Menu -> nodes/network/rules/service/audit` 主分发；`internal/app` 覆盖率已从 96.3% 提升到 97.1%。
 - 本次再连续十轮补稳了 `nodesMenu -> TestNodes`、`subscriptions/network/service/audit` 的 invalid-choice retry、`rulesAndACLMenu -> List ACL`、`hasReadyProviders` 边界、controller `mode` 缺失键、订阅更新非法 URL 与缓存写入失败记录，以及 `ensureAll` 的 rules-repo 初始化失败传播；`internal/app` 覆盖率已进一步提升到 97.8%。

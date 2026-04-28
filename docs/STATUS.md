@@ -59,6 +59,7 @@
 - 2026-04-28 本次连续十轮硬化后的复验结果保持稳定：全量 `go test ./...` 与 build 继续通过，`runtime-audit` 仍显示 `providers-ready=true`、`cutover-ready=true`，当前 live 路由仍为 `fwmark 0x2333 lookup 233` 与 `local default dev lo scope host`。
 - 2026-04-28 本次最新十轮 focused tests 完成后再次复验：`GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...`、`GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./internal/app -coverprofile=/tmp/minimalist-app.cover` 与 `GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go build -o /tmp/minimalist-build-check ./cmd/minimalist` 全部通过；`internal/app` 当前覆盖率为 97.8%。
 - 2026-04-28 `core-upgrade-alpha` 闭环复验：CLI focused test、alpha core focused app test、全量 `GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...` 与 `GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go build -o /tmp/minimalist-build-check ./cmd/minimalist` 全部通过。
+- 2026-04-28 本轮连续十个最小闭环继续收口 `internal/app` 与 `core-upgrade-alpha`：补上 `controllerRuntimeSummary` / `controllerConfigMode` 的 HTTP 失败判定、`testNodeDelay` 的缺失/负值 delay 保护、`restartMinimalistServiceAfterCoreUpgrade` 的 active 状态校验、`releaseIsNewer` 的自然排序，以及 nodes / subscriptions / network / rules 菜单索引校验；当前 `GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...` 与 `GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go build -o /tmp/minimalist-build-check ./cmd/minimalist` 已通过，`internal/app` 当前覆盖率为 93.2%。
 
 ## 当前风险与限制
 
