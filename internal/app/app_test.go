@@ -1289,6 +1289,23 @@ func TestNetworkMenuDispatchesRulesRepoFlows(t *testing.T) {
 	}
 }
 
+func TestServiceMenuDispatchesStatus(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.serviceMenu(bufio.NewReader(strings.NewReader("4\n"))); err != nil {
+		t.Fatalf("service menu status: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"4) 查看状态",
+		"服务状态: active=false enabled=false",
+		"当前模式: rule (config)",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in service menu output:\n%s", needle, output)
+		}
+	}
+}
+
 func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 	app, _ := newTestApp(t)
 	oldGeteuid := geteuid
