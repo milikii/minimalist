@@ -1441,7 +1441,10 @@ func (a *App) networkMenu(reader *bufio.Reader) error {
 			return a.RulesRepoAdd(name, value)
 		case "7":
 			name := promptString(reader, a.Stdout, "规则集名称", "pt")
-			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "条目 ID", "1"))
+			index, err := promptIndex(reader, a.Stdout, "条目 ID")
+			if err != nil {
+				return err
+			}
 			return a.RulesRepoRemoveIndex(name, index)
 		case "0":
 			return nil

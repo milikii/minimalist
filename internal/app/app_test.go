@@ -1829,6 +1829,15 @@ func TestNetworkMenuRetriesAfterInvalidChoice(t *testing.T) {
 	}
 }
 
+func TestNetworkMenuRejectsInvalidEntryID(t *testing.T) {
+	app, _ := newTestApp(t)
+	reader := bufio.NewReader(strings.NewReader("7\npt\nabc\n"))
+	err := app.networkMenu(reader)
+	if err == nil || !strings.Contains(err.Error(), "invalid 条目 ID") {
+		t.Fatalf("expected invalid entry id error, got %v", err)
+	}
+}
+
 func TestServiceMenuDispatchesStatus(t *testing.T) {
 	app, _ := newTestApp(t)
 	if err := app.serviceMenu(bufio.NewReader(strings.NewReader("4\n"))); err != nil {
