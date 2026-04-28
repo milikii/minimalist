@@ -3,19 +3,18 @@
 ## 当前阶段
 
 - Go 版 `minimalist` 主实现已经落地，默认分支保持可构建、可测试。
-- 单元与 focused 测试已经覆盖核心配置、状态、provider、rules-repo、runtime 渲染、app 命令编排、CLI 分发与多组失败路径。
+- 单元与 focused 测试已经覆盖核心配置、状态、provider、rules-repo、runtime 渲染、app 命令编排、CLI 分发与多组失败路径；`internal/app` 经过最近十个小闭环已提升到 90.3% 语句覆盖率。
 - 这台 Debian NAS 已经是可用实机：`systemd`、`iptables`、`ip rule` 都是真实可达的。
 - 现网已经从旧 `mihomo.service` 切换到 Go 版 `minimalist.service`；旧服务当前 `inactive/disabled`，新服务 `active/enabled`。
-- 本轮完成五个最小闭环：只读 cutover 清点、Go 版输入准备、维护窗口切换、切换后 smoke、文档与回归验证。
 - 本轮全量 `go test ./...` 和 build 已通过，实机 `healthcheck` / `status` / `runtime-audit` / systemd / ip rule / iptables smoke 已通过。
 
 ## 下一最小闭环
 
 - 当前没有新的功能缺口；下一步优先做切换后观察与最小硬化，不扩协议、不恢复旧运维能力。
-- 当前轮次已额外补稳 runtime asset、menu/CLI 节点管理、controller delay 错误输出、空白 rules manifest、空白 secret 持久化与 legacy state version 回填等 focused coverage。
+- 当前轮次已额外补稳 runtime asset、menu/CLI 节点管理、controller delay 错误输出、空白 rules manifest、空白 secret 持久化、legacy state version 回填，以及 app 菜单分发与节点/订阅状态联动等 focused coverage。
 - 若继续施工，优先选择：
   - 继续观察 `minimalist.service` 24 小时日志；2026-04-28 08:34 CST 已确认 UI/geodata 资源复制后最近启动窗口不再出现启动下载错误，当前 warn/error 计数仍来自切换早期历史窗口。
-  - 补一个 focused test 或文档说明，覆盖 geodata/UI 需要预置时的运维约束。
+  - 继续补 `internal/app` 的剩余低覆盖热点，优先 `apply-rules`、`nodesMenu`、`networkMenu`、`serviceMenu` 的保守边界分支。
   - 复跑 `runtime-audit`，确认 warn/error 计数只剩历史窗口内记录。
 - 旧 `/etc/mihomo`、`mihomo.service`、`/usr/local/bin/mihomo` 与 `/usr/local/lib/mihomo-manager` 已清理；下一步不再围绕旧服务回滚路径推进。
 - 保持 README / flows 描述 Go 版 `minimalist` 目标真相；STATUS / NEXT_STEP 记录 live host 已切换完成。
