@@ -12,9 +12,10 @@
 
 - 当前没有新的功能缺口；下一步优先做切换后观察与最小硬化，不扩协议、不恢复旧运维能力。
 - 当前轮次已额外补稳 runtime asset、menu/CLI 节点管理、controller delay 错误输出、空白 rules manifest、空白 secret 持久化、legacy state version 回填、`testNodeDelay` 失败分支、`networkMenu` 关键分发、安装路径阻断、导入读取错误、非法规则目标、`ensureAll` 失败传播、`updateSubscriptions` mixed/disabled 边界、`apply-rules` 空 bypass 输入、菜单 `0` 返回，以及 config/state/rules-repo/provider/CLI 的一组 focused 错误路径。
+- 当前轮次又补稳了 `Setup` root guard、`Status` ensureAll 失败传播、`ImportLinks` / `RouterWizard` / `UpdateSubscriptions` 写回失败，以及 `Menu -> nodes/network/rules/service/audit` 主分发；`internal/app` 覆盖率已从 96.3% 提升到 97.1%。
 - 若继续施工，优先选择：
   - 继续观察 `minimalist.service` 24 小时日志；2026-04-28 08:34 CST 已确认 UI/geodata 资源复制后最近启动窗口不再出现启动下载错误，当前 warn/error 计数仍来自切换早期历史窗口。
-  - 继续补 `internal/app` 的剩余低覆盖热点，优先 `serviceMenu` / `auditMenu` / `nodesMenu` 这类菜单分发与 `apply-rules`、`updateSubscriptions` 的更细尾部分支；通用错误传播和 `0` 返回分支已完成一轮 focused 收口。
+  - 继续补 `internal/app` 的剩余低覆盖热点，优先 `ApplyRules`、controller 请求构造/错误传播，以及少量 submenu invalid-choice 尾分支；主菜单到各运维分组的分发链路已完成一轮 focused 收口。
   - 复跑 `runtime-audit`，确认 warn/error 计数只剩历史窗口内记录。
 - 旧 `/etc/mihomo`、`mihomo.service`、`/usr/local/bin/mihomo` 与 `/usr/local/lib/mihomo-manager` 已清理；下一步不再围绕旧服务回滚路径推进。
 - 保持 README / flows 描述 Go 版 `minimalist` 目标真相；STATUS / NEXT_STEP 记录 live host 已切换完成。

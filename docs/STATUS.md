@@ -35,6 +35,7 @@
 - 最近十个小闭环继续收口 runtime / provider / rules-repo / config / state / app / cli 的 focused coverage：runtime asset 本地预置约束、CLI 节点管理分发、节点菜单校验错误透传、节点测速 controller 错误输出、订阅纯空输入、空白 rules manifest、空白 secret 持久化回写、legacy state 缺失 version 回填，以及此前的订阅空缓存与禁用订阅缓存不生成 provider、runtime 规则文件读错误上浮、CRLF wrapped base64 订阅解码、不支持 URI scan row 回退字段、provider 渲染父目录创建、rules-repo 按序号删除保序、ruleset entries 计数输出、config/state `Ensure` 首次创建父目录，当前都已有 focused tests。
 - 2026-04-28 继续新增 focused app tests，补上安装路径阻断、`ImportLinks` 读取错误、`RenderConfig` 非法规则目标、`ensureAll` 失败传播，以及 `apply-rules` 的链创建 / 入口 / 绕行失败分支；当前 `internal/app` 包覆盖率已提升到 95.3%。
 - 2026-04-28 本轮又连续补了 `updateSubscriptions` 的 mixed/disabled 边界、`apply-rules` 的空 bypass 输入、菜单 `0` 返回、`config/state` 直写目录失败、`persistedSecretPresent` 解析回退、runtime ready-subscription provider 选择、rules-repo 嵌入资产落盘失败、provider 空名自动命名，以及 CLI `subscriptions update` 分发；当前 `internal/app` 包覆盖率已到 95.6%，`internal/config` 也提升到 94.3%。
+- 2026-04-28 本次继续按质量硬化主线补了 `Setup` root guard、`Status` ensureAll 失败传播、`ImportLinks` / `RouterWizard` / `UpdateSubscriptions` 的真相写回失败路径，以及 `Menu -> nodes/network/rules/service/audit` 的主分发链路；全量 `go test ./...` 继续通过，`internal/app` 包覆盖率进一步提升到 97.1%。
 
 ## 本机真实验证结论
 
