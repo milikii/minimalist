@@ -1324,6 +1324,33 @@ func TestRenameNodeRejectsEmptyNamesAndSubscriptionNodes(t *testing.T) {
 	}
 }
 
+func TestRenameNodeUpdatesRuleAndACLTargets(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#old-name\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.AddRule(false, "domain", "rename.example.com", "old-name"); err != nil {
+		t.Fatalf("add rule: %v", err)
+	}
+	if err := app.AddRule(true, "src", "192.168.2.9/32", "old-name"); err != nil {
+		t.Fatalf("add acl: %v", err)
+	}
+	if err := app.RenameNode(1, "new-name"); err != nil {
+		t.Fatalf("rename node: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if st.Nodes[0].Name != "new-name" {
+		t.Fatalf("expected node name to be updated, got %+v", st.Nodes[0])
+	}
+	if st.Rules[0].Target != "new-name" || st.ACL[0].Target != "new-name" {
+		t.Fatalf("expected rule targets to follow rename, got rules=%+v acl=%+v", st.Rules, st.ACL)
+	}
+}
+
 func TestSetSubscriptionEnabledKeepsNodesWhenEnablingAndRejectsOutOfRange(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Client = &http.Client{
