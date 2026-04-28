@@ -396,6 +396,9 @@ func (a *App) downloadReleaseAsset(asset githubReleaseAsset, coreBin string) (st
 	if err != nil {
 		return "", err
 	}
+	if len(body) == 0 {
+		return "", errors.New("empty asset payload")
+	}
 	candidate := filepath.Join(tmpDir, "mihomo-core")
 	if err := os.WriteFile(candidate, body, 0o755); err != nil {
 		return "", err

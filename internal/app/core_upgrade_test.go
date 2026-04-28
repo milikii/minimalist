@@ -521,6 +521,23 @@ func TestDownloadReleaseAssetRejectsHTTPFailures(t *testing.T) {
 	}
 }
 
+func TestDownloadReleaseAssetRejectsEmptyPayload(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return gzippedResponse(t, nil), nil
+		}),
+	}
+
+	_, err := app.downloadReleaseAsset(githubReleaseAsset{
+		Name:               "mihomo-linux-amd64-v1.19.23.gz",
+		BrowserDownloadURL: "https://example.com/mihomo.gz",
+	}, filepath.Join(t.TempDir(), "bin", "mihomo-core"))
+	if err == nil || !strings.Contains(err.Error(), "empty asset payload") {
+		t.Fatalf("expected empty payload error, got %v", err)
+	}
+}
+
 func TestReleaseIsNewerUsesNaturalOrderingForEqualPublishedAt(t *testing.T) {
 	publishedAt := mustParseRFC3339(t, "2026-04-28T00:00:00Z")
 	newer := githubRelease{
