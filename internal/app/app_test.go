@@ -1565,6 +1565,26 @@ func TestNodesMenuReturnsMutationErrors(t *testing.T) {
 	}
 }
 
+func TestNodesMenuDispatchesListNodes(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#listed-node\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("1\n"))); err != nil {
+		t.Fatalf("nodes menu list: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"1) 查看节点",
+		"1\tlisted-node\t0\tmanual\t",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in nodes menu output:\n%s", needle, output)
+		}
+	}
+}
+
 func TestNodesMenuEnablesAndDisablesManualNode(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#toggle-node\n")
