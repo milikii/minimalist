@@ -1157,6 +1157,9 @@ func (a *App) controllerConfigMode(cfg config.Config) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return "", fmt.Errorf("http %d", resp.StatusCode)
+	}
 	var payload map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return "", err

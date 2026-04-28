@@ -4860,6 +4860,19 @@ func TestControllerConfigModeHandlesInvalidAndMissingModeResponses(t *testing.T)
 	}
 }
 
+func TestControllerConfigModeRejectsHTTPFailure(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg := config.Default()
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusBadGateway, `{"mode":"global"}`), nil
+		}),
+	}
+	if _, err := app.controllerConfigMode(cfg); err == nil || !strings.Contains(err.Error(), "http 502") {
+		t.Fatalf("expected http status error, got %v", err)
+	}
+}
+
 func TestAppProviderHelpersCountAndDetectReadyProvidersWithState(t *testing.T) {
 	app, _ := newTestApp(t)
 	st := state.Empty()
