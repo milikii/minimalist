@@ -1382,13 +1382,22 @@ func (a *App) subscriptionsMenu(reader *bufio.Reader) error {
 			subURL := promptString(reader, a.Stdout, "订阅 URL", "")
 			return a.AddSubscription(name, subURL, true)
 		case "3":
-			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "订阅 ID", "1"))
+			index, err := promptIndex(reader, a.Stdout, "订阅 ID")
+			if err != nil {
+				return err
+			}
 			return a.SetSubscriptionEnabled(index, true)
 		case "4":
-			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "订阅 ID", "1"))
+			index, err := promptIndex(reader, a.Stdout, "订阅 ID")
+			if err != nil {
+				return err
+			}
 			return a.SetSubscriptionEnabled(index, false)
 		case "5":
-			index, _ := strconv.Atoi(promptString(reader, a.Stdout, "订阅 ID", "1"))
+			index, err := promptIndex(reader, a.Stdout, "订阅 ID")
+			if err != nil {
+				return err
+			}
 			return a.RemoveSubscription(index)
 		case "6":
 			return a.UpdateSubscriptions()

@@ -1087,6 +1087,15 @@ func TestSubscriptionsMenuRetriesAfterInvalidChoice(t *testing.T) {
 	}
 }
 
+func TestSubscriptionsMenuRejectsInvalidSubscriptionID(t *testing.T) {
+	app, _ := newTestApp(t)
+	reader := bufio.NewReader(strings.NewReader("3\nabc\n"))
+	err := app.subscriptionsMenu(reader)
+	if err == nil || !strings.Contains(err.Error(), "invalid 订阅 ID") {
+		t.Fatalf("expected invalid subscription id error, got %v", err)
+	}
+}
+
 func TestSubscriptionsMenuTogglesAndRemovesSubscription(t *testing.T) {
 	app, _ := newTestApp(t)
 	if err := app.AddSubscription("menu-toggle", "https://subscription.example.com/menu-toggle.txt", false); err != nil {
