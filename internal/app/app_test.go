@@ -1405,6 +1405,31 @@ func TestAuditMenuDispatchesCutoverChecks(t *testing.T) {
 	}
 }
 
+func TestAuditMenuDispatchesHealthcheck(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path != "/version" {
+				t.Fatalf("unexpected request path: %s", req.URL.Path)
+			}
+			return textResponse(http.StatusOK, "Mihomo Meta v1.1.0\n"), nil
+		}),
+	}
+	if err := app.auditMenu(bufio.NewReader(strings.NewReader("1\n"))); err != nil {
+		t.Fatalf("audit menu healthcheck: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"1) 健康检查",
+		"mixed-port=7890",
+		"Mihomo Meta v1.1.0",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in audit menu output:\n%s", needle, output)
+		}
+	}
+}
+
 func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 	app, _ := newTestApp(t)
 	oldGeteuid := geteuid
