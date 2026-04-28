@@ -1290,6 +1290,34 @@ func TestNodesMenuReturnsMutationErrors(t *testing.T) {
 	}
 }
 
+func TestNodesMenuEnablesAndDisablesManualNode(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#toggle-node\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("5\n1\n"))); err != nil {
+		t.Fatalf("enable node via menu: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state after enable: %v", err)
+	}
+	if !st.Nodes[0].Enabled {
+		t.Fatalf("expected node to be enabled, got %+v", st.Nodes[0])
+	}
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("6\n1\n"))); err != nil {
+		t.Fatalf("disable node via menu: %v", err)
+	}
+	st, err = state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state after disable: %v", err)
+	}
+	if st.Nodes[0].Enabled {
+		t.Fatalf("expected node to be disabled, got %+v", st.Nodes[0])
+	}
+}
+
 func TestSetNodeEnabledUpdatesManualNodesAndRejectsSubscriptionNodes(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#manual-node\n")
