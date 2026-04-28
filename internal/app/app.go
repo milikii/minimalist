@@ -1207,7 +1207,7 @@ func (a *App) testNodeDelay(cfg config.Config, name string) (int, error) {
 }
 
 func (a *App) controllerRequest(cfg config.Config, path string) (*http.Request, error) {
-	host := cfg.Controller.BindAddress
+	host := strings.TrimSpace(cfg.Controller.BindAddress)
 	if host == "0.0.0.0" || host == "*" || host == "" {
 		host = "127.0.0.1"
 	}
@@ -1218,8 +1218,9 @@ func (a *App) controllerRequest(cfg config.Config, path string) (*http.Request, 
 	if err != nil {
 		return nil, err
 	}
-	if cfg.Controller.Secret != "" {
-		req.Header.Set("Authorization", "Bearer "+cfg.Controller.Secret)
+	secret := strings.TrimSpace(cfg.Controller.Secret)
+	if secret != "" {
+		req.Header.Set("Authorization", "Bearer "+secret)
 	}
 	return req, nil
 }

@@ -4988,6 +4988,24 @@ func TestControllerRequestNormalizesPathPrefix(t *testing.T) {
 	}
 }
 
+func TestControllerRequestTrimsHostAndSecret(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg := config.Default()
+	cfg.Controller.BindAddress = " 0.0.0.0 "
+	cfg.Controller.Secret = " secret-with-spaces \n"
+
+	req, err := app.controllerRequest(cfg, "/version")
+	if err != nil {
+		t.Fatalf("controller request: %v", err)
+	}
+	if req.URL.String() != "http://127.0.0.1:19090/version" {
+		t.Fatalf("unexpected trimmed controller url: %s", req.URL.String())
+	}
+	if got := req.Header.Get("Authorization"); got != "Bearer secret-with-spaces" {
+		t.Fatalf("unexpected trimmed auth header: %q", got)
+	}
+}
+
 func TestAppProviderHelpersCountAndDetectReadyProvidersWithState(t *testing.T) {
 	app, _ := newTestApp(t)
 	st := state.Empty()
