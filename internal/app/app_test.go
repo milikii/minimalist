@@ -641,6 +641,73 @@ func TestTestNodesReportsControllerErrorsPerNode(t *testing.T) {
 	}
 }
 
+func TestTestNodeDelayReturnsHTTPStatusError(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg := config.Default()
+	cfg.Controller.BindAddress = "0.0.0.0"
+	cfg.Controller.Secret = "delay-secret"
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Host != "127.0.0.1:19090" {
+				t.Fatalf("unexpected host: %s", req.URL.Host)
+			}
+			if req.URL.Path != "/proxies/delay-node/delay" {
+				t.Fatalf("unexpected path: %s", req.URL.Path)
+			}
+			if got := req.Header.Get("Authorization"); got != "Bearer delay-secret" {
+				t.Fatalf("unexpected auth header: %s", got)
+			}
+			return textResponse(http.StatusBadGateway, `{"error":"bad gateway"}`), nil
+		}),
+	}
+	if _, err := app.testNodeDelay(cfg, "delay-node"); err == nil || !strings.Contains(err.Error(), "http 502") {
+		t.Fatalf("expected http status error, got %v", err)
+	}
+}
+
+func TestTestNodeDelayReturnsBodyReadError(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg := config.Default()
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       errorReadCloser{err: errors.New("delay body read failed")},
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+	if _, err := app.testNodeDelay(cfg, "delay-node"); err == nil || !strings.Contains(err.Error(), "delay body read failed") {
+		t.Fatalf("expected body read error, got %v", err)
+	}
+}
+
+func TestTestNodeDelayReturnsDecodeError(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg := config.Default()
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return textResponse(http.StatusOK, `{"delay":`), nil
+		}),
+	}
+	if _, err := app.testNodeDelay(cfg, "delay-node"); err == nil {
+		t.Fatalf("expected decode error")
+	}
+}
+
+func TestTestNodeDelayReturnsTransportError(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg := config.Default()
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return nil, errors.New("delay request failed")
+		}),
+	}
+	if _, err := app.testNodeDelay(cfg, "delay-node"); err == nil || !strings.Contains(err.Error(), "delay request failed") {
+		t.Fatalf("expected transport error, got %v", err)
+	}
+}
+
 func TestRemoveNodeRejectsReferencedManualNode(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -1286,6 +1353,40 @@ func TestNetworkMenuDispatchesRulesRepoFlows(t *testing.T) {
 	output := app.Stdout.(*bytes.Buffer).String()
 	if !strings.Contains(output, "4) 查看规则集条目") || !strings.Contains(output, "6) 添加规则集条目") {
 		t.Fatalf("unexpected network menu output:\n%s", output)
+	}
+}
+
+func TestNetworkMenuDispatchesRouterWizard(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader(strings.Repeat("\n", 14))
+	if err := app.networkMenu(bufio.NewReader(strings.NewReader("1\n"))); err != nil {
+		t.Fatalf("network menu router wizard: %v", err)
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "旁路由参数已更新") {
+		t.Fatalf("unexpected network menu output:\n%s", app.Stdout.(*bytes.Buffer).String())
+	}
+}
+
+func TestNetworkMenuDispatchesRenderConfig(t *testing.T) {
+	app := newTestAppWithEnabledManualNode(t)
+	if err := app.networkMenu(bufio.NewReader(strings.NewReader("2\n"))); err != nil {
+		t.Fatalf("network menu render config: %v", err)
+	}
+	if _, err := os.Stat(app.Paths.RuntimeConfig()); err != nil {
+		t.Fatalf("expected runtime config to be written: %v", err)
+	}
+}
+
+func TestNetworkMenuDispatchesRulesRepoSummaryAndFind(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.networkMenu(bufio.NewReader(strings.NewReader("3\n"))); err != nil {
+		t.Fatalf("network menu rules repo summary: %v", err)
+	}
+	if err := app.networkMenu(bufio.NewReader(strings.NewReader("5\nmenu\n"))); err != nil {
+		t.Fatalf("network menu rules repo find: %v", err)
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "default") {
+		t.Fatalf("unexpected network menu output:\n%s", app.Stdout.(*bytes.Buffer).String())
 	}
 }
 
