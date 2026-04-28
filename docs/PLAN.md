@@ -238,10 +238,10 @@ Files:
 
 Tasks:
 
-- [ ] 暴露 `minimalist nodes test`
-- [ ] 在 help 里说明 `verify-runtime-assets`
-- [ ] 写短版 restart / reboot smoke runbook
-- [ ] 同步状态文档
+- [x] 暴露 `minimalist nodes test`
+- [x] 在 help 里说明 `verify-runtime-assets`
+- [x] 写短版 restart / reboot smoke runbook
+- [x] 同步状态文档
 
 ### PR-5：Enhancements Later
 

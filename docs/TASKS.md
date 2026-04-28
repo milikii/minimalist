@@ -24,13 +24,13 @@
 
 ## P1：运维与可用性
 
-- [ ] 暴露 `minimalist nodes test`
+- [x] 暴露 `minimalist nodes test`
   说明：节点测速已经实现，但非交互 CLI 不完整。
 
-- [ ] 在 help 中明确 `verify-runtime-assets`
+- [x] 在 help 中明确 `verify-runtime-assets`
   说明：这是 systemd preflight 的关键入口，不能继续隐藏得过深。
 
-- [ ] 写短版 restart / reboot smoke runbook
+- [x] 写短版 restart / reboot smoke runbook
   说明：把 service、controller、iptables、`ip rule`、table 233、DNS 路径检查压成一套最短日常步骤。
 
 - [x] 固定规则层顺序

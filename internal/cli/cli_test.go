@@ -871,29 +871,32 @@ func TestRunDispatchesNodesList(t *testing.T) {
 	}
 }
 
-func TestRunWithAppDispatchesNodesTest(t *testing.T) {
-	a, stdout := newCLIApp(t)
+func TestRunDispatchesNodesTest(t *testing.T) {
+	setCLIPathsEnv(t)
+	a := app.New()
 	mustImportNode(t, a, "trojan://password@example.org:443?security=tls#run-node-test")
 	if err := a.SetNodeEnabled(1, true); err != nil {
 		t.Fatalf("enable node: %v", err)
 	}
-	a.Client = &http.Client{
-		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/proxies/run-node-test/delay" {
-				t.Fatalf("unexpected controller path: %s", req.URL.Path)
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(`{"delay":12}`)),
-				Header:     make(http.Header),
-			}, nil
-		}),
-	}
-	if err := runWithApp([]string{"nodes", "test"}, a, false); err != nil {
-		t.Fatalf("run nodes test: %v", err)
-	}
-	if !strings.Contains(stdout.String(), "run-node-test\t12ms") {
-		t.Fatalf("unexpected nodes test output:\n%s", stdout.String())
+	oldTransport := http.DefaultTransport
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/proxies/run-node-test/delay" {
+			t.Fatalf("unexpected controller path: %s", req.URL.Path)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(`{"delay":12}`)),
+			Header:     make(http.Header),
+		}, nil
+	})
+	t.Cleanup(func() { http.DefaultTransport = oldTransport })
+	output := captureStdout(t, func() {
+		if err := Run([]string{"nodes", "test"}); err != nil {
+			t.Fatalf("run nodes test: %v", err)
+		}
+	})
+	if !strings.Contains(output, "run-node-test\t12ms") {
+		t.Fatalf("unexpected nodes test output:\n%s", output)
 	}
 }
 
