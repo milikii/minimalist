@@ -127,9 +127,14 @@ func (a *App) restartMinimalistServiceAfterCoreUpgrade() error {
 		a.writeMinimalistJournalSummary()
 		return fmt.Errorf("restart minimalist.service: %w", err)
 	}
-	if _, _, err := a.Runner.Output("systemctl", "is-active", "minimalist.service"); err != nil {
+	stdout, _, err := a.Runner.Output("systemctl", "is-active", "minimalist.service")
+	if err != nil {
 		a.writeMinimalistJournalSummary()
 		return fmt.Errorf("minimalist.service is not active after restart: %w", err)
+	}
+	if strings.TrimSpace(stdout) != "active" {
+		a.writeMinimalistJournalSummary()
+		return fmt.Errorf("minimalist.service is not active after restart: %s", strings.TrimSpace(stdout))
 	}
 	return nil
 }

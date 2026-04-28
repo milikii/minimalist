@@ -471,6 +471,26 @@ func TestCoreUpgradeAlphaSurfacesRestartFailureWithLogs(t *testing.T) {
 	}
 }
 
+func TestRestartMinimalistServiceAfterCoreUpgradeRejectsInactiveStatusOutput(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			if name == "systemctl" && len(args) == 2 && args[0] == "is-active" && args[1] == "minimalist.service" {
+				return "inactive\n", "", nil
+			}
+			return "", "", nil
+		},
+	}
+
+	err := app.restartMinimalistServiceAfterCoreUpgrade()
+	if err == nil || !strings.Contains(err.Error(), "not active") {
+		t.Fatalf("expected inactive status error, got %v", err)
+	}
+}
+
 func TestDownloadReleaseAssetRejectsHTTPFailures(t *testing.T) {
 	tests := []struct {
 		name   string
