@@ -183,6 +183,16 @@ func TestSaveAndEnsureReturnErrorsWhenParentPathIsBlocked(t *testing.T) {
 	}
 }
 
+func TestSaveReturnsErrorWhenTargetPathIsDirectory(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.json")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatalf("mkdir state path: %v", err)
+	}
+	if err := Save(path, Empty()); err == nil || !strings.Contains(err.Error(), "is a directory") {
+		t.Fatalf("expected save directory error, got %v", err)
+	}
+}
+
 func TestNowISOReturnsRFC3339(t *testing.T) {
 	ts := NowISO()
 	if _, err := time.Parse(time.RFC3339, ts); err != nil {
