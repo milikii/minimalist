@@ -1430,6 +1430,50 @@ func TestAuditMenuDispatchesHealthcheck(t *testing.T) {
 	}
 }
 
+func TestAuditMenuDispatchesRuntimeAudit(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			if name == "systemctl" && len(args) >= 2 && (args[0] == "is-active" || args[0] == "is-enabled") {
+				return nil
+			}
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			if name == "journalctl" {
+				return "WARN one\nERROR two\n", "", nil
+			}
+			return "", "", errors.New("unavailable")
+		},
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.Path {
+			case "/configs":
+				return textResponse(http.StatusOK, `{"mode":"global"}`), nil
+			case "/version":
+				return textResponse(http.StatusOK, "Mihomo Meta v1.1.1\n"), nil
+			default:
+				t.Fatalf("unexpected request path: %s", req.URL.Path)
+				return nil, nil
+			}
+		}),
+	}
+	if err := app.auditMenu(bufio.NewReader(strings.NewReader("2\n"))); err != nil {
+		t.Fatalf("audit menu runtime audit: %v", err)
+	}
+	output := app.Stdout.(*bytes.Buffer).String()
+	for _, needle := range []string{
+		"2) 运行审计",
+		"alerts: warn=1 error=1",
+		"runtime: Mihomo Meta v1.1.1",
+	} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("missing %q in audit menu output:\n%s", needle, output)
+		}
+	}
+}
+
 func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 	app, _ := newTestApp(t)
 	oldGeteuid := geteuid
