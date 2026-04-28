@@ -146,7 +146,7 @@ func (a *App) Setup() error {
 		}
 		fmt.Fprintln(a.Stdout, "部署完成，服务已启用")
 	} else {
-		fmt.Fprintln(a.Stdout, "部署完成，请先 import-links 或 subscriptions update 后再启动服务")
+		fmt.Fprintln(a.Stdout, "部署完成，请先 import-links 并启用手动节点后再启动服务")
 	}
 	return nil
 }
@@ -179,6 +179,13 @@ func (a *App) Start() error {
 	}
 	if err := a.RenderConfig(); err != nil {
 		return err
+	}
+	_, st, err := a.ensureAll()
+	if err != nil {
+		return err
+	}
+	if !a.hasReadyProviders(st) {
+		return errors.New("没有启用的手动节点")
 	}
 	if err := a.ensureRuntimeAssetsReady(); err != nil {
 		return err
@@ -553,6 +560,17 @@ func (a *App) RenameNode(index int, newName string) error {
 	}
 	if node.Source.Kind == "subscription" {
 		return errors.New("subscription node is provider-managed")
+	}
+	if isReservedNodeName(newName) {
+		return fmt.Errorf("reserved node name: %s", newName)
+	}
+	for idx, existing := range st.Nodes {
+		if idx == index-1 {
+			continue
+		}
+		if existing.Name == newName {
+			return fmt.Errorf("duplicate node name: %s", newName)
+		}
 	}
 	oldName := node.Name
 	node.Name = newName
@@ -1136,18 +1154,7 @@ func (a *App) httpClient() *http.Client {
 }
 
 func (a *App) hasReadyProviders(st state.State) bool {
-	if a.hasEnabledManualNodes(st) {
-		return true
-	}
-	for _, sub := range st.Subscriptions {
-		if !sub.Enabled {
-			continue
-		}
-		if a.subscriptionCacheReady(sub.ID) {
-			return true
-		}
-	}
-	return false
+	return a.hasEnabledManualNodes(st)
 }
 
 func (a *App) hasEnabledManualNodes(st state.State) bool {
@@ -1351,11 +1358,19 @@ func (a *App) validateTargetValue(st state.State, target string) error {
 		return nil
 	}
 	for _, node := range st.Nodes {
-		if node.Name == target && node.Source.Kind != "subscription" {
-			return nil
+		if node.Name != target || node.Source.Kind == "subscription" {
+			continue
 		}
+		if !node.Enabled {
+			return fmt.Errorf("disabled manual node target: %s", target)
+		}
+		return nil
 	}
 	return fmt.Errorf("未知规则目标: %s", target)
+}
+
+func isReservedNodeName(name string) bool {
+	return name == "DIRECT" || name == "PROXY" || name == "REJECT" || name == "AUTO"
 }
 
 func (a *App) nodeAt(st *state.State, index int) (*state.Node, error) {

@@ -371,8 +371,8 @@ func TestHasReadyProvidersAndHTTPClientFallback(t *testing.T) {
 	if err := os.WriteFile(app.Paths.SubscriptionFile("sub-1"), []byte("trojan://password@example.org:443\n"), 0o640); err != nil {
 		t.Fatalf("write subscription cache: %v", err)
 	}
-	if !app.hasReadyProviders(st) {
-		t.Fatalf("expected ready providers with subscription cache")
+	if app.hasReadyProviders(st) {
+		t.Fatalf("expected subscription-only state to not count as ready main path")
 	}
 	app.Client = nil
 	if client := app.httpClient(); client == nil {
@@ -962,6 +962,9 @@ func TestRemoveNodeRejectsReferencedManualNode(t *testing.T) {
 			app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#referenced-node\n")
 			if err := app.ImportLinks(); err != nil {
 				t.Fatalf("import links: %v", err)
+			}
+			if err := app.SetNodeEnabled(1, true); err != nil {
+				t.Fatalf("enable node: %v", err)
 			}
 			if err := app.AddRule(tc.acl, tc.kind, "example.com", "referenced-node"); err != nil {
 				t.Fatalf("add rule: %v", err)
@@ -1965,7 +1968,7 @@ func TestServiceMenuRetriesAfterInvalidChoice(t *testing.T) {
 }
 
 func TestServiceMenuDispatchesStart(t *testing.T) {
-	app, _ := newTestApp(t)
+	app := newTestAppWithEnabledManualNode(t)
 	oldGeteuid := geteuid
 	geteuid = func() int { return 0 }
 	defer func() { geteuid = oldGeteuid }()
@@ -2200,7 +2203,7 @@ func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 	output := app.Stdout.(*bytes.Buffer).String()
 	for _, needle := range []string{
 		"无效选择",
-		"部署完成，请先 import-links 或 subscriptions update 后再启动服务",
+		"部署完成，请先 import-links 并启用手动节点后再启动服务",
 		"1) 查看订阅",
 		"1) 查看自定义规则",
 		"mixed-port=7890",
@@ -2508,11 +2511,68 @@ func TestRenameNodeRejectsEmptyNamesAndSubscriptionNodes(t *testing.T) {
 	}
 }
 
+func TestRenameNodeRejectsReservedAndDuplicateNames(t *testing.T) {
+	for _, reserved := range []string{"DIRECT", "PROXY", "REJECT", "AUTO"} {
+		t.Run("reserved-"+reserved, func(t *testing.T) {
+			app, _ := newTestApp(t)
+			app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#rename-source\n")
+			if err := app.ImportLinks(); err != nil {
+				t.Fatalf("import links: %v", err)
+			}
+			err := app.RenameNode(1, reserved)
+			if err == nil || !strings.Contains(err.Error(), "reserved node name") {
+				t.Fatalf("expected reserved-name rejection, got %v", err)
+			}
+		})
+	}
+
+	t.Run("duplicate-manual-name", func(t *testing.T) {
+		app, _ := newTestApp(t)
+		app.Stdin = strings.NewReader(strings.Join([]string{
+			"trojan://password@example.org:443?security=tls#first-manual",
+			"trojan://password@two.example.org:443?security=tls#second-manual",
+		}, "\n") + "\n")
+		if err := app.ImportLinks(); err != nil {
+			t.Fatalf("import links: %v", err)
+		}
+		err := app.RenameNode(1, "second-manual")
+		if err == nil || !strings.Contains(err.Error(), "duplicate node name") {
+			t.Fatalf("expected duplicate manual-name rejection, got %v", err)
+		}
+	})
+
+	t.Run("duplicate-subscription-name", func(t *testing.T) {
+		app, _ := newTestApp(t)
+		app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#manual-node\n")
+		if err := app.ImportLinks(); err != nil {
+			t.Fatalf("import links: %v", err)
+		}
+		app.Client = &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return textResponse(http.StatusOK, "trojan://password@sub.example.org:443?security=tls#sub-node\n"), nil
+			}),
+		}
+		if err := app.AddSubscription("rename-sub", "https://subscription.example.com/rename.txt", true); err != nil {
+			t.Fatalf("add subscription: %v", err)
+		}
+		if err := app.UpdateSubscriptions(); err != nil {
+			t.Fatalf("update subscriptions: %v", err)
+		}
+		err := app.RenameNode(1, "sub-node")
+		if err == nil || !strings.Contains(err.Error(), "duplicate node name") {
+			t.Fatalf("expected duplicate subscription-name rejection, got %v", err)
+		}
+	})
+}
+
 func TestRenameNodeUpdatesRuleAndACLTargets(t *testing.T) {
 	app, _ := newTestApp(t)
 	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#old-name\n")
 	if err := app.ImportLinks(); err != nil {
 		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable node: %v", err)
 	}
 	if err := app.AddRule(false, "domain", "rename.example.com", "old-name"); err != nil {
 		t.Fatalf("add rule: %v", err)
@@ -2759,7 +2819,7 @@ func TestSetupWithoutProvidersDoesNotEnableService(t *testing.T) {
 		t.Fatalf("unexpected sysctl content:\n%s", string(sysctlBody))
 	}
 	output := app.Stdout.(*bytes.Buffer).String()
-	if !strings.Contains(output, "部署完成，请先 import-links 或 subscriptions update 后再启动服务") {
+	if !strings.Contains(output, "部署完成，请先 import-links 并启用手动节点后再启动服务") {
 		t.Fatalf("unexpected setup output:\n%s", output)
 	}
 }
@@ -2805,7 +2865,7 @@ func TestSetupWithProvidersEnablesService(t *testing.T) {
 	}
 }
 
-func TestSetupEnablesServiceWhenSubscriptionCacheIsReady(t *testing.T) {
+func TestSetupDoesNotEnableServiceWhenOnlySubscriptionCacheIsReady(t *testing.T) {
 	app, _ := newTestApp(t)
 	var calls []commandCall
 	app.Runner = fakeRunner{
@@ -2833,8 +2893,11 @@ func TestSetupEnablesServiceWhenSubscriptionCacheIsReady(t *testing.T) {
 	if err := app.Setup(); err != nil {
 		t.Fatalf("setup with subscription cache: %v", err)
 	}
-	if !hasRecordedCall(calls, "systemctl", "enable", "--now", "minimalist.service") {
-		t.Fatalf("expected setup to enable service from subscription cache, calls=%#v", calls)
+	if hasRecordedCall(calls, "systemctl", "enable", "--now", "minimalist.service") {
+		t.Fatalf("expected setup to keep subscription-only state out of the main path, calls=%#v", calls)
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "部署完成，请先 import-links 并启用手动节点后再启动服务") {
+		t.Fatalf("unexpected setup output:\n%s", app.Stdout.(*bytes.Buffer).String())
 	}
 }
 
@@ -2869,7 +2932,7 @@ func TestSetupDoesNotEnableServiceWhenSubscriptionCacheIsEmpty(t *testing.T) {
 	if hasRecordedCall(calls, "systemctl", "enable", "--now", "minimalist.service") {
 		t.Fatalf("service should not be enabled with an empty subscription cache, calls=%#v", calls)
 	}
-	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "部署完成，请先 import-links 或 subscriptions update 后再启动服务") {
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "部署完成，请先 import-links 并启用手动节点后再启动服务") {
 		t.Fatalf("unexpected setup output:\n%s", app.Stdout.(*bytes.Buffer).String())
 	}
 }
@@ -3153,6 +3216,45 @@ func TestStartRendersConfigAndEnablesService(t *testing.T) {
 	}
 	if !strings.Contains(string(body), "proxy-groups:") {
 		t.Fatalf("unexpected runtime config:\n%s", string(body))
+	}
+}
+
+func TestStartRejectsSubscriptionOnlyMainPath(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 0 }
+	defer func() { geteuid = oldGeteuid }()
+
+	if err := app.AddSubscription("start-sub", "https://subscription.example.com/start.txt", true); err != nil {
+		t.Fatalf("add subscription: %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if err := os.MkdirAll(app.Paths.SubscriptionDir(), 0o755); err != nil {
+		t.Fatalf("mkdir subscription dir: %v", err)
+	}
+	if err := os.WriteFile(app.Paths.SubscriptionFile(st.Subscriptions[0].ID), []byte("trojan://password@example.org:443?security=tls#cached\n"), 0o640); err != nil {
+		t.Fatalf("write subscription cache: %v", err)
+	}
+	var calls []commandCall
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", nil
+		},
+	}
+
+	err = app.Start()
+	if err == nil || !strings.Contains(err.Error(), "没有启用的手动节点") {
+		t.Fatalf("expected manual-node main-path guard, got %v", err)
+	}
+	if hasRecordedCall(calls, "systemctl", "enable", "--now", "minimalist.service") {
+		t.Fatalf("did not expect systemctl call for subscription-only main path, calls=%#v", calls)
 	}
 }
 
@@ -4273,6 +4375,9 @@ func TestRenameNodeRewritesRuleAndACLTargets(t *testing.T) {
 	if err := app.ImportLinks(); err != nil {
 		t.Fatalf("import links: %v", err)
 	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable node: %v", err)
+	}
 	if err := app.AddRule(false, "domain", "example.com", "rename-me"); err != nil {
 		t.Fatalf("add rule: %v", err)
 	}
@@ -4321,6 +4426,9 @@ func TestRenameNodeTrimsNameBeforePersisting(t *testing.T) {
 	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#rename-spaces\n")
 	if err := app.ImportLinks(); err != nil {
 		t.Fatalf("import links: %v", err)
+	}
+	if err := app.SetNodeEnabled(1, true); err != nil {
+		t.Fatalf("enable node: %v", err)
 	}
 	if err := app.AddRule(false, "domain", "example.com", "rename-spaces"); err != nil {
 		t.Fatalf("add rule: %v", err)
@@ -4607,6 +4715,25 @@ func TestAddRuleRejectsSubscriptionNodeTarget(t *testing.T) {
 	}
 	if len(st.Rules) != 0 {
 		t.Fatalf("expected no rule persisted for subscription target, got %+v", st.Rules)
+	}
+}
+
+func TestAddRuleRejectsDisabledManualNodeTarget(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#disabled-manual\n")
+	if err := app.ImportLinks(); err != nil {
+		t.Fatalf("import links: %v", err)
+	}
+	err := app.AddRule(false, "domain", "example.com", "disabled-manual")
+	if err == nil || !strings.Contains(err.Error(), "disabled manual node target") {
+		t.Fatalf("expected disabled manual target rejection, got %v", err)
+	}
+	st, err := state.Load(app.Paths.StatePath())
+	if err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if len(st.Rules) != 0 {
+		t.Fatalf("expected no rule persisted for disabled manual target, got %+v", st.Rules)
 	}
 }
 
