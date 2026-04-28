@@ -227,3 +227,22 @@ func TestSaveAndEnsureReturnErrorsWhenParentPathIsBlocked(t *testing.T) {
 		t.Fatalf("expected ensure error, got %v", err)
 	}
 }
+
+func TestSaveReturnsErrorWhenTargetPathIsDirectory(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatalf("mkdir config path: %v", err)
+	}
+	if err := Save(path, Default()); err == nil || !strings.Contains(err.Error(), "is a directory") {
+		t.Fatalf("expected save directory error, got %v", err)
+	}
+}
+
+func TestPersistedSecretPresentFallsBackToLiteralSecretMarkerOnParseError(t *testing.T) {
+	if persistedSecretPresent([]byte("controller: [\nsecret: keep-me\n")) != true {
+		t.Fatalf("expected literal secret marker to be treated as present")
+	}
+	if persistedSecretPresent([]byte("controller: [\nmode: rule\n")) != false {
+		t.Fatalf("expected malformed content without secret marker to be treated as missing")
+	}
+}
