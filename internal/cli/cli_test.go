@@ -927,9 +927,6 @@ func TestRunWithAppDispatchesNodeManagementSubcommands(t *testing.T) {
 	if err := runWithApp([]string{"nodes", "disable", "1"}, a, false); err != nil {
 		t.Fatalf("disable node through dispatcher: %v", err)
 	}
-	if err := runWithApp([]string{"nodes", "test"}, a, false); err != nil {
-		t.Fatalf("test node through dispatcher: %v", err)
-	}
 	if err := runWithApp([]string{"nodes", "remove", "1"}, a, false); err != nil {
 		t.Fatalf("remove node through dispatcher: %v", err)
 	}

@@ -6,7 +6,7 @@
 - 当前代码面已经完成三件关键收口：
   - 手动节点是唯一旁路由核心成功路径
   - DNS / host-safe 默认姿态已被 tests 固定
-  - README / FLOWS / help / runbook 已对齐当前运维真相
+  - help / runbook 已补齐到当前运维真相，模板层次文档已在前一轮对齐
 - 单元与 focused 测试已经覆盖核心配置、状态、provider、rules-repo、runtime 渲染、app 命令编排、CLI 分发与多组失败路径；本次又补上菜单共享 stdin、索引空回车误命中、unsupported subscription cache readiness 与 `core-upgrade-alpha` 的一组鲁棒性分支后，`internal/app` 当前为 93.3% 语句覆盖率，`internal/config` 维持 94.3%。
 - 这台 Debian NAS 已经是可用实机：`systemd`、`iptables`、`ip rule` 都是真实可达的。
 - 现网已经从旧 `mihomo.service` 切换到 Go 版 `minimalist.service`；旧服务当前 `inactive/disabled`，新服务 `active/enabled`。
