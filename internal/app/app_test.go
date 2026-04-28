@@ -4976,6 +4976,18 @@ func TestControllerConfigModeRejectsHTTPFailure(t *testing.T) {
 	}
 }
 
+func TestControllerRequestNormalizesPathPrefix(t *testing.T) {
+	app, _ := newTestApp(t)
+	cfg := config.Default()
+	req, err := app.controllerRequest(cfg, "configs")
+	if err != nil {
+		t.Fatalf("controller request: %v", err)
+	}
+	if req.URL.String() != "http://127.0.0.1:19090/configs" {
+		t.Fatalf("unexpected controller url: %s", req.URL.String())
+	}
+}
+
 func TestAppProviderHelpersCountAndDetectReadyProvidersWithState(t *testing.T) {
 	app, _ := newTestApp(t)
 	st := state.Empty()

@@ -1211,6 +1211,9 @@ func (a *App) controllerRequest(cfg config.Config, path string) (*http.Request, 
 	if host == "0.0.0.0" || host == "*" || host == "" {
 		host = "127.0.0.1"
 	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s:%d%s", host, cfg.Ports.Controller, path), nil)
 	if err != nil {
 		return nil, err
