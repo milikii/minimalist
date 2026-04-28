@@ -6,7 +6,7 @@
 - 单元与 focused 测试已经覆盖核心配置、状态、provider、rules-repo、runtime 渲染、app 命令编排、CLI 分发与多组失败路径；`internal/app` 经过最新小步硬化已提升到 95.6% 语句覆盖率，`internal/config` 已到 94.3%。
 - 这台 Debian NAS 已经是可用实机：`systemd`、`iptables`、`ip rule` 都是真实可达的。
 - 现网已经从旧 `mihomo.service` 切换到 Go 版 `minimalist.service`；旧服务当前 `inactive/disabled`，新服务 `active/enabled`。
-- 本轮全量 `go test ./...` 和 build 已通过，实机 `healthcheck` / `runtime-audit` / systemd / ip rule / route table smoke 已通过。
+- 本轮全量 `go test ./...` 和 build 已通过，实机 `healthcheck` / `runtime-audit` / systemd / ip rule / route table smoke 已通过；十轮连续硬化后复验仍保持同样结果。
 
 ## 下一最小闭环
 

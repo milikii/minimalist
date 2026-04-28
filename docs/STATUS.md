@@ -52,6 +52,7 @@
 - 旧 `mihomo.service` unit、旧 `/etc/mihomo`、旧 `/usr/local/bin/mihomo` 与旧 `/usr/local/lib/mihomo-manager` 已按人工确认清理；`/usr/local/bin/mihomo-core` 保留为 Go 版底层内核。
 - 旧服务快速回滚入口已移除；`cutover-plan` 在旧资产不存在时会输出 `rollback: unavailable; legacy mihomo assets are not present`。
 - 本轮最终验证结果：`GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go test ./...`、`GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go build -o /tmp/minimalist-build-check ./cmd/minimalist`、`/usr/local/bin/minimalist runtime-audit`、`systemctl is-active minimalist.service`、`systemctl is-enabled minimalist.service`、`ip rule show`、`ip route show table 233` 全部通过；当前轮次新增的 `internal/app` focused tests 也已通过。
+- 2026-04-28 本次连续十轮硬化后的复验结果保持稳定：全量 `go test ./...` 与 build 继续通过，`runtime-audit` 仍显示 `providers-ready=true`、`cutover-ready=true`，当前 live 路由仍为 `fwmark 0x2333 lookup 233` 与 `local default dev lo scope host`。
 
 ## 当前风险与限制
 
