@@ -91,6 +91,8 @@ systemctl is-active minimalist.service
 systemctl is-enabled minimalist.service
 sudo /usr/local/bin/minimalist healthcheck
 sudo /usr/local/bin/minimalist runtime-audit
+iptables -t mangle -S
+iptables -t nat -S
 ip rule show
 ip route show table 233
 ```
@@ -101,7 +103,8 @@ ip route show table 233
 - `minimalist.service` 为 `active`
 - `minimalist.service` 为 `enabled`
 - controller 可达
-- `runtime-audit` 无新的 fatal gap
+- `runtime-audit` 输出 `fatal-gaps=0`
+- `MIHOMO_*` 规则仍存在于 `mangle` / `nat` 表
 - `fwmark 0x2333 lookup 233` 与 table `233` 仍在
 
 ### host reboot smoke
