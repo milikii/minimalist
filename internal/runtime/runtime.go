@@ -256,7 +256,7 @@ func buildRuntimeConfig(paths Paths, cfg config.Config, st state.State, builtin 
 			fmt.Fprintf(&b, "    type: file\n    path: %s\n", paths.SubscriptionRelPath(subID))
 			b.WriteString("    health-check:\n      enable: true\n      url: \"https://cp.cloudflare.com/generate_204\"\n      interval: 300\n      timeout: 5000\n      lazy: true\n")
 		}
-		b.WriteString("\nproxy-groups:\n  - name: \"PROXY\"\n    type: select\n    proxies:\n      - DIRECT\n      - AUTO\n    use:\n")
+		b.WriteString("\nproxy-groups:\n  - name: \"PROXY\"\n    type: select\n    proxies:\n      - AUTO\n      - DIRECT\n    use:\n")
 		for _, name := range activeProviderNames {
 			fmt.Fprintf(&b, "      - %s\n", name)
 		}

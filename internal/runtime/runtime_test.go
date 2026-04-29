@@ -1282,7 +1282,7 @@ func TestBuildRuntimeConfigIncludesManualProviderWhenNodesEnabled(t *testing.T) 
 	for _, needle := range []string{
 		"proxy-providers:",
 		"  manual:\n    type: file\n    path: ./proxy_providers/manual.txt\n",
-		"proxy-groups:\n  - name: \"PROXY\"\n    type: select\n    proxies:\n      - DIRECT\n      - AUTO\n    use:\n      - manual\n",
+		"proxy-groups:\n  - name: \"PROXY\"\n    type: select\n    proxies:\n      - AUTO\n      - DIRECT\n    use:\n      - manual\n",
 	} {
 		if !strings.Contains(text, needle) {
 			t.Fatalf("missing %q in runtime config:\n%s", needle, text)
@@ -1432,7 +1432,7 @@ func TestBuildRuntimeConfigIncludesAutoProxyGroupWithEnabledProviders(t *testing
 		t.Fatalf("build runtime config: %v", err)
 	}
 	for _, needle := range []string{
-		"- name: \"PROXY\"\n    type: select\n    proxies:\n      - DIRECT\n      - AUTO\n    use:\n      - manual\n",
+		"- name: \"PROXY\"\n    type: select\n    proxies:\n      - AUTO\n      - DIRECT\n    use:\n      - manual\n",
 		"- name: \"AUTO\"\n    type: url-test\n    url: \"https://cp.cloudflare.com/generate_204\"\n",
 	} {
 		if !strings.Contains(text, needle) {

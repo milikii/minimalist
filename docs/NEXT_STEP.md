@@ -16,6 +16,7 @@
 ## 下一最小闭环
 
 - 当前没有新的主路径功能缺口；下一步优先进入长时间观察窗口，不扩协议、不恢复旧运维能力。
+- 2026-04-30 已完成 7890 代理端口故障修复：`PROXY` 组在有可用 provider 时默认选 `AUTO`，避免重启后默认走 `DIRECT`。
 - 当前主线从“补剩余低覆盖率热点”切到“长期稳定运行达标口径”。判断标准不再是多几个 focused tests，而是：
   - `minimalist.service` 经过冷启动 / 重启 / 宿主机 reboot 后都能稳定回到 `active/enabled`
   - `/var/lib/minimalist/mihomo/` 的 `Country.mmdb`、`GeoSite.dat`、`ui/` 缺失时有明确 fail-fast 或修复指引，不靠人工记忆补文件
@@ -32,6 +33,7 @@
   - 继续观察 `minimalist.service` 24 小时日志；2026-04-28 08:34 CST 已确认 UI/geodata 资源复制后最近启动窗口不再出现启动下载错误，当前 warn/error 计数仍来自切换早期历史窗口。
   - `runtime-audit` 收口已完成：当前已把 24 小时粗粒度 `warn/error` 计数拆成可区分“历史窗口 / 当前窗口 / 致命缺口”的信号。
   - 进入 24h-72h 观察窗口，重点看 `minimalist.service` 是否仍保持 `active/enabled`，以及 `runtime-audit` 是否持续为 `fatal-gaps=0`。
+  - 若 7890 代理端口再出现“能连但目标超时”，先检查 `curl -H 'Authorization: Bearer ...' http://127.0.0.1:19090/proxies/PROXY` 中的 `now` 是否为 `AUTO`，再看最近 5 分钟 `journalctl -u minimalist.service` 是否有节点拨号超时。
   - 在下一次日常维护窗口复跑一次 `service restart smoke`，确认 `MIHOMO_PRE` / `MIHOMO_DNS` 链、`ip rule` 与 `table 233` 仍稳定恢复。
   - 最后才回头补 `internal/app` / `core-upgrade-alpha` 的剩余低覆盖尾分支；稳定性闭环优先级高于继续追 coverage。
 - 旧 `/etc/mihomo`、`mihomo.service`、`/usr/local/bin/mihomo` 与 `/usr/local/lib/mihomo-manager` 已清理；下一步不再围绕旧服务回滚路径推进。

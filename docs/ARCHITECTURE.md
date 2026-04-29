@@ -257,7 +257,7 @@ docs/...                            文档
 
 运行配置生成逻辑要点：
 
-- 有可用 provider 时，`PROXY` 组由 `DIRECT + AUTO + provider use` 组成
+- 有可用 provider 时，`PROXY` 组由 `AUTO + DIRECT + provider use` 组成；`AUTO` 必须排在第一位，避免服务重启后 `MATCH,PROXY` 默认回落到直连
 - 没有 provider 时，`PROXY` 组退化为仅 `DIRECT`
 - 订阅 provider 只有在缓存文件存在且包含受支持 URI 时才进入运行配置
 - 最终规则顺序为：
