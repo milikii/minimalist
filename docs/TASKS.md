@@ -41,7 +41,7 @@
 - [x] 把订阅能力正式降级为增强项
   说明：保留实现，但不再让它驱动主路径设计、测试和文档。
 
-- [ ] `core-upgrade-alpha` 失败自动回滚
+- [x] `core-upgrade-alpha` 失败自动回滚
   说明：有价值，但属于增强项，不该压过主路径稳定性。
 
 - [ ] `core-upgrade-alpha` 支持 amd64 CPU-level 资产

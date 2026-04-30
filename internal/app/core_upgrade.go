@@ -73,7 +73,7 @@ func (a *App) CoreUpgradeAlpha() error {
 		return err
 	}
 	if err := a.restartMinimalistServiceAfterCoreUpgrade(); err != nil {
-		return err
+		return a.rollbackCoreUpgradeAfterRestartFailure(cfg.Install.CoreBin, backupPath, err)
 	}
 	_ = os.Remove(backupPath)
 
@@ -84,6 +84,17 @@ func (a *App) CoreUpgradeAlpha() error {
 	fmt.Fprintf(a.Stdout, "new version: %s\n", newVersion)
 	fmt.Fprintln(a.Stdout, "service restarted: minimalist.service")
 	return nil
+}
+
+func (a *App) rollbackCoreUpgradeAfterRestartFailure(coreBin, backupPath string, restartErr error) error {
+	if err := restoreCoreBinaryBackup(coreBin, backupPath); err != nil {
+		return fmt.Errorf("%w; rollback failed: %v; backup preserved at %s", restartErr, err, backupPath)
+	}
+	fmt.Fprintln(a.Stderr, "core rollback: restored previous core after restart failure")
+	if err := a.restartMinimalistServiceAfterCoreUpgrade(); err != nil {
+		return fmt.Errorf("%w; rollback restored previous core but service restart failed: %v", restartErr, err)
+	}
+	return fmt.Errorf("%w; rollback restored previous core and restarted minimalist.service", restartErr)
 }
 
 func (a *App) fetchMihomoReleases() ([]githubRelease, error) {
@@ -126,6 +137,24 @@ func replaceCoreBinaryAtomically(coreBin, candidate string) (string, error) {
 		return backupPath, fmt.Errorf("replace core binary: %w", err)
 	}
 	return backupPath, nil
+}
+
+func restoreCoreBinaryBackup(coreBin, backupPath string) error {
+	failedPath := coreBin + ".failed"
+	if err := os.Remove(failedPath); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.Rename(coreBin, failedPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("preserve failed core: %w", err)
+	}
+	if err := os.Rename(backupPath, coreBin); err != nil {
+		if _, failedErr := os.Stat(failedPath); failedErr == nil {
+			_ = os.Rename(failedPath, coreBin)
+		}
+		return fmt.Errorf("restore backup core: %w", err)
+	}
+	_ = os.Remove(failedPath)
+	return nil
 }
 
 func (a *App) restartMinimalistServiceAfterCoreUpgrade() error {

@@ -48,7 +48,7 @@
 - 2026-04-28 本轮又连续补了 `updateSubscriptions` 的 mixed/disabled 边界、`apply-rules` 的空 bypass 输入、菜单 `0` 返回、`config/state` 直写目录失败、`persistedSecretPresent` 解析回退、runtime ready-subscription provider 选择、rules-repo 嵌入资产落盘失败、provider 空名自动命名，以及 CLI `subscriptions update` 分发；该轮 `internal/app` 包覆盖率快照到 95.6%，`internal/config` 快照到 94.3%。
 - 2026-04-28 本次继续按质量硬化主线补了 `Setup` root guard、`Status` ensureAll 失败传播、`ImportLinks` / `RouterWizard` / `UpdateSubscriptions` 的真相写回失败路径，以及 `Menu -> nodes/network/rules/service/audit` 的主分发链路；全量 `go test ./...` 继续通过，该轮 `internal/app` 包覆盖率快照进一步提升到 97.1%。
 - 2026-04-28 本次继续连续十轮 focused hardening：补上 `nodesMenu -> TestNodes`、`subscriptions/network/service/audit` 的 invalid-choice retry、`rulesAndACLMenu -> List ACL`、`hasReadyProviders` 手动节点与空缓存边界、controller `mode` 缺失键分支、订阅更新的非法 URL 与缓存写入失败记录，以及 `ensureAll` 的 rules-repo 初始化失败传播；该轮 `internal/app` 包覆盖率快照为 97.8%，`subscriptionsMenu` / `networkMenu` / `serviceMenu` / `auditMenu` / `ensureAll` / `hasReadyProviders` 当时已到 100%。
-- 2026-04-28 本次新增 `core-upgrade-alpha` 内核升级闭环，已覆盖官方 alpha release 筛选、按发布时间选择、按当前架构匹配、amd64 CPU level 不猜测、下载解压、原子替换、重启失败保留备份，以及 CLI 分发与 usage 输出。
+- 2026-04-28 本次新增 `core-upgrade-alpha` 内核升级闭环，已覆盖官方 alpha release 筛选、按发布时间选择、按当前架构匹配、amd64 CPU level 不猜测、下载解压、原子替换、重启失败自动恢复旧 core，以及 CLI 分发与 usage 输出。
 - 2026-04-28 本次再连续十轮质量硬化：修复 `menu -> ImportLinks` / `networkMenu -> RouterWizard` 共享 stdin 缓冲读取、索引输入空回车误命中 `1`、`controllerRequest` 的 path/空白归一化、unsupported subscription cache 的 readiness 误判，以及 `core-upgrade-alpha` 的空 payload、stderr 版本回退与 GitHub release API 错误详情；新增 `internal/app` / `internal/runtime` / `internal/provider` focused tests 后，该轮 `internal/app` 覆盖率快照提升到 93.3%。
 - 2026-04-28 当前主线已从“补剩余低覆盖率热点”切到“长期稳定运行达标口径”；本轮先收口 `runtime-audit`，把单一 `alerts` 计数拆成 `alerts-24h`、`alerts-recent` 与 `fatal-gaps`，用于区分历史噪音、当前异常和致命缺口。
 
@@ -80,6 +80,7 @@
 - 2026-04-30 修复 7890 代理端口可连接但被墙目标超时问题：根因是有可用 provider 时 `PROXY` 选择组默认顺序为 `DIRECT, AUTO`，服务重启后 `MATCH,PROXY` 默认回落直连；当前已改为 `AUTO, DIRECT`，并在实机上完成重新安装、渲染配置、重启服务与 HTTP / SOCKS5 7890 smoke。
 - 2026-05-01 修复 Tailscale / ZeroTier 常驻时 Windows 客户端访问 7890 被握手关闭的问题：新增 `access.lan_allowed_cidrs`，将显式代理端口访问白名单与旁路由真实 `network.lan_cidrs` 分离；实机配置当前放行 `192.168.2.0/24`、`100.64.0.0/10`、`10.156.67.0/24` 与 `127.0.0.0/8`，并已通过 `100.118.67.82:7890`、`10.156.67.142:7890` HTTP 代理 smoke。
 - 2026-05-01 订阅能力已在用户可见入口中正式标为增强项：`setup` / `start` 的成功路径只看启用的手动节点，`status` 和菜单不再把订阅呈现为核心主路径。
+- 2026-05-01 `core-upgrade-alpha` 在替换内核后如果 `minimalist.service` 重启失败，会自动把 `.bak` 恢复回 `core_bin` 并再次重启服务；若恢复失败，会保留 `.bak` 并在错误中输出备份路径。
 
 ## 当前风险与限制
 
@@ -87,4 +88,4 @@
 - 当前 guard 只负责阻断误操作；仍不提供自动 cutover、自动回滚或旧配置迁移命令。
 - 旧服务资产已清理，后续不再依赖旧 `mihomo.service` 作为回滚路径。
 - 旧版本 `settings.env` / `router.env` / `state/*.json` 不兼容，不做迁移。
-- 不恢复 `alpha/stable` 核心通道切换、core 回滚、自动同步安装目录、自定义更新/重启定时器和 `external-controller-tls`；`core-upgrade-alpha` 仅提供显式单次官方 alpha 内核升级，不提供 stable 通道或 rollback 命令。
+- 不恢复 `alpha/stable` 核心通道切换、手动 rollback 子命令、自动同步安装目录、自定义更新/重启定时器和 `external-controller-tls`；`core-upgrade-alpha` 仅提供显式单次官方 alpha 内核升级与失败自动恢复旧 core，不提供 stable 通道。

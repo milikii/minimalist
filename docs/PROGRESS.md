@@ -93,3 +93,19 @@
 
 ### 下轮目标
 - 继续处理下一个 P2 增强项，优先选择不会影响当前 live 稳定性的文档或纯测试闭环。
+
+## Round 4 — 2026-05-01 02:28
+
+### 完成
+- 为 `core-upgrade-alpha` 增加替换后重启失败的自动回滚：恢复 `.bak` 到 `core_bin`，并再次重启 `minimalist.service`。
+- 补充回滚保护测试：重启失败会恢复旧 core 并消耗 `.bak`；恢复失败时保留 `.bak` 并在错误中输出备份路径。
+- 更新 README、ARCHITECTURE、README_FLOWS、STATUS 与 TASKS，关闭 P2 `core-upgrade-alpha` 失败自动回滚任务。
+
+### 测试状态
+- 通过: focused core-upgrade tests、`go test ./...`、`go vet ./...`、`gofmt -l cmd internal` / 总计: 4 组
+
+### 遗留 / 下轮继续
+- P2 剩余任务：`core-upgrade-alpha` 支持 amd64 CPU-level 资产、默认规则仓库双份维护风险。
+
+### 下轮目标
+- 继续 P2 `core-upgrade-alpha` 支持 amd64 CPU-level 资产。

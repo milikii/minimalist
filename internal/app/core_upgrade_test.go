@@ -429,7 +429,7 @@ func TestCoreUpgradeAlphaReplacesBinaryAndRestartsService(t *testing.T) {
 	}
 }
 
-func TestCoreUpgradeAlphaSurfacesRestartFailureWithLogs(t *testing.T) {
+func TestCoreUpgradeAlphaRollsBackAfterRestartFailure(t *testing.T) {
 	app, root := newTestApp(t)
 	oldGeteuid := geteuid
 	geteuid = func() int { return 0 }
@@ -458,8 +458,10 @@ func TestCoreUpgradeAlphaSurfacesRestartFailureWithLogs(t *testing.T) {
 		t.Fatalf("write old core: %v", err)
 	}
 
+	var calls []commandCall
 	app.Runner = fakeRunner{
 		runFn: func(name string, args ...string) error {
+			calls = append(calls, commandCall{name: name, args: append([]string{}, args...)})
 			if name == "systemctl" && len(args) == 2 && args[0] == "restart" && args[1] == "minimalist.service" {
 				return errors.New("restart failed")
 			}
@@ -493,12 +495,58 @@ func TestCoreUpgradeAlphaSurfacesRestartFailureWithLogs(t *testing.T) {
 	if !strings.Contains(stderr, "line1") || !strings.Contains(stderr, "line2") {
 		t.Fatalf("expected journal output in stderr:\n%s", stderr)
 	}
-	backupBody, readErr := os.ReadFile(cfg.Install.CoreBin + ".bak")
+	body, readErr := os.ReadFile(cfg.Install.CoreBin)
 	if readErr != nil {
-		t.Fatalf("expected backup to remain after restart failure: %v", readErr)
+		t.Fatalf("read rolled back core: %v", readErr)
 	}
-	if string(backupBody) != "old-core" {
-		t.Fatalf("expected backup to contain old core, got %q", string(backupBody))
+	if string(body) != "old-core" {
+		t.Fatalf("expected old core to be restored, got %q", string(body))
+	}
+	if _, statErr := os.Stat(cfg.Install.CoreBin + ".bak"); !os.IsNotExist(statErr) {
+		t.Fatalf("expected backup to be consumed after rollback, got %v", statErr)
+	}
+	if !hasRecordedCall(calls, "systemctl", "restart", "minimalist.service") {
+		t.Fatalf("expected failed restart call, got %#v", calls)
+	}
+	if !strings.Contains(stderr, "core rollback: restored previous core after restart failure") {
+		t.Fatalf("expected rollback notice in stderr:\n%s", stderr)
+	}
+}
+
+func TestRollbackCoreUpgradeKeepsBackupWhenRestoreFails(t *testing.T) {
+	app, root := newTestApp(t)
+	corePath := filepath.Join(root, "bin", "mihomo-core")
+	backupPath := corePath + ".bak"
+	failedPath := corePath + ".failed"
+	if err := os.MkdirAll(filepath.Dir(corePath), 0o755); err != nil {
+		t.Fatalf("mkdir core dir: %v", err)
+	}
+	if err := os.WriteFile(corePath, []byte("new-core"), 0o755); err != nil {
+		t.Fatalf("write core path: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(backupPath), 0o755); err != nil {
+		t.Fatalf("mkdir backup dir: %v", err)
+	}
+	if err := os.WriteFile(backupPath, []byte("old-core"), 0o755); err != nil {
+		t.Fatalf("write backup: %v", err)
+	}
+	if err := os.MkdirAll(failedPath, 0o755); err != nil {
+		t.Fatalf("mkdir failed path: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(failedPath, "blocked"), []byte("blocked"), 0o640); err != nil {
+		t.Fatalf("write failed path blocker: %v", err)
+	}
+
+	err := app.rollbackCoreUpgradeAfterRestartFailure(corePath, backupPath, errors.New("restart failed"))
+	if err == nil || !strings.Contains(err.Error(), "rollback failed") || !strings.Contains(err.Error(), backupPath) {
+		t.Fatalf("expected rollback failure with backup path, got %v", err)
+	}
+	body, readErr := os.ReadFile(backupPath)
+	if readErr != nil {
+		t.Fatalf("expected backup to remain: %v", readErr)
+	}
+	if string(body) != "old-core" {
+		t.Fatalf("expected backup body to remain old core, got %q", string(body))
 	}
 }
 
