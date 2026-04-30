@@ -109,3 +109,19 @@
 
 ### 下轮目标
 - 继续 P2 `core-upgrade-alpha` 支持 amd64 CPU-level 资产。
+
+## Round 5 — 2026-05-01 02:45
+
+### 完成
+- 新增 `install.core_amd64_cpu_level` 配置字段，用于显式选择 `core-upgrade-alpha` 的 amd64 CPU-level 资产。
+- `core-upgrade-alpha` 在 `amd64` 上支持 `compatible` / `v1` / `v2` / `v3` 等显式资产选择；未配置时继续拒绝猜测，保持安全默认。
+- 补充选择逻辑、完整升级流程和配置 roundtrip 测试；更新 README、ARCHITECTURE、README_FLOWS、STATUS 与 TASKS。
+
+### 测试状态
+- 通过: focused app/config tests、`go test ./...`、`go vet ./...`、`gofmt -l cmd internal` / 总计: 4 组
+
+### 遗留 / 下轮继续
+- P2 剩余任务：默认规则仓库双份维护风险。
+
+### 下轮目标
+- 处理默认规则仓库双份维护风险。

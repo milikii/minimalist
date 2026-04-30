@@ -92,6 +92,7 @@ sudo minimalist core-upgrade-alpha
 - `runtime-audit` 当前会分开输出 `alerts-24h`、`alerts-recent` 与 `fatal-gaps`，用于区分历史噪音、当前异常和致命缺口
 - 从旧 `mihomo.service` 切到 Go 版前，先按 `docs/CUTOVER.md` 做人工 cutover 检查；当前本机旧服务资产已在切换验证后清理
 - 个人规则分流建议只写在 `ruleset/custom.rules` / `ruleset/acl.rules`，不要把它们混进仓库规则层
+- `amd64` 主机执行 `core-upgrade-alpha` 时，如上游只提供 CPU-level 资产，需先显式配置 `install.core_amd64_cpu_level`，例如 `v3`；为空时命令会拒绝猜测
 
 ## 当前限制
 

@@ -81,6 +81,7 @@
 - 2026-05-01 修复 Tailscale / ZeroTier 常驻时 Windows 客户端访问 7890 被握手关闭的问题：新增 `access.lan_allowed_cidrs`，将显式代理端口访问白名单与旁路由真实 `network.lan_cidrs` 分离；实机配置当前放行 `192.168.2.0/24`、`100.64.0.0/10`、`10.156.67.0/24` 与 `127.0.0.0/8`，并已通过 `100.118.67.82:7890`、`10.156.67.142:7890` HTTP 代理 smoke。
 - 2026-05-01 订阅能力已在用户可见入口中正式标为增强项：`setup` / `start` 的成功路径只看启用的手动节点，`status` 和菜单不再把订阅呈现为核心主路径。
 - 2026-05-01 `core-upgrade-alpha` 在替换内核后如果 `minimalist.service` 重启失败，会自动把 `.bak` 恢复回 `core_bin` 并再次重启服务；若恢复失败，会保留 `.bak` 并在错误中输出备份路径。
+- 2026-05-01 `core-upgrade-alpha` 支持显式 amd64 CPU-level 资产选择：通过 `install.core_amd64_cpu_level` 指定 `compatible` / `v1` / `v2` / `v3` 等变体；未配置时仍拒绝猜测。
 
 ## 当前风险与限制
 

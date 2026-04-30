@@ -36,6 +36,7 @@ func TestEnsureAndLoadRoundTrip(t *testing.T) {
 		t.Fatalf("unexpected template: %s", cfg.Profile.Template)
 	}
 	cfg.Network.LANInterfaces = []string{"br0", "br1"}
+	cfg.Install.CoreAMD64CPULevel = "v3"
 	if err := Save(path, cfg); err != nil {
 		t.Fatalf("save config: %v", err)
 	}
@@ -48,6 +49,9 @@ func TestEnsureAndLoadRoundTrip(t *testing.T) {
 	}
 	if loaded.Controller.Secret == "" {
 		t.Fatalf("secret should not be empty")
+	}
+	if loaded.Install.CoreAMD64CPULevel != "v3" {
+		t.Fatalf("expected amd64 cpu level to round trip, got %q", loaded.Install.CoreAMD64CPULevel)
 	}
 }
 

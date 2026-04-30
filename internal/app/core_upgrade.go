@@ -50,7 +50,7 @@ func (a *App) CoreUpgradeAlpha() error {
 	if err != nil {
 		return err
 	}
-	release, asset, err := selectLatestAlphaAsset(releases, currentGOOS(), currentGOARCH())
+	release, asset, err := selectLatestAlphaAsset(releases, currentGOOS(), currentGOARCH(), cfg.Install.CoreAMD64CPULevel)
 	if err != nil {
 		return err
 	}
@@ -200,13 +200,17 @@ func linuxAssetArch(goarch string) (string, error) {
 	}
 }
 
-func selectLatestAlphaAsset(releases []githubRelease, goos, goarch string) (githubRelease, githubReleaseAsset, error) {
+func selectLatestAlphaAsset(releases []githubRelease, goos, goarch string, amd64CPULevel ...string) (githubRelease, githubReleaseAsset, error) {
 	if goos != "linux" {
 		return githubRelease{}, githubReleaseAsset{}, fmt.Errorf("unsupported os: %s", goos)
 	}
 	arch, err := linuxAssetArch(goarch)
 	if err != nil {
 		return githubRelease{}, githubReleaseAsset{}, err
+	}
+	explicitAMD64CPULevel := ""
+	if len(amd64CPULevel) > 0 {
+		explicitAMD64CPULevel = normalizeAMD64CPULevel(amd64CPULevel[0])
 	}
 
 	assetPrefix := "mihomo-linux-" + arch + "-"
@@ -215,7 +219,7 @@ func selectLatestAlphaAsset(releases []githubRelease, goos, goarch string) (gith
 		return githubRelease{}, githubReleaseAsset{}, fmt.Errorf("no alpha prerelease found")
 	}
 	for _, release := range alphaReleases {
-		asset, err := selectLinuxReleaseAsset(release.Assets, goarch, assetPrefix)
+		asset, err := selectLinuxReleaseAsset(release.Assets, goarch, assetPrefix, explicitAMD64CPULevel)
 		if err == nil {
 			return release, asset, nil
 		}
@@ -227,7 +231,7 @@ func selectLatestAlphaAsset(releases []githubRelease, goos, goarch string) (gith
 	return githubRelease{}, githubReleaseAsset{}, fmt.Errorf("no matching alpha asset for %s/%s", goos, goarch)
 }
 
-func selectLinuxReleaseAsset(assets []githubReleaseAsset, goarch, assetPrefix string) (githubReleaseAsset, error) {
+func selectLinuxReleaseAsset(assets []githubReleaseAsset, goarch, assetPrefix, explicitAMD64CPULevel string) (githubReleaseAsset, error) {
 	candidates := make([]githubReleaseAsset, 0)
 	for _, asset := range assets {
 		name := strings.ToLower(asset.Name)
@@ -244,6 +248,21 @@ func selectLinuxReleaseAsset(assets []githubReleaseAsset, goarch, assetPrefix st
 			return candidates[0], nil
 		}
 		return githubReleaseAsset{}, fmt.Errorf("ambiguous linux/%s assets: %s", goarch, joinAssetNames(candidates))
+	}
+	if explicitAMD64CPULevel != "" {
+		matched := make([]githubReleaseAsset, 0, len(candidates))
+		for _, asset := range candidates {
+			if amd64CPULevelForAsset(asset.Name, assetPrefix) == explicitAMD64CPULevel {
+				matched = append(matched, asset)
+			}
+		}
+		if len(matched) == 1 {
+			return matched[0], nil
+		}
+		if len(matched) > 1 {
+			return githubReleaseAsset{}, fmt.Errorf("ambiguous linux/amd64 %s assets: %s", explicitAMD64CPULevel, joinAssetNames(matched))
+		}
+		return githubReleaseAsset{}, errNoMatchingLinuxAsset
 	}
 
 	legacy := make([]githubReleaseAsset, 0, len(candidates))
@@ -270,19 +289,43 @@ func selectLinuxReleaseAsset(assets []githubReleaseAsset, goarch, assetPrefix st
 }
 
 func isAMD64CPULevelAsset(name, assetPrefix string) bool {
+	return amd64CPULevelForAsset(name, assetPrefix) != ""
+}
+
+func amd64CPULevelForAsset(name, assetPrefix string) string {
 	rest := strings.ToLower(strings.TrimPrefix(name, assetPrefix))
 	if strings.HasPrefix(rest, "compatible-") {
-		return true
+		return "compatible"
 	}
 	if !strings.HasPrefix(rest, "v") {
-		return false
+		return ""
 	}
 	level, _, found := strings.Cut(rest[1:], "-")
 	if !found || level == "" {
-		return false
+		return ""
 	}
 	_, err := strconv.Atoi(level)
-	return err == nil
+	if err != nil {
+		return ""
+	}
+	return "v" + level
+}
+
+func normalizeAMD64CPULevel(value string) string {
+	level := strings.ToLower(strings.TrimSpace(value))
+	if level == "" {
+		return ""
+	}
+	if level == "compatible" {
+		return level
+	}
+	if strings.HasPrefix(level, "v") {
+		return level
+	}
+	if _, err := strconv.Atoi(level); err == nil {
+		return "v" + level
+	}
+	return level
 }
 
 func joinAssetNames(assets []githubReleaseAsset) string {

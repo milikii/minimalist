@@ -89,7 +89,7 @@ docs/...                            文档
 - `ports`：mixed/tproxy/dns/controller 端口
 - `controller`：绑定地址、secret、CORS
 - `access`：显式代理认证、LAN 禁止访问网段
-- `install`：`mihomo-core` 二进制路径
+- `install`：`mihomo-core` 二进制路径，以及 amd64 CPU-level 资产选择
 
 ### 程序状态
 
@@ -328,7 +328,7 @@ docs/...                            文档
 1. root 检查
 2. 读取配置拿到 `core_bin`
 3. 从 GitHub Releases 拉取 release 列表
-4. 选择最新 Linux alpha 资产
+4. 选择最新 Linux alpha 资产；`amd64` 需要通过 `install.core_amd64_cpu_level` 显式选择 `compatible` / `v1` / `v2` / `v3` 等变体，未配置时拒绝猜测
 5. 下载并解压 `.gz`
 6. 备份旧二进制并原子替换
 7. 重启 `minimalist.service`

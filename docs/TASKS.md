@@ -44,7 +44,7 @@
 - [x] `core-upgrade-alpha` 失败自动回滚
   说明：有价值，但属于增强项，不该压过主路径稳定性。
 
-- [ ] `core-upgrade-alpha` 支持 amd64 CPU-level 资产
+- [x] `core-upgrade-alpha` 支持 amd64 CPU-level 资产
   说明：也是增强项，放在稳定主线之后。
 
 - [ ] 处理默认规则仓库的双份维护风险

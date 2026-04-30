@@ -71,4 +71,5 @@
 - 当前实机旧 `mihomo` 资产已清理，`cutover-plan` 应显示 legacy rollback unavailable
 - `mihomo-core` 首次启动依赖 `Country.mmdb`、`GeoSite.dat` 和 `ui/`；离线或慢网络环境要先预置到 `/var/lib/minimalist/mihomo/`
 - `minimalist core-upgrade-alpha` 只升级官方 alpha `mihomo-core` 并重启 `minimalist.service`；若重启失败会自动恢复旧 core 并再次重启服务，不修改 `minimalist` 自身二进制、不切 stable 通道、不创建定时器
+- `amd64` 主机如需使用 CPU-level 资产，先在 `/etc/minimalist/config.yaml` 的 `install.core_amd64_cpu_level` 显式写入 `compatible` / `v1` / `v2` / `v3` 等值；为空时不会猜测选择
 - `cutover-plan` 当前只服务人工 runbook，不替代维护窗口决策

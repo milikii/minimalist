@@ -69,7 +69,8 @@ type Access struct {
 }
 
 type Install struct {
-	CoreBin string `yaml:"core_bin"`
+	CoreBin           string `yaml:"core_bin"`
+	CoreAMD64CPULevel string `yaml:"core_amd64_cpu_level"`
 }
 
 func Default() Config {

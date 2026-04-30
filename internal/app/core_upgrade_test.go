@@ -143,6 +143,50 @@ func TestSelectLatestAlphaAssetRejectsAMD64CPUVariants(t *testing.T) {
 	}
 }
 
+func TestSelectLatestAlphaAssetUsesExplicitAMD64CPULevel(t *testing.T) {
+	releases := []githubRelease{
+		{
+			TagName:    "v1.19.23-alpha-1",
+			Name:       "v1.19.23 alpha 1",
+			Prerelease: true,
+			Assets: []githubReleaseAsset{
+				{Name: "mihomo-linux-amd64-v1-v1.19.23.gz", BrowserDownloadURL: "https://example.com/v1.gz"},
+				{Name: "mihomo-linux-amd64-v3-v1.19.23.gz", BrowserDownloadURL: "https://example.com/v3.gz"},
+			},
+		},
+	}
+
+	_, asset, err := selectLatestAlphaAsset(releases, "linux", "amd64", "v3")
+	if err != nil {
+		t.Fatalf("select amd64 v3 asset: %v", err)
+	}
+	if asset.Name != "mihomo-linux-amd64-v3-v1.19.23.gz" {
+		t.Fatalf("expected v3 asset, got %+v", asset)
+	}
+}
+
+func TestSelectLatestAlphaAssetUsesExplicitAMD64CompatibleLevel(t *testing.T) {
+	releases := []githubRelease{
+		{
+			TagName:    "v1.19.23-alpha-1",
+			Name:       "v1.19.23 alpha 1",
+			Prerelease: true,
+			Assets: []githubReleaseAsset{
+				{Name: "mihomo-linux-amd64-compatible-v1.19.23.gz", BrowserDownloadURL: "https://example.com/compatible.gz"},
+				{Name: "mihomo-linux-amd64-v1-v1.19.23.gz", BrowserDownloadURL: "https://example.com/v1.gz"},
+			},
+		},
+	}
+
+	_, asset, err := selectLatestAlphaAsset(releases, "linux", "amd64", "compatible")
+	if err != nil {
+		t.Fatalf("select amd64 compatible asset: %v", err)
+	}
+	if asset.Name != "mihomo-linux-amd64-compatible-v1.19.23.gz" {
+		t.Fatalf("expected compatible asset, got %+v", asset)
+	}
+}
+
 func TestSelectLatestAlphaAssetRejectsSingleAMD64CPUVariant(t *testing.T) {
 	releases := []githubRelease{
 		{
@@ -426,6 +470,83 @@ func TestCoreUpgradeAlphaReplacesBinaryAndRestartsService(t *testing.T) {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("expected %q in stdout:\n%s", want, stdout)
 		}
+	}
+}
+
+func TestCoreUpgradeAlphaUsesConfiguredAMD64CPULevelAsset(t *testing.T) {
+	app, root := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 0 }
+	defer func() { geteuid = oldGeteuid }()
+	oldCurrentGOOS := currentGOOS
+	oldCurrentGOARCH := currentGOARCH
+	currentGOOS = func() string { return "linux" }
+	currentGOARCH = func() string { return "amd64" }
+	defer func() {
+		currentGOOS = oldCurrentGOOS
+		currentGOARCH = oldCurrentGOARCH
+	}()
+
+	cfg, err := config.Ensure(app.Paths.ConfigPath())
+	if err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	corePath := filepath.Join(root, "bin", "mihomo-core")
+	cfg.Install.CoreBin = corePath
+	cfg.Install.CoreAMD64CPULevel = "v3"
+	if err := config.Save(app.Paths.ConfigPath(), cfg); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(corePath), 0o755); err != nil {
+		t.Fatalf("mkdir core dir: %v", err)
+	}
+	if err := os.WriteFile(corePath, []byte("old-core"), 0o755); err != nil {
+		t.Fatalf("write old core: %v", err)
+	}
+
+	var requestedAsset string
+	app.Runner = fakeRunner{
+		runFn: func(name string, args ...string) error {
+			return nil
+		},
+		outputFn: func(name string, args ...string) (string, string, error) {
+			switch {
+			case name == "systemctl" && len(args) == 2 && args[0] == "is-active" && args[1] == "minimalist.service":
+				return "active\n", "", nil
+			case strings.HasSuffix(name, "mihomo-core") && len(args) == 1 && args[0] == "-v":
+				return "Mihomo Meta alpha-version\n", "", nil
+			default:
+				return "", "", nil
+			}
+		},
+	}
+	app.Client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.String() {
+			case mihomoReleasesAPI:
+				return textResponse(http.StatusOK, `[{"tag_name":"Prerelease-Alpha","name":"Prerelease-Alpha","prerelease":true,"published_at":"2026-04-28T00:00:00Z","assets":[{"name":"mihomo-linux-amd64-v1-v1.19.23.gz","browser_download_url":"https://example.com/v1.gz"},{"name":"mihomo-linux-amd64-v3-v1.19.23.gz","browser_download_url":"https://example.com/v3.gz"}]}]`), nil
+			case "https://example.com/v3.gz":
+				requestedAsset = req.URL.String()
+				return gzippedResponse(t, []byte("new-core-v3")), nil
+			default:
+				t.Fatalf("unexpected url: %s", req.URL.String())
+				return nil, nil
+			}
+		}),
+	}
+
+	if err := app.CoreUpgradeAlpha(); err != nil {
+		t.Fatalf("core upgrade alpha: %v", err)
+	}
+	if requestedAsset != "https://example.com/v3.gz" {
+		t.Fatalf("expected v3 asset download, got %q", requestedAsset)
+	}
+	body, err := os.ReadFile(corePath)
+	if err != nil {
+		t.Fatalf("read core path: %v", err)
+	}
+	if string(body) != "new-core-v3" {
+		t.Fatalf("expected v3 core, got %q", string(body))
 	}
 }
 
