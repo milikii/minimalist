@@ -125,3 +125,19 @@
 
 ### 下轮目标
 - 处理默认规则仓库双份维护风险。
+
+## Round 6 — 2026-05-01 02:58
+
+### 完成
+- 删除仓库根部 `rules-repo/default` 镜像样本，避免它继续与 `internal/rulesrepo/assets/default` 漂移。
+- 明确 `internal/rulesrepo/assets/default` 是内置默认规则仓库唯一源；运行时仍由 `InitDefaultRepo` 复制到 `/etc/minimalist/rules-repo/default/`。
+- 更新 ARCHITECTURE、STATUS、TASKS 与 PROGRESS，关闭 P2 默认规则仓库双份维护风险。
+
+### 测试状态
+- 通过: `go test ./internal/rulesrepo`、`go test ./...`、`go vet ./...`、`gofmt -l cmd internal` / 总计: 4 组
+
+### 遗留 / 下轮继续
+- 当前 TASKS.md 已无未完成任务。
+
+### 下轮目标
+- 进入收尾复查或按新指令继续。

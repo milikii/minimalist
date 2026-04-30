@@ -82,6 +82,7 @@
 - 2026-05-01 订阅能力已在用户可见入口中正式标为增强项：`setup` / `start` 的成功路径只看启用的手动节点，`status` 和菜单不再把订阅呈现为核心主路径。
 - 2026-05-01 `core-upgrade-alpha` 在替换内核后如果 `minimalist.service` 重启失败，会自动把 `.bak` 恢复回 `core_bin` 并再次重启服务；若恢复失败，会保留 `.bak` 并在错误中输出备份路径。
 - 2026-05-01 `core-upgrade-alpha` 支持显式 amd64 CPU-level 资产选择：通过 `install.core_amd64_cpu_level` 指定 `compatible` / `v1` / `v2` / `v3` 等变体；未配置时仍拒绝猜测。
+- 2026-05-01 默认规则仓库双份维护风险已收口：删除仓库根部 `rules-repo/default` 镜像样本，只保留 `internal/rulesrepo/assets/default` 作为内置默认规则仓库唯一源。
 
 ## 当前风险与限制
 

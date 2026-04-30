@@ -53,7 +53,7 @@ internal/provider/                  节点解析与 provider 渲染
 
 internal/rulesrepo/                 规则仓库
   repo.go                           manifest/规则集读取、校验、查询、增删
-  assets/default/...                内置默认规则仓库模板
+  assets/default/...                内置默认规则仓库唯一源
 
 internal/runtime/                   运行时文件渲染
   runtime.go                        runtime config、service unit、sysctl、目录布局
@@ -61,7 +61,6 @@ internal/runtime/                   运行时文件渲染
 internal/system/                    命令执行抽象
   system.go                         带超时的 shell command runner
 
-rules-repo/default/...              仓库内镜像规则仓库样本
 docs/...                            文档
 ```
 
@@ -366,7 +365,7 @@ docs/...                            文档
 - `fcm-site`：FCM 相关域名走代理
 - `fcm-ip`：FCM 相关 IP 走代理
 
-仓库内还保留了一份 `rules-repo/default/` 镜像样本，内容与 `internal/rulesrepo/assets/default/` 对应。
+默认规则仓库的仓库内唯一源是 `internal/rulesrepo/assets/default/`，运行时由 `InitDefaultRepo` 复制到 `/etc/minimalist/rules-repo/default/`。
 
 ## 9. 设计约束与已知边界
 
