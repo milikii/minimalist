@@ -2184,6 +2184,7 @@ func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 	for _, needle := range []string{
 		"无效选择",
 		"部署完成，请先 import-links 并启用手动节点后再启动服务",
+		"4) 订阅管理（增强项）",
 		"1) 查看订阅",
 		"1) 查看自定义规则",
 		"mixed-port=7890",
@@ -3541,7 +3542,7 @@ func TestStatusFallsBackToConfigModeAndReportsReadySubscriptions(t *testing.T) {
 		"当前模式: rule (config)",
 		"服务状态: active=false enabled=false",
 		"手动节点: 0",
-		"订阅: enabled=1 total=1 ready=1",
+		"订阅(增强项): enabled=1 total=1 ready=1",
 	} {
 		if !strings.Contains(output, needle) {
 			t.Fatalf("missing %q in status output:\n%s", needle, output)
@@ -3585,7 +3586,7 @@ func TestStatusCountsOnlyEnabledNonEmptySubscriptionCachesAsReady(t *testing.T) 
 	if err := app.Status(); err != nil {
 		t.Fatalf("status: %v", err)
 	}
-	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "订阅: enabled=2 total=3 ready=1") {
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "订阅(增强项): enabled=2 total=3 ready=1") {
 		t.Fatalf("unexpected subscription counts:\n%s", app.Stdout.(*bytes.Buffer).String())
 	}
 }
@@ -3653,7 +3654,7 @@ func TestStatusReportsManualNodeCountWhenServiceActive(t *testing.T) {
 	for _, needle := range []string{
 		"服务状态: active=true enabled=true",
 		"手动节点: 1",
-		"订阅: enabled=0 total=0 ready=0",
+		"订阅(增强项): enabled=0 total=0 ready=0",
 	} {
 		if !strings.Contains(output, needle) {
 			t.Fatalf("missing %q in status output:\n%s", needle, output)

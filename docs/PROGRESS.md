@@ -77,3 +77,19 @@
 
 ### 下轮目标
 - 若 Windows 仍失败，抓取 Windows `ipconfig` 与两条 `curl -v` 输出，对照 `lan-allowed-ips` 来源网段继续排查。
+
+## Round 3 — 2026-05-01 02:10
+
+### 完成
+- 将订阅能力在用户可见入口中正式降级为增强项：状态输出改为 `订阅(增强项)`，帮助信息把 `subscriptions` 移到 enhancement commands，菜单标注 `订阅管理（增强项）`。
+- 保留订阅已有实现与 runtime 渲染能力，但文档明确 `setup` / `start` 的核心成功路径只看启用的手动节点，订阅缓存不能替代手动节点。
+- 更新 `README.md`、`docs/README_FLOWS.md`、`docs/ARCHITECTURE.md`、`docs/STATUS.md` 与 `docs/TASKS.md`，关闭 P2 订阅降级任务。
+
+### 测试状态
+- 通过: focused app/cli tests、`go test ./...`、`go vet ./...`、`gofmt -l cmd internal` / 总计: 5 组
+
+### 遗留 / 下轮继续
+- P2 剩余任务仍是 `core-upgrade-alpha` 失败自动回滚、amd64 CPU-level 资产策略，以及默认规则仓库双份维护风险。
+
+### 下轮目标
+- 继续处理下一个 P2 增强项，优先选择不会影响当前 live 稳定性的文档或纯测试闭环。

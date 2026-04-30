@@ -16,7 +16,8 @@
 - 内核维护：`core-upgrade-alpha`（仅从官方 alpha release 单次升级 `mihomo-core`，成功替换后自动重启 `minimalist.service`）
 - 运维查看：`status`、`show-secret`、`healthcheck`、`runtime-audit`、`cutover-preflight`、`cutover-plan`
 - 交互入口：`menu`、`router-wizard`、`import-links`
-- 规则与订阅：`nodes`、`subscriptions`、`rules`、`acl`、`rules-repo`
+- 节点与规则：`nodes`、`rules`、`acl`、`rules-repo`
+- 增强项：`subscriptions`
 
 ## 开发入口与发布
 
@@ -53,7 +54,7 @@ sudo /usr/local/bin/minimalist setup
 - 运行产物：`/var/lib/minimalist/mihomo/`
   - `config.yaml`
   - `proxy_providers/manual.txt`：仅包含启用的非订阅节点
-  - `proxy_providers/subscriptions/*.txt`
+  - `proxy_providers/subscriptions/*.txt`：订阅增强项缓存
   - `ruleset/*.rules`
 - `render-config` 生成的是成熟常规模板，再叠加个人规则分流：
   - DNS / fake-ip / DoH / controller / profile 是稳定 baseline
@@ -69,12 +70,11 @@ sudo /usr/local/bin/minimalist setup
 1. `sudo minimalist install-self`
 2. `sudo minimalist setup`
 3. `minimalist import-links`
-4. `minimalist subscriptions update`
-5. `minimalist router-wizard`
-6. `minimalist healthcheck`
-7. `minimalist cutover-preflight`
-8. `minimalist cutover-plan`
-9. `minimalist status`
+4. `minimalist router-wizard`
+5. `minimalist healthcheck`
+6. `minimalist cutover-preflight`
+7. `minimalist cutover-plan`
+8. `minimalist status`
 
 按需升级官方 alpha 内核：
 
@@ -84,10 +84,10 @@ sudo minimalist core-upgrade-alpha
 
 补充当前行为：
 
-- `menu` 当前按运维任务分组：状态总览、部署/修复、节点管理、订阅管理、网络入口与规则仓库、规则与 ACL、服务管理、健康检查与审计
+- `menu` 当前按运维任务分组：状态总览、部署/修复、节点管理、订阅管理（增强项）、网络入口与规则仓库、规则与 ACL、服务管理、健康检查与审计
 - 节点管理包含查看、导入、测试、改名、启用、禁用和删除；节点测试依赖本机 Mihomo controller
-- `subscriptions update` 更新的是订阅 provider 缓存；`render-config` 直接读取缓存生成订阅 provider
-- 即使当前没有手动节点或订阅 provider，`render-config` 仍会生成仅含 `DIRECT` 的 `PROXY` 组
+- `subscriptions update` 是增强项，只更新订阅 provider 缓存；`setup` / `start` 的核心成功路径仍只看启用的手动节点
+- 即使当前没有手动节点，`render-config` 仍会生成仅含 `DIRECT` 的 `PROXY` 组
 - provider 导入会按 `URIBaseKey` 去重，并为重名节点自动追加后缀
 - `runtime-audit` 当前会分开输出 `alerts-24h`、`alerts-recent` 与 `fatal-gaps`，用于区分历史噪音、当前异常和致命缺口
 - 从旧 `mihomo.service` 切到 Go 版前，先按 `docs/CUTOVER.md` 做人工 cutover 检查；当前本机旧服务资产已在切换验证后清理

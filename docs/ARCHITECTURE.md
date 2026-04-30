@@ -12,7 +12,7 @@
 - 把用户配置与节点状态渲染成 Mihomo 运行时文件
 - 生成并安装 `systemd` 服务单元与 `sysctl` 配置
 - 通过 `iptables + TProxy + ip rule/ip route` 下发旁路由规则
-- 管理手动节点、订阅缓存、自定义规则、ACL 和内置规则仓库
+- 管理手动节点、自定义规则、ACL、内置规则仓库，以及作为增强项保留的订阅缓存
 - 通过本地 controller API 做状态查看、延迟测试、健康检查和运行审计
 - 从 GitHub alpha release 单次升级 `mihomo-core`
 
@@ -26,7 +26,7 @@
 - 网络编排：`iptables`、`ip rule`、`ip route`
 - 外部交互：
   - GitHub Releases API：`core-upgrade-alpha`
-  - 订阅 URL：`subscriptions update`
+  - 订阅 URL：`subscriptions update`（增强项）
   - Mihomo controller HTTP API：`status`、`healthcheck`、`runtime-audit`、节点测速
   - Docker CLI：解析容器旁路 IP 白名单
 
@@ -142,8 +142,8 @@ docs/...                            文档
 - 服务生命周期：`start`、`stop`、`restart`
 - 运行审计：`status`、`show-secret`、`healthcheck`、`runtime-audit`、`verify-runtime-assets`
 - 切换检查：`cutover-preflight`、`cutover-plan`
-- 节点/订阅：`import-links`、`router-wizard`、`nodes ...`、`subscriptions ...`
-- 规则：`rules ...`、`acl ...`、`rules-repo ...`
+- 节点/规则主路径：`import-links`、`router-wizard`、`nodes ...`、`rules ...`、`acl ...`、`rules-repo ...`
+- 订阅增强项：`subscriptions ...`
 - 网络编排：`apply-rules`、`clear-rules`
 - 内核升级：`core-upgrade-alpha`
 
@@ -230,7 +230,7 @@ docs/...                            文档
 5. 以 `manual` source 写入 `state.json`
 6. 默认导入为禁用状态
 
-### 6.3 订阅更新
+### 6.3 订阅更新（增强项）
 
 `subscriptions update`
 
@@ -259,7 +259,7 @@ docs/...                            文档
 
 - 有可用 provider 时，`PROXY` 组由 `AUTO + DIRECT + provider use` 组成；`AUTO` 必须排在第一位，避免服务重启后 `MATCH,PROXY` 默认回落到直连
 - 没有 provider 时，`PROXY` 组退化为仅 `DIRECT`
-- 订阅 provider 只有在缓存文件存在且包含受支持 URI 时才进入运行配置
+- 订阅 provider 只有在缓存文件存在且包含受支持 URI 时才进入运行配置；它不参与 `setup` / `start` 的核心成功判定
 - 最终规则顺序为：
   - custom.rules
   - acl.rules
@@ -279,7 +279,7 @@ docs/...                            文档
 5. 写入 `systemd` unit 与 `sysctl`
 6. `sysctl -p`
 7. `systemctl daemon-reload`
-8. 视 provider 就绪情况决定是否启用服务
+8. 只在存在启用的手动节点时启用服务
 
 `minimalist.service` 的关键行为：
 
@@ -312,12 +312,12 @@ docs/...                            文档
 
 `status` / `healthcheck` / `runtime-audit`
 
-- `status`：输出配置摘要、当前模式、服务状态、手动节点数、订阅就绪数
+- `status`：输出配置摘要、当前模式、服务状态、手动节点数、增强项订阅就绪数
 - `healthcheck`：输出关键端口与 controller `/version`
 - `runtime-audit`：
   - 复用 `status`
   - 统计最近 24h / 15min journal warn/error
-  - 输出 provider 是否就绪
+  - 输出是否存在启用的手动节点
   - 输出 cutover 状态
   - 报告 fatal gaps
 
@@ -374,7 +374,7 @@ docs/...                            文档
 - 不做运行资产自动下载，必须预置 `Country.mmdb`、`GeoSite.dat`、`ui/`
 - 透明代理规则依赖 root、`CAP_NET_ADMIN` 和可用的 `iptables/ip`
 - 节点协议仅覆盖 `vless/trojan/ss/vmess`
-- 订阅节点是 provider-managed，不允许直接重命名/启停/删除单条订阅派生节点
+- 订阅能力已降级为增强项；订阅节点是 provider-managed，不允许直接重命名/启停/删除单条订阅派生节点
 
 ## 10. 当前架构评价
 

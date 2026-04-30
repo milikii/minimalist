@@ -239,7 +239,7 @@ func (a *App) Status() error {
 	fmt.Fprintf(a.Stdout, "控制面: %s:%d\n", cfg.Controller.BindAddress, cfg.Ports.Controller)
 	fmt.Fprintf(a.Stdout, "服务状态: active=%t enabled=%t\n", serviceActive, serviceEnabled)
 	fmt.Fprintf(a.Stdout, "手动节点: %d\n", a.manualNodeCount(st))
-	fmt.Fprintf(a.Stdout, "订阅: enabled=%d total=%d ready=%d\n", subEnabled, subTotal, subReady)
+	fmt.Fprintf(a.Stdout, "订阅(增强项): enabled=%d total=%d ready=%d\n", subEnabled, subTotal, subReady)
 	return nil
 }
 
@@ -480,7 +480,7 @@ func (a *App) Menu() error {
 		fmt.Fprintln(a.Stdout, "1) 状态总览")
 		fmt.Fprintln(a.Stdout, "2) 部署/修复")
 		fmt.Fprintln(a.Stdout, "3) 节点管理")
-		fmt.Fprintln(a.Stdout, "4) 订阅管理")
+		fmt.Fprintln(a.Stdout, "4) 订阅管理（增强项）")
 		fmt.Fprintln(a.Stdout, "5) 网络入口与规则仓库")
 		fmt.Fprintln(a.Stdout, "6) 规则与 ACL")
 		fmt.Fprintln(a.Stdout, "7) 服务管理")

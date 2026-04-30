@@ -128,7 +128,7 @@ func toggleNode(a *app.App, args []string, enabled bool) error {
 
 func runSubscriptions(a *app.App, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: minimalist subscriptions list|add|enable|disable|remove|update ...")
+		return errors.New("usage: minimalist subscriptions list|add|enable|disable|remove|update ... (enhancement)")
 	}
 	switch args[0] {
 	case "list":
@@ -260,10 +260,12 @@ func printUsage() {
   minimalist router-wizard
   minimalist apply-rules|clear-rules
   minimalist nodes list|test|rename|enable|disable|remove
-  minimalist subscriptions list|add|enable|disable|remove|update
   minimalist rules list|add|remove
   minimalist acl list|add|remove
-  minimalist rules-repo summary|entries|find|add|remove|remove-index`)
+  minimalist rules-repo summary|entries|find|add|remove|remove-index
+
+enhancement commands:
+  minimalist subscriptions list|add|enable|disable|remove|update`)
 }
 
 func isTTY() bool {

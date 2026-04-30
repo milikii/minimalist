@@ -6,7 +6,7 @@
 
 1. `minimalist install-self`
 2. `minimalist setup`
-3. `minimalist import-links` 或 `minimalist subscriptions update`
+3. `minimalist import-links`
 4. `minimalist router-wizard`
 5. `minimalist render-config`
 6. `minimalist start`
@@ -23,7 +23,7 @@
 3. `render-config` 生成：
    - `/var/lib/minimalist/mihomo/config.yaml`
    - `/var/lib/minimalist/mihomo/proxy_providers/manual.txt`
-   - `/var/lib/minimalist/mihomo/proxy_providers/subscriptions/*.txt`
+   - `/var/lib/minimalist/mihomo/proxy_providers/subscriptions/*.txt`（订阅增强项缓存）
    - `/var/lib/minimalist/mihomo/ruleset/*.rules`
    - 规则层顺序固定为 `custom.rules` -> `acl.rules` -> `builtin.rules` -> 尾部默认规则
    - baseline 模板固定，DNS / fake-ip / DoH / profile / controller 作为稳定骨架
@@ -35,13 +35,14 @@
 - `render-config` 是运行产物唯一生成入口；即使没有 provider，也会生成仅含 `DIRECT` 的 `PROXY` 组。
 - `render-config` 的规则层按固定顺序拼装：个人规则层（custom/ACL） -> 仓库规则层 -> 尾部默认兜底规则
 - DNS、controller、profile、proxy-groups、rules、provider health-check、service unit 与 sysctl 输出已经由 focused tests 固定。
-- 顶层 `minimalist rules|acl|subscriptions|rules-repo ...` 当前都直接分发到同一组底层 CLI helper。
+- 顶层 `minimalist rules|acl|rules-repo ...` 当前都直接分发到同一组底层 CLI helper；`minimalist subscriptions ...` 保留为增强项 helper。
 - `setup` / `start` / `restart` 的真实验证依赖 systemd；`apply-rules` / `clear-rules` 的真实验证依赖 `CAP_NET_ADMIN` 与可用 `iptables` / `ip rule`。
 
 ## 节点与订阅
 
 - `import-links` 导入的是手动节点真相，默认 `disabled`
-- `subscriptions update` 拉取的是 provider 缓存真相，订阅节点只保留只读枚举
+- `subscriptions update` 拉取的是增强项 provider 缓存真相，订阅节点只保留只读枚举
+- `setup` / `start` 的核心成功路径只看启用的手动节点，订阅缓存就绪不能替代手动节点
 - `render-config` 会把订阅缓存和手动节点分别渲染到不同 provider 文件；`manual.txt` 不包含订阅节点
 - provider 导入当前会按 `URIBaseKey` 去重，并为重名节点自动加后缀
 - provider 命名当前优先使用 URI fragment 或 `vmess.ps`，协议不支持时会落到保守回退命名
@@ -50,7 +51,7 @@
 
 ## 辅助入口
 
-- `minimalist menu` 是当前交互入口，按旧菜单习惯重新分为状态总览、部署/修复、节点管理、订阅管理、网络入口与规则仓库、规则与 ACL、服务管理、健康检查与审计
+- `minimalist menu` 是当前交互入口，按旧菜单习惯重新分为状态总览、部署/修复、节点管理、订阅管理（增强项）、网络入口与规则仓库、规则与 ACL、服务管理、健康检查与审计
 - 节点管理包含查看、导入、测试、改名、启用、禁用和删除；节点测试通过本机 Mihomo controller 对已启用节点执行 delay 检查
 - 当前菜单只暴露 Go 版日常保留能力；`core-upgrade-alpha` 是显式 CLI 维护入口，不放回菜单，也不恢复旧版通道切换、core 回滚或自动更新
 - 顶层 `minimalist --help` / `help` / 非 TTY 空参数当前都回落到同一份 usage 输出

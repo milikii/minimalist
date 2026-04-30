@@ -296,7 +296,7 @@ func TestRunNodesUsageErrorThroughRun(t *testing.T) {
 
 func TestRunSubscriptionsUsageErrorThroughRun(t *testing.T) {
 	err := Run([]string{"subscriptions"})
-	if err == nil || !strings.Contains(err.Error(), "usage: minimalist subscriptions list|add|enable|disable|remove|update ...") {
+	if err == nil || !strings.Contains(err.Error(), "usage: minimalist subscriptions list|add|enable|disable|remove|update ... (enhancement)") {
 		t.Fatalf("expected subscriptions usage error, got %v", err)
 	}
 }
@@ -565,7 +565,7 @@ func TestRunSubscriptionsUsageAndIndexErrors(t *testing.T) {
 		args []string
 		want string
 	}{
-		{nil, "usage: minimalist subscriptions list|add|enable|disable|remove|update ..."},
+		{nil, "usage: minimalist subscriptions list|add|enable|disable|remove|update ... (enhancement)"},
 		{[]string{"add", "demo"}, "usage: minimalist subscriptions add <name> <url>"},
 		{[]string{"enable"}, "usage: minimalist subscriptions enable|disable <index>"},
 		{[]string{"disable", "bad"}, `strconv.Atoi: parsing "bad"`},
@@ -692,6 +692,8 @@ func TestRunHelpPrintsUsage(t *testing.T) {
 		"minimalist core-upgrade-alpha",
 		"  minimalist verify-runtime-assets\n",
 		"  minimalist nodes list|test|rename|enable|disable|remove\n",
+		"enhancement commands:",
+		"  minimalist subscriptions list|add|enable|disable|remove|update\n",
 		"minimalist rules-repo summary|entries|find|add|remove|remove-index",
 	} {
 		if !strings.Contains(output, needle) {
@@ -1582,7 +1584,7 @@ func TestRunRulesAndSubscriptionsHelperUsageErrors(t *testing.T) {
 	}{
 		{"runRules", func() error { return runRules(a, false, nil) }, "usage: minimalist rules list|add|remove ..."},
 		{"runRulesACL", func() error { return runRules(a, true, nil) }, "usage: minimalist acl list|add|remove ..."},
-		{"runSubscriptions", func() error { return runSubscriptions(a, nil) }, "usage: minimalist subscriptions list|add|enable|disable|remove|update ..."},
+		{"runSubscriptions", func() error { return runSubscriptions(a, nil) }, "usage: minimalist subscriptions list|add|enable|disable|remove|update ... (enhancement)"},
 	} {
 		err := tc.fn()
 		if err == nil || !strings.Contains(err.Error(), tc.want) {

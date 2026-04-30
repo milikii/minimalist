@@ -22,7 +22,7 @@
 - 运行时配置、provider、rules、systemd unit 与 sysctl 文本生成：`internal/runtime`
 - 业务命令、菜单与 CLI 分发：`internal/app`、`internal/cli`
 - 外部命令封装：`internal/system`
-- `menu` 已按运维任务分组：状态总览、部署/修复、节点管理、订阅管理、网络入口与规则仓库、规则与 ACL、服务管理、健康检查与审计
+- `menu` 已按运维任务分组：状态总览、部署/修复、节点管理、订阅管理（增强项）、网络入口与规则仓库、规则与 ACL、服务管理、健康检查与审计
 
 当前保留命令：
 
@@ -30,7 +30,8 @@
 - 内核维护：`core-upgrade-alpha`（官方 alpha release 单次升级，成功替换后自动重启 `minimalist.service`）
 - 运维查看：`status`、`show-secret`、`healthcheck`、`runtime-audit`、`verify-runtime-assets`、`cutover-preflight`、`cutover-plan`
 - 交互与资源入口：`menu`、`router-wizard`、`import-links`
-- 规则与订阅：`nodes`、`subscriptions`、`rules`、`acl`、`rules-repo`
+- 节点与规则：`nodes`、`rules`、`acl`、`rules-repo`
+- 增强项：`subscriptions`
 
 ## 质量状态
 
@@ -78,6 +79,7 @@
 - 2026-04-29 本机已完成 `host reboot smoke`：重启后 `minimalist.service` 自动恢复到 `active/enabled`，controller 恢复可达，`runtime-audit` 继续为 `fatal-gaps=0`，`MIHOMO_PRE` / `MIHOMO_DNS` 链、`fwmark 0x2333 lookup 233` 与 `table 233` 继续存在；当前主线已从“代码面收口”进入“长时间观察”阶段。
 - 2026-04-30 修复 7890 代理端口可连接但被墙目标超时问题：根因是有可用 provider 时 `PROXY` 选择组默认顺序为 `DIRECT, AUTO`，服务重启后 `MATCH,PROXY` 默认回落直连；当前已改为 `AUTO, DIRECT`，并在实机上完成重新安装、渲染配置、重启服务与 HTTP / SOCKS5 7890 smoke。
 - 2026-05-01 修复 Tailscale / ZeroTier 常驻时 Windows 客户端访问 7890 被握手关闭的问题：新增 `access.lan_allowed_cidrs`，将显式代理端口访问白名单与旁路由真实 `network.lan_cidrs` 分离；实机配置当前放行 `192.168.2.0/24`、`100.64.0.0/10`、`10.156.67.0/24` 与 `127.0.0.0/8`，并已通过 `100.118.67.82:7890`、`10.156.67.142:7890` HTTP 代理 smoke。
+- 2026-05-01 订阅能力已在用户可见入口中正式标为增强项：`setup` / `start` 的成功路径只看启用的手动节点，`status` 和菜单不再把订阅呈现为核心主路径。
 
 ## 当前风险与限制
 
