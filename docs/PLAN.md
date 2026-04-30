@@ -2,6 +2,11 @@
 
 > 日期：2026-04-28
 > 新锚点：稳定、长期运行、无 DNS 泄露、默认不影响宿主机网络。
+>
+> **本文档定位：策略级结论与边界**（why + what）。
+> **可执行的 task-by-task 实施细节见**：
+> [`docs/superpowers/plans/2026-04-28-long-term-stability-hardening.md`](superpowers/plans/2026-04-28-long-term-stability-hardening.md)
+> （已用 `/autoplan` 评审过，含 file map、test diagram、failure mode registry）。
 
 ## 结论
 
