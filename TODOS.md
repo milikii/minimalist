@@ -65,6 +65,62 @@
 - **真正需要 Approach B（TUI 重写）的只有"看节点列表里直接对节点 N 发命令"**——bubbletea 才有的列表内操作。如果接受"看完后菜单仍在 + 短命令"折中，A + 短别名可能就够了。
 - **Approach C（CLI all-in）社区里也有人在做**（chise0713），但主流仍是双轨。建议 **A + 短别名（双轨）** 作为下一轮 design-consultation 的默认推荐起点。
 
+### 重要功能优先级（用户 mental model — 2026-04-30 自陈）
+
+下一轮重设计的**顶层导航分组**应按这 5 类，不再是当前 7 个组：
+
+| # | 分组 | 当前实现现状 | 重设计动作 |
+|---|------|------|------|
+| 1 | **节点管理** | `nodesMenu` + `nodes list/test/rename/enable/disable/remove` | UX 重做（参考前面 9 项对照表），功能完整 |
+| 2 | **配置管理** | `router-wizard`（名字不直观）+ 散落的 `ruleset/custom.rules` `acl.rules` | 重命名为 "配置管理"（或类似），统一入口；散落的配置文件指针化（菜单不直接编辑文本，但显式指向路径） |
+| 3 | **规则管理** | `rulesAndACLMenu` + `rules-repo` + `acl` + `rules` — 当前散在 "网络入口与规则仓库" 和 "规则与 ACL" 两组 | 合并成单一 "规则管理" 入口：自定义 / ACL / 仓库规则 / 默认 tail 都在这里看 |
+| 4 | **日志** | **完全缺失** — 不在 7 菜单组，不在 25+ CLI 命令 | **新增**：`minimalist log` 命令 + 菜单 "日志" 入口，封装 `journalctl -u minimalist.service` 与 `mihomo-core` 日志的常用过滤（最近 N 行、follow、warn/error 过滤、特定时段） |
+| 5 | **控制启停** | `serviceMenu` + `start/stop/restart/status` | 名字 "服务管理" → "控制启停" 更直观；功能完整 |
+
+**当前 7 组中需要降权 / 重排的**：
+- "状态总览"（菜单选项 1）→ 升级为顶部 status header（参考 233boy 模式），不再是菜单项
+- "部署/修复"（`install-self/setup/render-config`）→ 合并到 "控制启停"，作为高级二级菜单
+- "订阅管理" → 降级为 "配置管理" 下的子项（与 `docs/TASKS.md` P2 "把订阅能力正式降级为增强项" 一致）
+- "网络入口与规则仓库" → 拆开：网络入口归 "配置管理"，规则仓库归 "规则管理"
+- "健康检查与审计" → 部分归 "日志"（`runtime-audit` / `healthcheck`），部分归 "控制启停"（`cutover-preflight` / `cutover-plan`）
+
+### 待补的功能缺口（重设计时一并补）
+
+#### 1. 日志查看入口（完全新增）
+
+当前要看日志只能 `journalctl -u minimalist.service` / `journalctl -u mihomo-core` 手敲，不在菜单也不在 CLI。
+
+**最小可行设计**：
+- `minimalist log` — 默认显示 minimalist.service 最近 50 行
+- `minimalist log -f` — follow
+- `minimalist log mihomo` — 切换到 mihomo-core 日志
+- `minimalist log --errors` — 只看 warn/error
+- 菜单 "日志" 入口：默认渲染最近 50 行 minimalist.service + `runtime-audit` 的 `alerts-recent`，提供 "查看 mihomo 日志" / "follow 模式" / "只看 error" 三个子动作
+
+**实现成本**：低（封 `os/exec` 起 `journalctl`，CLI 子命令分发）
+
+#### 2. 接管宿主机流量一键开关（功能已存在，UX 缺失）
+
+`proxy_host_output` 字段功能完整，但目前**只能通过走完整个 `router-wizard` 多步流程切换**。需要独立成显式 toggle：
+
+**最小可行设计**：
+- `minimalist host-proxy status` — 当前是 on 还是 off
+- `minimalist host-proxy on` / `minimalist host-proxy off` — 切换并 apply-rules
+- 菜单 "配置管理" 顶部一个显眼 toggle：`[x] 宿主机接管: 关闭`（对应 233boy 的 status header 模式）
+- 切换时强制 `confirm()` 二次确认（高风险动作）+ 显示当前 iptables `OUTPUT` 链状态对比
+
+**实现成本**：低（字段已经存在，只需要新 CLI 子命令 + apply-rules 复用）
+
+**重要约束**：
+- **默认必须是 off**（README 明确：`proxy_host_output: false`，主线不默认接管宿主机流量）
+- 切换为 on 后必须有显著视觉提示（status header 红字 / "宿主机已接管"）
+- 重启 / reboot 后保持上次的状态（已经写入 config.yaml，自动满足）
+
+#### 3. 短入口别名（参考实现段已讨论）
+
+`m` symlink + 短动词映射，install-self 时多建一个 symlink 即可。零工程量。
+
+
 ### 观察期内的 self-observation 任务（24-72h，可填）
 
 每次自己用 `minimalist menu` 或 CLI 时，记一条到下方"高频路径日志"：
