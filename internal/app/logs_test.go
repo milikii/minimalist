@@ -61,7 +61,21 @@ func TestLogsReturnsActionableError(t *testing.T) {
 	}
 
 	err := app.Logs(LogOptions{Lines: 10})
-	if err == nil || !strings.Contains(err.Error(), "日志读取失败") || !strings.Contains(err.Error(), "下一步: journalctl") {
+	if err == nil || !strings.Contains(err.Error(), "问题: 日志读取失败") || !strings.Contains(err.Error(), "下一步: journalctl") || !strings.Contains(err.Error(), "文档: docs/README_FLOWS.md") {
 		t.Fatalf("expected actionable error, got %v", err)
+	}
+}
+
+func TestLogsReturnsActionableTimeoutError(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Runner = fakeRunner{
+		outputFn: func(name string, args ...string) (string, string, error) {
+			return "", "", errors.New("command timed out: journalctl -u minimalist.service -n 50 --no-pager")
+		},
+	}
+
+	err := app.Logs(LogOptions{})
+	if err == nil || !strings.Contains(err.Error(), "问题: 日志读取失败") || !strings.Contains(err.Error(), "command timed out") {
+		t.Fatalf("expected actionable timeout error, got %v", err)
 	}
 }

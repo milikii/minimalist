@@ -5551,6 +5551,21 @@ func TestMenuShowsInvalidSelectionThenExit(t *testing.T) {
 	}
 }
 
+func TestMenuReturnsNilOnEOF(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.Stdin = strings.NewReader("")
+	if err := app.Menu(); err != nil {
+		t.Fatalf("menu EOF should exit cleanly, got %v", err)
+	}
+}
+
+func TestNodesMenuReturnsNilOnEOF(t *testing.T) {
+	app, _ := newTestApp(t)
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader(""))); err != nil {
+		t.Fatalf("nodes menu EOF should exit cleanly, got %v", err)
+	}
+}
+
 func TestMenuReportsActionErrorsToStderr(t *testing.T) {
 	app, _ := newTestApp(t)
 	oldGeteuid := geteuid

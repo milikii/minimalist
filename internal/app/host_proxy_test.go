@@ -92,7 +92,7 @@ func TestHostProxyEnableRollsBackConfigWhenApplyRulesFails(t *testing.T) {
 	}
 
 	err := app.HostProxyEnable()
-	if err == nil || !strings.Contains(err.Error(), "rollback restored previous host-proxy config") {
+	if err == nil || !strings.Contains(err.Error(), "问题: 宿主机流量接管变更失败，但已恢复旧配置") || !strings.Contains(err.Error(), "下一步: 重新执行 minimalist host-proxy status 确认状态") {
 		t.Fatalf("expected rollback error, got %v", err)
 	}
 	cfg, loadErr := config.Load(app.Paths.ConfigPath())
@@ -142,7 +142,7 @@ func TestHostProxyEnableDoesNotMutateConfigWhenCutoverBlocked(t *testing.T) {
 	}
 
 	err := app.HostProxyEnable()
-	if err == nil || !strings.Contains(err.Error(), "cutover blocked") {
+	if err == nil || !strings.Contains(err.Error(), "问题: 宿主机流量接管变更失败") || !strings.Contains(err.Error(), "cutover blocked") || !strings.Contains(err.Error(), "下一步: 先执行 minimalist cutover-preflight") {
 		t.Fatalf("expected cutover blocked error, got %v", err)
 	}
 	cfg, loadErr := config.Load(app.Paths.ConfigPath())
@@ -178,5 +178,20 @@ func TestHostProxyEnableRollsBackConfigWhenRenderConfigFails(t *testing.T) {
 	}
 	if cfg.Network.ProxyHostOutput {
 		t.Fatalf("expected config truth to roll back after render failure")
+	}
+}
+
+func TestHostProxyStatusReturnsActionableError(t *testing.T) {
+	app, _ := newTestApp(t)
+	oldGeteuid := geteuid
+	geteuid = func() int { return 0 }
+	defer func() { geteuid = oldGeteuid }()
+	if err := os.WriteFile(app.Paths.ConfigDir, []byte("blocked"), 0o640); err != nil {
+		t.Fatalf("write blocking config dir: %v", err)
+	}
+
+	err := app.HostProxyStatus()
+	if err == nil || !strings.Contains(err.Error(), "问题: 读取宿主机接管状态失败") || !strings.Contains(err.Error(), "文档: README.md") {
+		t.Fatalf("expected actionable status error, got %v", err)
 	}
 }

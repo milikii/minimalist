@@ -488,8 +488,14 @@ func (a *App) Menu() error {
 		fmt.Fprintln(a.Stdout, "8) Cutover 检查")
 		fmt.Fprintln(a.Stdout, "0) 退出")
 		fmt.Fprint(a.Stdout, "> ")
-		line, _ := reader.ReadString('\n')
-		switch strings.TrimSpace(line) {
+		line, err := readChoice(reader)
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		switch line {
 		case "1":
 			report(a.auditMenu(reader))
 		case "2":
@@ -1398,8 +1404,14 @@ func (a *App) deployMenu(reader *bufio.Reader) error {
 		fmt.Fprintln(a.Stdout, "3) 安装/刷新 minimalist")
 		fmt.Fprintln(a.Stdout, "0) 返回")
 		fmt.Fprint(a.Stdout, "> ")
-		line, _ := reader.ReadString('\n')
-		switch strings.TrimSpace(line) {
+		line, err := readChoice(reader)
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		switch line {
 		case "1":
 			return a.Setup()
 		case "2":
@@ -1425,8 +1437,14 @@ func (a *App) nodesMenu(reader *bufio.Reader) error {
 		fmt.Fprintln(a.Stdout, "7) 删除节点")
 		fmt.Fprintln(a.Stdout, "0) 返回")
 		fmt.Fprint(a.Stdout, "> ")
-		line, _ := reader.ReadString('\n')
-		switch strings.TrimSpace(line) {
+		line, err := readChoice(reader)
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		switch line {
 		case "1":
 			return a.ListNodes()
 		case "2":
@@ -1476,8 +1494,14 @@ func (a *App) subscriptionsMenu(reader *bufio.Reader) error {
 		fmt.Fprintln(a.Stdout, "6) 立即更新订阅")
 		fmt.Fprintln(a.Stdout, "0) 返回")
 		fmt.Fprint(a.Stdout, "> ")
-		line, _ := reader.ReadString('\n')
-		switch strings.TrimSpace(line) {
+		line, err := readChoice(reader)
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		switch line {
 		case "1":
 			return a.ListSubscriptions()
 		case "2":
@@ -1523,8 +1547,14 @@ func (a *App) networkMenu(reader *bufio.Reader) error {
 		fmt.Fprintln(a.Stdout, "7) 删除规则集条目")
 		fmt.Fprintln(a.Stdout, "0) 返回")
 		fmt.Fprint(a.Stdout, "> ")
-		line, _ := reader.ReadString('\n')
-		switch strings.TrimSpace(line) {
+		line, err := readChoice(reader)
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		switch line {
 		case "1":
 			return a.routerWizardWithReader(reader)
 		case "2":
@@ -1567,8 +1597,14 @@ func (a *App) rulesAndACLMenu(reader *bufio.Reader) error {
 		fmt.Fprintln(a.Stdout, "6) 删除 ACL 规则")
 		fmt.Fprintln(a.Stdout, "0) 返回")
 		fmt.Fprint(a.Stdout, "> ")
-		line, _ := reader.ReadString('\n')
-		switch strings.TrimSpace(line) {
+		line, err := readChoice(reader)
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		switch line {
 		case "1":
 			return a.ListRules(false)
 		case "2":
@@ -1612,8 +1648,14 @@ func (a *App) serviceMenu(reader *bufio.Reader) error {
 		fmt.Fprintln(a.Stdout, "4) 查看状态")
 		fmt.Fprintln(a.Stdout, "0) 返回")
 		fmt.Fprint(a.Stdout, "> ")
-		line, _ := reader.ReadString('\n')
-		switch strings.TrimSpace(line) {
+		line, err := readChoice(reader)
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		switch line {
 		case "1":
 			return a.Start()
 		case "2":
@@ -1637,8 +1679,14 @@ func (a *App) auditMenu(reader *bufio.Reader) error {
 		fmt.Fprintln(a.Stdout, "3) 运行审计")
 		fmt.Fprintln(a.Stdout, "0) 返回")
 		fmt.Fprint(a.Stdout, "> ")
-		line, _ := reader.ReadString('\n')
-		switch strings.TrimSpace(line) {
+		line, err := readChoice(reader)
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		switch line {
 		case "1":
 			return a.Status()
 		case "2":
@@ -1752,8 +1800,13 @@ func commandOK(err error) bool { return err == nil }
 
 func promptList(reader *bufio.Reader, out io.Writer, label string, current []string) []string {
 	fmt.Fprintf(out, "%s [%s]: ", label, strings.Join(current, " "))
-	line, _ := reader.ReadString('\n')
-	line = strings.TrimSpace(line)
+	line, err := readChoice(reader)
+	if errors.Is(err, io.EOF) && line == "" {
+		return current
+	}
+	if err != nil {
+		return current
+	}
 	if line == "" {
 		return current
 	}
@@ -1762,8 +1815,13 @@ func promptList(reader *bufio.Reader, out io.Writer, label string, current []str
 
 func promptString(reader *bufio.Reader, out io.Writer, label, current string) string {
 	fmt.Fprintf(out, "%s [%s]: ", label, current)
-	line, _ := reader.ReadString('\n')
-	line = strings.TrimSpace(line)
+	line, err := readChoice(reader)
+	if errors.Is(err, io.EOF) && line == "" {
+		return current
+	}
+	if err != nil {
+		return current
+	}
 	if line == "" {
 		return current
 	}
@@ -1772,8 +1830,10 @@ func promptString(reader *bufio.Reader, out io.Writer, label, current string) st
 
 func promptIndex(reader *bufio.Reader, out io.Writer, label string) (int, error) {
 	fmt.Fprintf(out, "%s: ", label)
-	line, _ := reader.ReadString('\n')
-	value := strings.TrimSpace(line)
+	value, err := readChoice(reader)
+	if err != nil {
+		return 0, err
+	}
 	index, err := strconv.Atoi(value)
 	if err != nil || index <= 0 {
 		return 0, fmt.Errorf("invalid %s: %q", label, value)
@@ -1787,12 +1847,29 @@ func promptBool(reader *bufio.Reader, out io.Writer, label string, current bool)
 		currentValue = "1"
 	}
 	fmt.Fprintf(out, "%s [0/1][%s]: ", label, currentValue)
-	line, _ := reader.ReadString('\n')
-	line = strings.TrimSpace(line)
+	line, err := readChoice(reader)
+	if errors.Is(err, io.EOF) && line == "" {
+		return current
+	}
+	if err != nil {
+		return current
+	}
 	if line == "" {
 		return current
 	}
 	return line == "1"
+}
+
+func readChoice(reader *bufio.Reader) (string, error) {
+	line, err := reader.ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", err
+	}
+	line = strings.TrimSpace(line)
+	if errors.Is(err, io.EOF) && line == "" {
+		return "", io.EOF
+	}
+	return line, nil
 }
 
 func splitFields(value string) []string {

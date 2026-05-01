@@ -30,7 +30,7 @@ func (a *App) Logs(opts LogOptions) error {
 	}
 	stdout, stderr, err := a.Runner.Output("journalctl", args...)
 	if err != nil {
-		return fmt.Errorf("日志读取失败: %v; 下一步: journalctl %s", err, strings.Join(args, " "))
+		return operatorActionError("日志读取失败", err, "journalctl "+strings.Join(args, " "), "docs/README_FLOWS.md")
 	}
 	if stderr != "" {
 		fmt.Fprintln(a.Stdout, stderr)

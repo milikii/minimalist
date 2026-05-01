@@ -191,3 +191,19 @@
 
 ### 下轮目标
 - 继续收口 `readChoice()` 和统一错误 contract，或者把当前阶段代码先安装到 live 机器验证。
+
+## Round 10 — 2026-05-01 19:24
+
+### 完成
+- 抽出 shared `readChoice()`，把主菜单和子菜单的 EOF 退出行为统一起来，避免 exhausted stdin 时继续循环。
+- 给 `host-proxy` 和 `log` 接入最小 operator-facing 错误 contract：`问题 / 原因 / 下一步 / 文档`。
+- 补齐 `log` 的 timeout focused test，并将当前工作树构建产物安装到 live `/usr/local/bin/minimalist`，完成 `menu`、`host-proxy status`、`log --lines`、`runtime-audit` 的实机 smoke。
+
+### 测试状态
+- 通过: focused `internal/app`、`go test ./...`、`go vet ./...`、`gofmt -l cmd internal`、live smoke / 总计: 5 组
+
+### 遗留 / 下轮继续
+- 当前 task 的代码已经完成，但尚未经过用户侧手动确认，也尚未做最终提交。
+
+### 下轮目标
+- 让用户做最终验收，然后运行 `$finish-work` / `$record-session`。

@@ -14,7 +14,7 @@ import (
 func (a *App) HostProxyStatus() error {
 	cfg, _, err := a.ensureAll()
 	if err != nil {
-		return err
+		return operatorActionError("读取宿主机接管状态失败", err, "先执行 minimalist status", "README.md")
 	}
 	if cfg.Network.ProxyHostOutput {
 		fmt.Fprintln(a.Stdout, "宿主机流量接管: on")
@@ -36,17 +36,17 @@ func (a *App) HostProxyDisable() error {
 
 func (a *App) setHostProxy(enabled bool, reader *bufio.Reader) error {
 	if err := a.requireRoot(); err != nil {
-		return err
+		return operatorActionError("宿主机流量接管变更失败", err, "请用 root 执行 minimalist host-proxy enable|disable", "README.md")
 	}
 	if err := a.ensureCutoverReady(); err != nil {
-		return err
+		return operatorActionError("宿主机流量接管变更失败", err, "先执行 minimalist cutover-preflight", "docs/README_FLOWS.md")
 	}
 	cfg, st, err := a.ensureAll()
 	if err != nil {
-		return err
+		return operatorActionError("读取宿主机接管配置失败", err, "先执行 minimalist status", "README.md")
 	}
 	if enabled && !a.hasEnabledManualNodes(st) {
-		return errors.New("没有启用的手动节点")
+		return operatorActionError("宿主机流量接管变更失败", errors.New("没有启用的手动节点"), "先执行 minimalist nodes enable <index>", "README.md")
 	}
 	if cfg.Network.ProxyHostOutput == enabled {
 		if enabled {
@@ -65,9 +65,9 @@ func (a *App) setHostProxy(enabled bool, reader *bufio.Reader) error {
 	cfg.Network.ProxyHostOutput = enabled
 	if err := a.persistHostProxyConfig(cfg); err != nil {
 		if rollbackErr := a.rollbackHostProxy(previous); rollbackErr != nil {
-			return fmt.Errorf("%w; rollback failed: %v", err, rollbackErr)
+			return operatorActionError("宿主机流量接管变更失败，且回滚未完成", fmt.Errorf("%w; rollback failed: %v", err, rollbackErr), "立即执行 minimalist host-proxy status && minimalist runtime-audit", "docs/README_FLOWS.md")
 		}
-		return fmt.Errorf("%w; rollback restored previous host-proxy config", err)
+		return operatorActionError("宿主机流量接管变更失败，但已恢复旧配置", err, "重新执行 minimalist host-proxy status 确认状态", "docs/README_FLOWS.md")
 	}
 
 	if enabled {
@@ -110,7 +110,10 @@ func confirmHostProxyChange(reader *bufio.Reader, out io.Writer, enabled bool) b
 		label = "确认开启宿主机流量接管"
 	}
 	fmt.Fprintf(out, "%s [y/N]: ", label)
-	line, _ := reader.ReadString('\n')
+	line, err := readChoice(reader)
+	if err != nil {
+		return false
+	}
 	switch strings.ToLower(strings.TrimSpace(line)) {
 	case "y", "yes":
 		return true
