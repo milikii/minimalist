@@ -65,6 +65,22 @@
 - **真正需要 Approach B（TUI 重写）的只有"看节点列表里直接对节点 N 发命令"**——bubbletea 才有的列表内操作。如果接受"看完后菜单仍在 + 短命令"折中，A + 短别名可能就够了。
 - **Approach C（CLI all-in）社区里也有人在做**（chise0713），但主流仍是双轨。建议 **A + 短别名（双轨）** 作为下一轮 design-consultation 的默认推荐起点。
 
+### `/autoplan` 2026-05-01 结论（当前最新）
+
+- **不要按 `docs/superpowers/plans/2026-04-30-menu-cli-redesign.md` 原样开工。**
+- 先收窄成第一阶段：
+  - 单独立住“状态与诊断”面：`status`、`healthcheck`、`runtime-audit`
+  - 把 `host-proxy` 设计成事务性开关，再谈入口
+  - `log` 首轮只做 snapshot；`-f` 需要 streaming runner 才能做
+- 当前旧计划有 3 个硬问题：
+  - 计划尾部把大量未做功能写成了“已完成”
+  - 诊断入口被 header + log 压扁
+  - 状态模型、错误 contract、文档单一真相都没锁
+- 如果继续重做菜单，下一轮应该先比较 3 条路：
+  - menu-first
+  - CLI-first + 精简 menu
+  - REPL-first
+
 ### 重要功能优先级（用户 mental model — 2026-04-30 自陈）
 
 下一轮重设计的**顶层导航分组**应按这 5 类，不再是当前 7 个组：

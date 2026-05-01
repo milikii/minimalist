@@ -1,3 +1,4 @@
+<!-- /autoplan restore point: /tmp/main-autoplan-restore-20260501-180033.md -->
 # 菜单 + CLI 交互体验重设计 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -7,6 +8,215 @@
 **Architecture:** Approach A 路线（最小修补 + 短别名双轨）。沿用现有 `internal/app` 业务层（Status/ListNodes/SetNodeEnabled 等不动），只改外层 menu/CLI 呈现 + 加几个新薄壳命令（host-proxy / log）。不引入 TUI 库。
 
 **Tech Stack:** Go 1.24 标准库 (`os`, `os/exec`, `path/filepath`, `bufio`, `strings`)；现有 `internal/app`、`internal/cli`、`internal/config`、`internal/runtime`、`internal/system`；`journalctl`（外部命令，通过 `internal/system.Runner` 调用）。
+
+> **AUTOPLAN STATUS — SUPERSEDED**
+>
+> 本文档最上方这份 `/autoplan` v2 才是当前可执行计划。
+> 下方原始 `Phase 1-4` 草稿保留作历史参考，**不要直接按旧草稿开工**。
+
+---
+
+## AUTOPLAN V2 — Execute This
+
+### Revised Goal
+
+不要再追“像 233boy 一样顺手”这种 shell UX parity。
+
+这一轮真正目标只有 3 个：
+
+1. 把**状态与诊断**做成单独、稳定、始终可达的入口
+2. 把 **`host-proxy`** 做成**事务性**操作，失败时不留下脏状态
+3. 把 **`log`** 先做成安全可用的 **snapshot CLI**，不碰流式 follow
+
+成功标准不是“菜单更花”，而是：
+- 日常 5 个高频动作更短
+- 故障时更快定位
+- 高风险动作更难误触
+- 文档和 CLI 口径一致
+
+### Revised Scope
+
+本轮 **只做**：
+
+- 独立“状态与诊断”面
+  - `status`
+  - `healthcheck`
+  - `runtime-audit`
+- 顶部 `statusSnapshot` header
+  - 只读本地 config/state/systemctl
+  - 不打 controller HTTP
+- `host-proxy status|enable|disable`
+  - 事务性 service method
+  - 失败回滚 config truth
+- `log`
+  - 默认最近 N 行
+  - `--lines`
+  - `--errors`
+  - `mihomo`
+- 文档单一真相
+  - 选一页 operator flow 作 canonical
+
+本轮 **不做**：
+
+- `log -f`
+- 5 类顶层导航重排
+- `configMenu/rulesMenu/logMenu/controlMenu` 全量重构
+- TUI 重写
+- CLI all-in
+- REPL
+
+### Revised Architecture
+
+```text
+CLI/menu
+  -> thin input/render layer
+      -> statusSnapshot()         # cheap local read path
+      -> diagnosticsMenu()        # status/healthcheck/runtime-audit
+      -> hostProxyService()       # transactional toggle
+      -> logSnapshotService()     # bounded journalctl reads
+
+NO:
+  - controller HTTP in header
+  - Runner.Output() for streaming follow
+  - save -> render -> apply direct host-proxy mutation
+```
+
+### Revised File Map
+
+Likely new files:
+- `internal/app/header.go`
+- `internal/app/header_test.go`
+- `internal/app/host_proxy.go`
+- `internal/app/host_proxy_test.go`
+- `internal/app/logs.go`
+- `internal/app/logs_test.go`
+- `internal/app/prompts.go`
+
+Likely touched files:
+- `internal/app/app.go`
+- `internal/app/app_test.go`
+- `internal/cli/cli.go`
+- `internal/cli/cli_test.go`
+- `README.md`
+- `docs/README_FLOWS.md`
+- `docs/STATUS.md`
+
+Must not expand unless separately planned:
+- `internal/system/system.go` for streaming
+- full menu taxonomy rewrite
+- TUI libraries
+
+### Revised Phase 0 — First Lock the Contracts
+
+- [ ] 写清 header 状态枚举
+  - service: `running|stopped|unknown`
+  - nodes: `none|partial|ready`
+  - host-proxy: `off|on|unknown`
+- [ ] 写清错误 contract
+  - problem
+  - likely cause
+  - next command
+  - doc path
+- [ ] 指定 canonical operator doc
+  - README 只保留 quickstart
+  - 详细 operator flow 只留一页
+
+### Revised Phase 1 — Diagnostics First
+
+#### Task 1.1: `statusSnapshot()` + header
+
+- [ ] 新增纯本地 snapshot helper
+- [ ] 禁止 header 走 controller HTTP
+- [ ] 新增 focused tests:
+  - controller down 时 header 仍快速返回
+  - unknown state 不伪装成 stopped
+  - 0 个启用手动节点显示 `none`
+
+#### Task 1.2: 独立 diagnostics surface
+
+- [ ] 保留一个明确入口，不让 header 替代诊断
+- [ ] 入口至少包含：
+  - `status`
+  - `healthcheck`
+  - `runtime-audit`
+- [ ] 菜单文案用“状态与诊断”或“诊断”，不要只叫“日志”
+
+### Revised Phase 2 — Transactional Host Proxy
+
+#### Task 2.1: `SetHostProxy(enabled bool)`
+
+- [ ] 不再用 `save -> render -> apply` 裸串联
+- [ ] 先做 preflight
+  - cutover ready
+  - enabled manual nodes present
+- [ ] 失败回滚配置真相
+- [ ] 成功后给明确验证输出
+
+#### Task 2.2: CLI surface
+
+- [ ] 用统一动词体系：
+  - `host-proxy status`
+  - `host-proxy enable`
+  - `host-proxy disable`
+- [ ] `status` 只读
+- [ ] `enable/disable` 默认带确认
+- [ ] 文案必须包含回滚提示
+
+#### Task 2.3: Required tests
+
+- [ ] `RenderConfig` 失败回滚
+- [ ] `ApplyRules` 失败回滚
+- [ ] `ensureCutoverReady` 失败时不改配置
+- [ ] 无启用手动节点时不改配置
+
+### Revised Phase 3 — Safe Log Snapshot
+
+#### Task 3.1: Scope reduction
+
+- [ ] 删除首轮 `-f` 设计
+- [ ] 不扩 `internal/system` streaming API
+
+#### Task 3.2: CLI contract
+
+- [ ] `log`
+- [ ] `log --lines 50`
+- [ ] `log --errors`
+- [ ] `log mihomo`
+- [ ] 可选：`log --since "15 minutes ago"`
+
+#### Task 3.3: Required tests
+
+- [ ] unknown arg
+- [ ] missing `journalctl`
+- [ ] timeout
+- [ ] line count honored
+- [ ] `mihomo` target path
+
+### Revised Phase 4 — Menu Loop Safety
+
+- [ ] 抽 `readChoice()`
+- [ ] 显式处理 `io.EOF`
+- [ ] 子菜单共享同一个 `*bufio.Reader`
+- [ ] “看完留在子菜单”只在少数高频菜单先落地
+  - `nodes`
+  - `diagnostics`
+- [ ] 不在本轮重排全部 8 个旧菜单
+
+### Revised Execution Order
+
+1. `statusSnapshot()` + diagnostics 面
+2. `host-proxy` 事务性 service
+3. `log` snapshot CLI
+4. menu loop EOF-safe
+5. docs consolidation
+
+### Revised Success Criteria
+
+- 用户能在 2 步内到达 `status/healthcheck/runtime-audit`
+- `host-proxy enable` 失败后 config truth 不漂移
+- `log --lines N`、`log --errors`、`log mihomo` 可用
+- README / operator flow / helptext 不再三套口径
+- 菜单首屏即使 controller 不通也不会卡到 30 秒
 
 ---
 
@@ -2471,3 +2681,339 @@ git push origin main
 - Task 2.4 - 2.5 现有测试调整量大（菜单编号 + stay-open 模式），实施时可能暴露更多需要修的旧测试。Buffer 充足时间。
 - Task 4.5 删除 5 个老菜单函数后大约有 30+ 个测试需要更新。预算 1-2 小时调整测试。
 - `config.Save` 可能不存在；如不存在，Task 3.1 Step 3 多一个 sub-task。
+
+---
+
+## GSTACK REVIEW REPORT
+
+Review mode: `/autoplan`
+Date: 2026-05-01
+Base branch: `main`
+Plan status: `DONE_WITH_CONCERNS`
+Restore point: `/tmp/main-autoplan-restore-20260501-180033.md`
+
+### Intake Summary
+
+- 目标计划文件是这份菜单 + CLI 重设计方案，不是稳定性主线计划。
+- 当前真实实现仍是旧 8 项裸数字菜单，首屏没有 header、没有 5 类重排、没有 `host-proxy`、没有 `log` 子命令。
+- 本计划尾部却写了“Phase 1-4 完成后的状态同步”和 `[x]` 自检项，和代码现状直接冲突。
+
+### Phase 1 — CEO Review
+
+Premise gate:
+- 已由用户本轮输入“菜单还是很烂，简陋的没法看”隐式确认。问题真实存在，不需要再验证是否值得做。
+
+Premise challenge:
+- “做得像 233boy/sing-box-yes”不是产品目标，只是参考物。
+- 真正目标应是：把 5 个最高频运维动作的完成时间、输入长度、误操作风险降到最低。
+- 当前计划默认 `Approach A`，但没有先用真实路径数据证明 menu-first 比 CLI-first 更适合当前用户。
+
+What actually exists today:
+
+| Need | Current reality |
+|---|---|
+| 顶层菜单 | `Menu()` 仍是 8 项裸打印，见 `internal/app/app.go:472` |
+| 节点操作 | `nodesMenu()` 仍是“看节点 / 启用 / 禁用 / 删除”拆开的旧模型，见 `internal/app/app.go:1416` |
+| 订阅操作 | `subscriptionsMenu()` 仍是旧模型，见 `internal/app/app.go:1468` |
+| CLI 入口 | 仍无 `host-proxy`、`log` 分发，见 `internal/cli/cli.go:14-205` |
+| 配置保存 | `config.Save` 已存在，计划尾部“可能不存在”是过期信息 |
+
+Dream state delta:
+
+```text
+CURRENT
+  裸数字菜单
+  + 诊断入口分散
+  + 高风险动作混层
+  + 文档与计划状态失真
+
+THIS PLAN
+  试图一次性补 m/header/stay-open/log/host-proxy/5类导航
+  但还没锁定状态模型、事务性、文档单一真相
+
+12-MONTH IDEAL
+  CLI-first or dual-track operator surface
+  + 快速诊断
+  + 危险动作分层
+  + 文档一处为真
+  + 故障时比现在更快恢复，不只是更顺手
+```
+
+Implementation alternatives review:
+
+| Approach | Completeness | Verdict |
+|---|---:|---|
+| A. 继续按当前 Phase 1-4 一次性推进 | 4/10 | 拒绝，范围太大且状态定义没锁 |
+| B. 缩成“诊断 + host-proxy + CLI 日常层”先落地 | 8/10 | 推荐，最贴近真实运维闭环 |
+| C. 先做 menu-first / CLI-first / REPL-first 三方案对比，再实现 | 7/10 | 也合理，但会延后直接改造 |
+
+CEO DUAL VOICES — CONSENSUS TABLE:
+
+| Dimension | Codex | Subagent | Consensus |
+|---|---|---|---|
+| Premises valid? | No | No | CONFIRMED concern |
+| Right problem to solve? | No | No | CONFIRMED concern |
+| Scope calibration correct? | No | No | CONFIRMED concern |
+| Alternatives sufficiently explored? | No | No | CONFIRMED concern |
+| Competitive / moat framing covered? | No | No | CONFIRMED concern |
+| 6-month trajectory sound? | No | No | CONFIRMED concern |
+
+CEO completion summary:
+- Score: `4/10`
+- Verdict: 不应直接开工。
+- Main call: 先把“更像 233boy”改写成“更快完成高频运维动作”，并把第一阶段收窄到真实闭环。
+
+### Phase 2 — Design Review
+
+Design scorecard:
+
+| Dimension | Score | Main gap |
+|---|---:|---|
+| 信息层级 | 4/10 | 诊断入口被 header 吞掉 |
+| 风险分层 | 3/10 | `controlMenu` 混合高危与日常动作 |
+| 状态定义 | 2/10 | 没有 `unknown/error/partial` 枚举 |
+| 空态 / 成功态 / 错误态 | 2/10 | 只写了“继续留在菜单里” |
+| 文本 wireframe 具体度 | 5/10 | 有工程步骤，没有统一屏幕骨架 |
+| CLI 语法冻结度 | 3/10 | `log -n 5` 与 parser 设计冲突 |
+| 终端适配 | 4/10 | 没定义长输出、窄终端、分页策略 |
+
+DESIGN DUAL VOICES — CONSENSUS TABLE:
+
+| Dimension | Codex | Subagent | Consensus |
+|---|---|---|---|
+| Hierarchy sound? | No | No | CONFIRMED concern |
+| Diagnostics preserved? | No | No | CONFIRMED concern |
+| High-risk actions separated? | No | No | CONFIRMED concern |
+| States fully specified? | No | No | CONFIRMED concern |
+| UX spec concrete enough? | No | No | CONFIRMED concern |
+| CLI syntax locked? | No | No | CONFIRMED concern |
+
+Design completion summary:
+- Score: `3/10`
+- Verdict: 还不是可施工的 UX spec。
+- Required fixes:
+  - 恢复单独的“状态与诊断”面
+  - 给 header、成功、失败、空态、部分成功补状态表
+  - 给 5 个顶层菜单补文本 wireframe
+
+### Phase 3 — Engineering Review
+
+Architecture reality:
+
+```text
+current
+  CLI/menu
+    -> internal/app/app.go
+        -> config/state/runtime/rulesrepo/system
+        -> systemctl / iptables / ip / journalctl / controller HTTP
+
+planned
+  CLI/menu
+    -> header/log/host-proxy/config/rules/control submenus
+    -> still through internal/app/app.go
+    -> same root-side effects
+
+missing before implementation
+  statusSnapshot()     # cheap local header read path
+  hostProxyService()   # transactional toggle
+  log snapshot API     # non-streaming, explicit limits
+  readChoice()         # EOF-safe loop helper
+```
+
+Core engineering findings:
+- `log -f` 与现有 `Runner.Output()` 抽象不兼容。当前 runner 只支持“进程退出后一次性返回”，不支持流式 follow。
+- `host-proxy on/off` 不是事务性的。按计划执行会出现“配置已写、规则半成功”的脏状态。
+- 顶部 header 不能复用完整 `Status()` 逻辑，否则 controller 不通时菜单会卡到超时。
+- “操作后回菜单”会放大当前 `ReadString('\n')` 忽略 EOF 的问题，非交互或输入耗尽下可能死循环。
+- 计划把 blast radius 说轻了。实际会同时改 `internal/app`、`internal/cli`、测试、README、flows、status 文档和 live smoke。
+- 计划尾部的完成态是假的，会直接误导实施顺序和测试判断。
+
+ENG DUAL VOICES — CONSENSUS TABLE:
+
+| Dimension | Codex | Subagent | Consensus |
+|---|---|---|---|
+| Architecture sound? | No | No | CONFIRMED concern |
+| Test coverage sufficient? | No | No | CONFIRMED concern |
+| Performance / latency risks addressed? | No | No | CONFIRMED concern |
+| Security / high-risk ops covered? | No | No | CONFIRMED concern |
+| Error paths handled? | No | No | CONFIRMED concern |
+| Deployment risk manageable? | No | No | CONFIRMED concern |
+
+Test diagram:
+
+```text
+operator flows
+  menu header render
+    -> service state
+    -> node readiness
+    -> host proxy state
+    -> controller unavailable fallback
+
+  menu loops
+    -> list action stays in submenu
+    -> invalid choice
+    -> EOF / stdin exhausted
+
+  host-proxy
+    -> enable success
+    -> enable render failure rollback
+    -> enable apply failure rollback
+    -> disable success
+    -> cutover blocked
+
+  logs
+    -> snapshot success
+    -> unknown arg
+    -> missing journalctl
+    -> timeout
+    -> follow unsupported or re-architected
+```
+
+Test plan artifact:
+- [2026-05-01-menu-cli-autoplan-test-plan.md](/home/projects/minimalist/docs/reviews/2026-05-01-menu-cli-autoplan-test-plan.md:1)
+
+Engineering completion summary:
+- Score: `3/10`
+- Verdict: 不能直接施工。
+- Blockers:
+  - 删掉或重做 `log -f`
+  - 先设计 `host-proxy` 事务边界
+  - 先抽 `statusSnapshot()` 和 `readChoice()`
+
+### Phase 3.5 — DX Review
+
+Developer journey map:
+
+| Stage | Current plan state |
+|---|---|
+| Find entrypoint | Better for熟手，但仍有 `menu` / CLI / README / flows 多入口 |
+| Understand first action | 未定义 hello world |
+| Try common command | `m` 缩短输入，但不是 canonical safe path |
+| Recover from error | 仍缺 problem/cause/fix/docs contract |
+| Find diagnostics | 计划把诊断入口压扁了 |
+| Override defaults | `host-proxy` 缺 dry-run / staged apply |
+
+DX scorecard:
+
+| Dimension | Score |
+|---|---:|
+| TTHW clarity | 2/10 |
+| CLI ergonomics | 5/10 |
+| Error messages | 2/10 |
+| Docs single source of truth | 3/10 |
+| Escape hatches | 3/10 |
+| Upgrade / migration safety | 5/10 |
+| Daily operator speed | 6/10 |
+| Consistency | 4/10 |
+
+DX DUAL VOICES — CONSENSUS TABLE:
+
+| Dimension | Codex | Subagent | Consensus |
+|---|---|---|---|
+| Getting started under 5 min? | No | No | CONFIRMED concern |
+| API/CLI naming guessable? | Partial | No | CONFIRMED concern |
+| Error messages actionable? | No | No | CONFIRMED concern |
+| Docs findable and complete? | No | No | CONFIRMED concern |
+| Escape hatches safe enough? | No | No | CONFIRMED concern |
+| Daily operator layer well scoped? | Partial | Partial | CONFIRMED concern |
+
+DX completion summary:
+- Score: `4/10`
+- Verdict: 这是熟手优化，不是完整 DX 方案。
+- Required fixes:
+  - 定义 hello world 和 TTHW
+  - 确立一页 operator source of truth
+  - 把 `m` 从 canonical 改成 optional shortcut
+  - 为新增命令统一错误 contract
+
+### Cross-Phase Themes
+
+1. Plan state drift
+   - 计划尾部把大量未做功能写成已完成，CEO、Eng、DX 都认为这会污染后续执行。
+
+2. Diagnostics got squeezed out
+   - 设计层、工程层、DX 层都指出：header 不能代替 `status + healthcheck + runtime-audit`。
+
+3. High-risk operations are under-modeled
+   - `host-proxy` 的事务性、风险分层、dry-run、回滚在设计、工程、DX 三层都被独立打回。
+
+4. The plan is over-specific in mechanics and under-specific in states
+   - 有很多代码块，但没有把状态模型、失败路径、文档真相锁死。
+
+## User Challenges
+
+### Challenge 1 — 不要按当前 Phase 1-4 一次性开工
+
+You said:
+- 想把菜单和 CLI 做到成熟脚本那种顺手水平。
+
+Both models recommend:
+- 先不要按当前完整计划施工，先收窄成“诊断层 + 日常控制层 + host-proxy 安全边界”。
+
+Why:
+- 当前计划范围过大，状态模型不完整，还把大量未做功能写成已完成。
+
+What context we might be missing:
+- 你可能已经非常确定自己就是想保留 menu-first，而不是 CLI-first。
+
+If we're wrong, the cost is:
+- 会延后你拿到一个更好看菜单的时间。
+
+### Challenge 2 — 保留独立诊断面，不要让 header 替代诊断
+
+You said:
+- 顶部 status header + 5 类导航。
+
+Both models recommend:
+- 必须保留显式“状态与诊断”面，至少容纳 `status`、`healthcheck`、`runtime-audit`。
+
+Why:
+- header 只能是摘要，不能承担完整故障诊断。
+
+What context we might be missing:
+- 你也许愿意把诊断全部转成 CLI，不想保留菜单项。
+
+If we're wrong, the cost is:
+- 会多保留一个菜单面，导航不如 5 类方案简洁。
+
+### Challenge 3 — `log -f` 不应按现抽象直接进入首轮
+
+You said:
+- 新增 `log` 独立命令。
+
+Both models recommend:
+- 先只做 snapshot log，`-f` 要么推迟，要么先扩 streaming runner。
+
+Why:
+- 现有 `Runner.Output()` 是一次性返回，不支持长期 follow。
+
+What context we might be missing:
+- 你可能接受为了 `-f` 一次性改 `internal/system` 抽象。
+
+If we're wrong, the cost is:
+- 首轮日志命令能力会弱一点。
+
+## Taste Decisions
+
+1. `menu-first` 还是 `CLI-first + 精简 menu`
+   - Recommendation: 后者。当前用户画像本来就能接受 CLI，menu 更适合作为入口而不是全部主战场。
+
+2. `m` 是否作为文档 canonical
+   - Recommendation: 不要。保留 `minimalist` 为 canonical，`m` 只是 shortcut。
+
+3. 顶层导航是否坚持 5 类
+   - Recommendation: 可以保持 5 类，但其中一类必须是“状态与诊断”，不能只有“日志”。
+
+## Decision Audit Trail
+
+| # | Phase | Decision | Classification | Principle | Rationale | Rejected |
+|---|---|---|---|---|---|---|
+| 1 | CEO | 不按当前 Phase 1-4 一次性推进 | User Challenge | P1 + P2 | 范围大、状态模型不完整、计划状态失真 | “文档已足够，可直接开工” |
+| 2 | CEO | 把目标从“像 233boy”改成“缩短高频运维路径” | Mechanical | P3 + P5 | 更贴近 PRD 和真实用户闭环 | Shell parity 目标 |
+| 3 | Design | 恢复单独诊断入口 | User Challenge | P1 | header 不能代替诊断 | 只保留 header + log |
+| 4 | Design | 给 header/成功/失败/空态补状态表 | Mechanical | P1 | 当前状态设计缺失 | 边做边补 |
+| 5 | Eng | 首轮移除或重做 `log -f` | User Challenge | P5 | 现 runner 不支持流式 follow | 继续基于 `Output()` 硬做 |
+| 6 | Eng | `host-proxy` 必须事务化 | Mechanical | P1 + P5 | 配置和 live 规则不能分裂 | save -> render -> apply 直推 |
+| 7 | Eng | 先抽 `statusSnapshot()` 和 `readChoice()` | Mechanical | P5 | 先减耦合，再重排菜单 | 直接往 `app.go` 继续加分支 |
+| 8 | DX | README 不再把 `m` 当 canonical | Taste | P3 | alias 是 best-effort，不该成为主路径 | 全文切 `m` |
+| 9 | DX | 定义单一 operator source of truth | Mechanical | P4 | 避免 README / FLOWS / runbook 三套口径 | 多页并行维护 |
