@@ -207,3 +207,20 @@
 
 ### 下轮目标
 - 让用户做最终验收，然后运行 `$finish-work` / `$record-session`。
+
+## Round 11 — 2026-05-08 23:57
+
+### 完成
+- 重构 `minimalist menu` 顶层分组为节点管理、配置管理、规则管理、日志与诊断、控制启停。
+- 重做节点管理交互：进入后常驻显示节点列表，输入节点 ID 进入单节点操作面板，可直接启用/禁用、改名、测试或确认删除。
+- 新增配置、规则、日志诊断、控制启停二级菜单，把 `host-proxy`、订阅增强项、规则仓库、snapshot log、cutover 检查等入口按实际运维心智归位。
+- 更新 README、README_FLOWS、ARCHITECTURE、STATUS 与相关 app focused tests。
+
+### 测试状态
+- 通过: `go test ./internal/app`、`go test ./...`、`go vet ./...`、`gofmt -l cmd internal` / 总计: 4 组
+
+### 遗留 / 下轮继续
+- 当前菜单重构已完成并通过全量验证；尚未做实机交互 smoke。
+
+### 下轮目标
+- 如需上线到 live 机器，安装当前二进制后手动走一遍 `minimalist menu` 的节点管理、日志诊断和控制启停入口。

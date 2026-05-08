@@ -22,7 +22,7 @@
 - 运行时配置、provider、rules、systemd unit 与 sysctl 文本生成：`internal/runtime`
 - 业务命令、菜单与 CLI 分发：`internal/app`、`internal/cli`
 - 外部命令封装：`internal/system`
-- `menu` 当前已开始按 v2 重构：顶部增加 cheap status header，顶层第 1 项是“状态与诊断”，`Cutover` 独立成单独菜单；其余分组暂时仍沿用旧结构
+- `menu` 当前已按高频任务重排为 5 类：节点管理、配置管理、规则管理、日志与诊断、控制启停；节点管理已改成常驻列表 + 输入节点 ID 进入单节点操作
 
 当前保留命令：
 
@@ -84,6 +84,7 @@
 - 2026-05-01 `core-upgrade-alpha` 支持显式 amd64 CPU-level 资产选择：通过 `install.core_amd64_cpu_level` 指定 `compatible` / `v1` / `v2` / `v3` 等变体；未配置时仍拒绝猜测。
 - 2026-05-01 默认规则仓库双份维护风险已收口：删除仓库根部 `rules-repo/default` 镜像样本，只保留 `internal/rulesrepo/assets/default` 作为内置默认规则仓库唯一源。
 - 2026-05-01 菜单重设计 v2 已落地第一批可执行项：cheap `statusSnapshot` header、独立“状态与诊断”入口、独立 `Cutover` 菜单、事务性 `host-proxy` CLI、snapshot `log` CLI。
+- 2026-05-08 菜单重构继续收口：顶层改成节点/配置/规则/日志诊断/控制启停 5 类；节点管理支持常驻列表、按节点 ID 进入操作面板、单节点启停/改名/测速/确认删除；配置管理纳入 `host-proxy` 和订阅增强项，规则管理合并自定义规则、ACL 与规则仓库。
 
 ## 当前风险与限制
 

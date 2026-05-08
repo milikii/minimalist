@@ -51,8 +51,10 @@
 
 ## 辅助入口
 
-- `minimalist menu` 是当前交互入口，按旧菜单习惯重新分为状态总览、部署/修复、节点管理、订阅管理（增强项）、网络入口与规则仓库、规则与 ACL、服务管理、健康检查与审计
-- 节点管理包含查看、导入、测试、改名、启用、禁用和删除；节点测试通过本机 Mihomo controller 对已启用节点执行 delay 检查
+- `minimalist menu` 是当前交互入口，顶层按节点管理、配置管理、规则管理、日志与诊断、控制启停 5 类高频任务分组
+- 节点管理会先显示节点列表；输入节点 ID 进入单节点操作面板，可直接启用/禁用、改名、测试或确认删除；`a` 导入节点，`t` 测试全部启用节点
+- 配置管理包含 `router-wizard`、宿主机接管开关、订阅管理（增强项）、重新渲染配置和关键路径提示
+- 规则管理合并自定义规则、ACL 与规则仓库入口；日志与诊断合并 `status`、`healthcheck`、`runtime-audit` 与 snapshot `log`
 - 当前菜单只暴露 Go 版日常保留能力；`core-upgrade-alpha` 是显式 CLI 维护入口，不放回菜单，也不恢复旧版通道切换、core 回滚或自动更新
 - 顶层 `minimalist --help` / `help` / 非 TTY 空参数当前都回落到同一份 usage 输出
 - 顶层 `minimalist setup` / `render-config` / `core-upgrade-alpha` / `start` / `stop` / `restart` / `clear-rules` 等命令当前仍直接分发到同一组 `internal/app` 实现

@@ -2167,15 +2167,16 @@ func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 	app.Stdin = strings.NewReader(strings.Join([]string{
 		"x",
 		"1",
-		"2",
-		"2",
-		"1",
+		"0",
+		"3",
+		"7",
+		"0",
 		"4",
-		"1",
-		"6",
-		"1",
-		"8",
-		"1",
+		"2",
+		"0",
+		"5",
+		"5",
+		"0",
 		"0",
 	}, "\n") + "\n")
 	if err := app.Menu(); err != nil {
@@ -2184,16 +2185,17 @@ func TestMenuDispatchesMainActionsAndIgnoresInvalidChoice(t *testing.T) {
 	output := app.Stdout.(*bytes.Buffer).String()
 	for _, needle := range []string{
 		"=== minimalist | 服务:",
-		"无效选择",
-		"1) 状态与诊断",
-		"部署完成，请先 import-links 并启用手动节点后再启动服务",
-		"4) 订阅管理（增强项）",
+		"无效选择: x",
+		"1) 节点管理",
+		"2) 配置管理",
+		"3) 规则管理",
+		"4) 日志与诊断",
+		"5) 控制启停",
+		"节点管理 | 手动节点启用",
+		"规则仓库:",
 		"2) 健康检查",
-		"1) 查看订阅",
-		"1) 查看自定义规则",
+		"部署完成，请先 import-links 并启用手动节点后再启动服务",
 		"mixed-port=7890",
-		"1) Cutover 检查",
-		"cutover-preflight:",
 	} {
 		if !strings.Contains(output, needle) {
 			t.Fatalf("missing %q in menu output:\n%s", needle, output)
@@ -2238,28 +2240,35 @@ func TestDeployMenuDispatchesInstallSelf(t *testing.T) {
 	}
 }
 
-func TestNodesMenuReturnsMutationErrors(t *testing.T) {
+func TestNodesMenuReportsMutationErrorsAndStaysUsable(t *testing.T) {
 	app, _ := newTestApp(t)
-	app.Stdin = strings.NewReader("trojan://password@example.org:443?security=tls#menu-node\n")
+	app.Stdin = strings.NewReader(strings.Join([]string{
+		"trojan://password@example.org:443?security=tls#menu-node",
+		"trojan://password@example.org:444?security=tls#other-node",
+	}, "\n") + "\n")
 	if err := app.ImportLinks(); err != nil {
 		t.Fatalf("import links: %v", err)
 	}
-	reader := bufio.NewReader(strings.NewReader("4\n1\n\n"))
-	err := app.nodesMenu(reader)
-	if err == nil || !strings.Contains(err.Error(), "node name is empty") {
-		t.Fatalf("expected rename validation error, got %v", err)
+	reader := bufio.NewReader(strings.NewReader("1\n2\nother-node\n0\n0\n"))
+	if err := app.nodesMenu(reader); err != nil {
+		t.Fatalf("nodes menu: %v", err)
 	}
-	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "4) 节点改名") {
+	if !strings.Contains(app.Stderr.(*bytes.Buffer).String(), "duplicate node name: other-node") {
+		t.Fatalf("expected duplicate rename error, stderr=%q", app.Stderr.(*bytes.Buffer).String())
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "节点 1 | menu-node") {
 		t.Fatalf("expected nodes menu output, got:\n%s", app.Stdout.(*bytes.Buffer).String())
 	}
 }
 
 func TestNodesMenuRejectsInvalidNodeID(t *testing.T) {
 	app, _ := newTestApp(t)
-	reader := bufio.NewReader(strings.NewReader("5\nabc\n"))
-	err := app.nodesMenu(reader)
-	if err == nil || !strings.Contains(err.Error(), "invalid 节点 ID") {
-		t.Fatalf("expected invalid node id error, got %v", err)
+	reader := bufio.NewReader(strings.NewReader("abc\n0\n"))
+	if err := app.nodesMenu(reader); err != nil {
+		t.Fatalf("nodes menu invalid choice should stay usable: %v", err)
+	}
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "无效选择: abc") {
+		t.Fatalf("expected invalid choice output:\n%s", app.Stdout.(*bytes.Buffer).String())
 	}
 }
 
@@ -2269,13 +2278,14 @@ func TestNodesMenuDispatchesListNodes(t *testing.T) {
 	if err := app.ImportLinks(); err != nil {
 		t.Fatalf("import links: %v", err)
 	}
-	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("1\n"))); err != nil {
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("0\n"))); err != nil {
 		t.Fatalf("nodes menu list: %v", err)
 	}
 	output := app.Stdout.(*bytes.Buffer).String()
 	for _, needle := range []string{
-		"1) 查看节点",
-		"1\tlisted-node\t0\tmanual\t",
+		"节点管理 | 手动节点启用 0/1",
+		"1   停用",
+		"listed-node",
 	} {
 		if !strings.Contains(output, needle) {
 			t.Fatalf("missing %q in nodes menu output:\n%s", needle, output)
@@ -2285,7 +2295,7 @@ func TestNodesMenuDispatchesListNodes(t *testing.T) {
 
 func TestNodesMenuDispatchesImportLinks(t *testing.T) {
 	app, _ := newTestApp(t)
-	app.Stdin = strings.NewReader("2\ntrojan://password@example.org:443?security=tls#imported-via-menu\n")
+	app.Stdin = strings.NewReader("a\ntrojan://password@example.org:443?security=tls#imported-via-menu\n")
 	if err := app.nodesMenu(bufio.NewReader(app.Stdin)); err != nil {
 		t.Fatalf("nodes menu import: %v", err)
 	}
@@ -2296,7 +2306,7 @@ func TestNodesMenuDispatchesImportLinks(t *testing.T) {
 	if len(st.Nodes) != 1 || st.Nodes[0].Name != "imported-via-menu" {
 		t.Fatalf("expected imported node from menu, got %+v", st.Nodes)
 	}
-	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "2) 导入节点") {
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "a) 导入节点") {
 		t.Fatalf("expected nodes menu output:\n%s", app.Stdout.(*bytes.Buffer).String())
 	}
 }
@@ -2315,12 +2325,12 @@ func TestNodesMenuDispatchesTestNodes(t *testing.T) {
 			return textResponse(http.StatusOK, `{"delay":24}`), nil
 		}),
 	}
-	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("3\n"))); err != nil {
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("t\n"))); err != nil {
 		t.Fatalf("nodes menu test: %v", err)
 	}
 	output := app.Stdout.(*bytes.Buffer).String()
 	for _, needle := range []string{
-		"3) 测试节点",
+		"t) 测试全部启用节点",
 		"tested-via-menu\t24ms",
 	} {
 		if !strings.Contains(output, needle) {
@@ -2335,7 +2345,7 @@ func TestNodesMenuDispatchesRemoveNode(t *testing.T) {
 	if err := app.ImportLinks(); err != nil {
 		t.Fatalf("import links: %v", err)
 	}
-	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("7\n1\n"))); err != nil {
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("1\n4\ny\n"))); err != nil {
 		t.Fatalf("nodes menu remove: %v", err)
 	}
 	st, err := state.Load(app.Paths.StatePath())
@@ -2345,7 +2355,7 @@ func TestNodesMenuDispatchesRemoveNode(t *testing.T) {
 	if len(st.Nodes) != 0 {
 		t.Fatalf("expected node to be removed via menu, got %+v", st.Nodes)
 	}
-	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "7) 删除节点") {
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "确认删除节点 removed-via-menu") {
 		t.Fatalf("expected nodes menu output:\n%s", app.Stdout.(*bytes.Buffer).String())
 	}
 }
@@ -2356,7 +2366,7 @@ func TestNodesMenuDispatchesRenameNode(t *testing.T) {
 	if err := app.ImportLinks(); err != nil {
 		t.Fatalf("import links: %v", err)
 	}
-	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("4\n1\nnew-menu-name\n"))); err != nil {
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("1\n2\nnew-menu-name\n"))); err != nil {
 		t.Fatalf("nodes menu rename: %v", err)
 	}
 	st, err := state.Load(app.Paths.StatePath())
@@ -2366,7 +2376,7 @@ func TestNodesMenuDispatchesRenameNode(t *testing.T) {
 	if len(st.Nodes) != 1 || st.Nodes[0].Name != "new-menu-name" {
 		t.Fatalf("expected renamed node via menu, got %+v", st.Nodes)
 	}
-	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "4) 节点改名") {
+	if !strings.Contains(app.Stdout.(*bytes.Buffer).String(), "2) 改名") {
 		t.Fatalf("expected nodes menu output:\n%s", app.Stdout.(*bytes.Buffer).String())
 	}
 }
@@ -2377,7 +2387,7 @@ func TestNodesMenuDispatchesEnableAndDisableNode(t *testing.T) {
 	if err := app.ImportLinks(); err != nil {
 		t.Fatalf("import links: %v", err)
 	}
-	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("5\n1\n"))); err != nil {
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("1\n1\n"))); err != nil {
 		t.Fatalf("nodes menu enable: %v", err)
 	}
 	st, err := state.Load(app.Paths.StatePath())
@@ -2387,7 +2397,7 @@ func TestNodesMenuDispatchesEnableAndDisableNode(t *testing.T) {
 	if !st.Nodes[0].Enabled {
 		t.Fatalf("expected node enabled via menu, got %+v", st.Nodes[0])
 	}
-	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("6\n1\n"))); err != nil {
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("1\n1\n"))); err != nil {
 		t.Fatalf("nodes menu disable: %v", err)
 	}
 	st, err = state.Load(app.Paths.StatePath())
@@ -2405,7 +2415,7 @@ func TestNodesMenuEnablesAndDisablesManualNode(t *testing.T) {
 	if err := app.ImportLinks(); err != nil {
 		t.Fatalf("import links: %v", err)
 	}
-	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("5\n1\n"))); err != nil {
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("1\n1\n"))); err != nil {
 		t.Fatalf("enable node via menu: %v", err)
 	}
 	st, err := state.Load(app.Paths.StatePath())
@@ -2415,7 +2425,7 @@ func TestNodesMenuEnablesAndDisablesManualNode(t *testing.T) {
 	if !st.Nodes[0].Enabled {
 		t.Fatalf("expected node to be enabled, got %+v", st.Nodes[0])
 	}
-	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("6\n1\n"))); err != nil {
+	if err := app.nodesMenu(bufio.NewReader(strings.NewReader("1\n1\n"))); err != nil {
 		t.Fatalf("disable node via menu: %v", err)
 	}
 	st, err = state.Load(app.Paths.StatePath())
@@ -5587,7 +5597,7 @@ func TestMenuReportsActionErrorsToStderr(t *testing.T) {
 	if err := app.SetNodeEnabled(1, true); err != nil {
 		t.Fatalf("enable node: %v", err)
 	}
-	app.Stdin = strings.NewReader("2\n1\n0\n")
+	app.Stdin = strings.NewReader("5\n5\n0\n0\n")
 	if err := app.Menu(); err != nil {
 		t.Fatalf("menu: %v", err)
 	}
@@ -5606,7 +5616,7 @@ func TestMenuDispatchesSubscriptionUpdate(t *testing.T) {
 	if err := app.AddSubscription("menu-sub", "https://subscription.example.com/menu.txt", true); err != nil {
 		t.Fatalf("add subscription: %v", err)
 	}
-	app.Stdin = strings.NewReader("4\n6\n0\n")
+	app.Stdin = strings.NewReader("2\n5\n6\n0\n0\n")
 	if err := app.Menu(); err != nil {
 		t.Fatalf("menu: %v", err)
 	}
@@ -5629,7 +5639,7 @@ func TestMenuDispatchesNodesMenu(t *testing.T) {
 		t.Fatalf("import links: %v", err)
 	}
 
-	app.Stdin = strings.NewReader("3\n1\n0\n")
+	app.Stdin = strings.NewReader("1\n0\n0\n")
 	if err := app.Menu(); err != nil {
 		t.Fatalf("menu: %v", err)
 	}
@@ -5640,7 +5650,7 @@ func TestMenuDispatchesNodesMenu(t *testing.T) {
 
 func TestMenuDispatchesNetworkMenu(t *testing.T) {
 	app, _ := newTestApp(t)
-	app.Stdin = strings.NewReader("5\n3\n0\n")
+	app.Stdin = strings.NewReader("3\n7\n0\n0\n")
 
 	if err := app.Menu(); err != nil {
 		t.Fatalf("menu: %v", err)
@@ -5652,7 +5662,7 @@ func TestMenuDispatchesNetworkMenu(t *testing.T) {
 
 func TestMenuDispatchesRulesAndACLMenu(t *testing.T) {
 	app, _ := newTestApp(t)
-	app.Stdin = strings.NewReader("6\n2\ndomain\nmenu-rule.example\nDIRECT\n0\n")
+	app.Stdin = strings.NewReader("3\n2\ndomain\nmenu-rule.example\nDIRECT\n0\n0\n")
 
 	if err := app.Menu(); err != nil {
 		t.Fatalf("menu: %v", err)
@@ -5668,7 +5678,7 @@ func TestMenuDispatchesRulesAndACLMenu(t *testing.T) {
 
 func TestMenuDispatchesServiceMenu(t *testing.T) {
 	app, _ := newTestApp(t)
-	app.Stdin = strings.NewReader("7\n4\n0\n")
+	app.Stdin = strings.NewReader("5\n4\n0\n0\n")
 
 	if err := app.Menu(); err != nil {
 		t.Fatalf("menu: %v", err)
@@ -5680,7 +5690,7 @@ func TestMenuDispatchesServiceMenu(t *testing.T) {
 
 func TestMenuDispatchesCutoverMenu(t *testing.T) {
 	app, _ := newTestApp(t)
-	app.Stdin = strings.NewReader("8\n2\n0\n")
+	app.Stdin = strings.NewReader("5\n9\n0\n0\n")
 
 	if err := app.Menu(); err != nil {
 		t.Fatalf("menu: %v", err)

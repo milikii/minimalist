@@ -38,6 +38,10 @@ cmd/minimalist/main.go              CLI 入口
 internal/app/                       应用编排层
   app.go                            业务主流程、菜单、systemd/iptables/controller 交互
   core_upgrade.go                   alpha 内核升级
+  header.go                         菜单顶部本地状态摘要
+  host_proxy.go                     宿主机流量接管事务性开关
+  logs.go                           journalctl snapshot 日志入口
+  operator_error.go                 运维可读错误格式
 
 internal/cli/                       命令路由层
   cli.go                            子命令分发与 usage
@@ -144,6 +148,8 @@ docs/...                            文档
 - 节点/规则主路径：`import-links`、`router-wizard`、`nodes ...`、`rules ...`、`acl ...`、`rules-repo ...`
 - 订阅增强项：`subscriptions ...`
 - 网络编排：`apply-rules`、`clear-rules`
+- 宿主机接管：`host-proxy status|enable|disable`
+- 日志：`log [mihomo] [--errors] [-n|--lines <count>] [--since <window>]`
 - 内核升级：`core-upgrade-alpha`
 
 ### `internal/app`

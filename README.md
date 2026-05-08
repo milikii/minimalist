@@ -84,8 +84,10 @@ sudo minimalist core-upgrade-alpha
 
 补充当前行为：
 
-- `menu` 当前按运维任务分组：状态总览、部署/修复、节点管理、订阅管理（增强项）、网络入口与规则仓库、规则与 ACL、服务管理、健康检查与审计
-- 节点管理包含查看、导入、测试、改名、启用、禁用和删除；节点测试依赖本机 Mihomo controller
+- `menu` 当前按 5 类高频任务分组：节点管理、配置管理、规则管理、日志与诊断、控制启停
+- 节点管理会常驻显示节点列表；输入节点 ID 进入单节点操作，可直接启用/禁用、改名、测试或确认删除
+- 配置管理包含 `router-wizard`、宿主机接管开关、订阅管理（增强项）、重新渲染配置和关键路径提示
+- 日志与诊断包含 `status`、`healthcheck`、`runtime-audit`、snapshot `log` 和 `show-secret`
 - `subscriptions update` 是增强项，只更新订阅 provider 缓存；`setup` / `start` 的核心成功路径仍只看启用的手动节点
 - 即使当前没有手动节点，`render-config` 仍会生成仅含 `DIRECT` 的 `PROXY` 组
 - provider 导入会按 `URIBaseKey` 去重，并为重名节点自动追加后缀

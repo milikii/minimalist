@@ -1183,7 +1183,7 @@ func TestRunDispatchesMenuThroughRun(t *testing.T) {
 			t.Fatalf("run menu: %v", err)
 		}
 	})
-	if !strings.Contains(output, "1) 状态") || !strings.Contains(output, "0) 退出") {
+	if !strings.Contains(output, "1) 节点管理") || !strings.Contains(output, "5) 控制启停") || !strings.Contains(output, "0) 退出") {
 		t.Fatalf("unexpected menu output:\n%s", output)
 	}
 }
@@ -1240,7 +1240,7 @@ func TestRunWithAppOnTTYWithoutArgsEntersMenu(t *testing.T) {
 		t.Fatalf("run with tty menu: %v", err)
 	}
 	output := stdout.String()
-	for _, needle := range []string{"1) 状态", "0) 退出"} {
+	for _, needle := range []string{"1) 节点管理", "4) 日志与诊断", "0) 退出"} {
 		if !strings.Contains(output, needle) {
 			t.Fatalf("missing %q in menu output:\n%s", needle, output)
 		}
