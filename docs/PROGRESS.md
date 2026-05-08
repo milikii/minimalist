@@ -224,3 +224,20 @@
 
 ### 下轮目标
 - 如需上线到 live 机器，安装当前二进制后手动走一遍 `minimalist menu` 的节点管理、日志诊断和控制启停入口。
+
+## Round 12 — 2026-05-09 00:12
+
+### 完成
+- 构建当前提交并安装到 live `/usr/local/bin/minimalist`。
+- 在沙箱外完成 `minimalist menu` 实机 smoke：顶层 5 类入口、节点管理列表、配置管理、规则管理、日志与诊断、控制启停均可进入并返回。
+- 补充验证节点管理核心路径：输入节点 ID 可进入单节点操作面板，并能返回节点列表，不修改节点状态。
+- 确认 live 状态：`minimalist.service` 显示 `running`，`status` 为 `active=true enabled=true`，`healthcheck` 返回 `{"meta":true,"version":"alpha-c59c99a"}`，`cutover-ready=true`。
+
+### 测试状态
+- 通过: live menu smoke、节点详情 smoke / 总计: 2 组
+
+### 遗留 / 下轮继续
+- 未执行节点启停、改名、删除、服务启停、host-proxy 开关等会修改 live 状态的菜单动作。
+
+### 下轮目标
+- 若需要继续优化，可做一次真实节点操作演练；默认不主动修改 live 节点状态。
