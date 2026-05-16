@@ -700,7 +700,7 @@ func TestRunHelpPrintsUsage(t *testing.T) {
 		"minimalist core-upgrade-alpha",
 		"  minimalist verify-runtime-assets\n",
 		"  minimalist host-proxy status|enable|disable\n",
-		"  minimalist webui [--addr host:port] [--token token] [--allow-lan]\n",
+		"  minimalist webui [--addr host:port] [--token token]\n",
 		"  minimalist log [mihomo] [--errors] [-n|--lines <count>] [--since <window>]\n",
 		"  minimalist nodes list|test|rename|enable|disable|remove\n",
 		"enhancement commands:",

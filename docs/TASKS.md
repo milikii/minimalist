@@ -53,7 +53,7 @@
 ## P1：Web 控制面
 
 - [x] 新增内置 `minimalist webui`
-  说明：默认只监听 `127.0.0.1:18080`，使用 token 保护；显式 `--allow-lan` 才允许绑定 LAN 地址，并要求强 token。
+  说明：默认监听 `0.0.0.0:18080` 方便 LAN 内访问，使用 token 保护；LAN 暴露要求强 token。
 
 - [x] WebUI 覆盖日常运维入口
   说明：首版覆盖总览、节点管理、配置管理、规则管理、日志诊断、控制启停和 `core-upgrade-alpha`，复用既有 app 方法。

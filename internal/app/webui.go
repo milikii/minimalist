@@ -24,6 +24,8 @@ import (
 //go:embed webui_static/*
 var webUIStatic embed.FS
 
+const defaultWebUIAddr = "0.0.0.0:18080"
+
 // WebUIOptions configures the built-in operator web UI server.
 type WebUIOptions struct {
 	Addr     string
@@ -47,7 +49,7 @@ type webAPIResponse struct {
 // WebUI starts the built-in browser control surface.
 func (a *App) WebUI(opts WebUIOptions) error {
 	if opts.Addr == "" {
-		opts.Addr = "127.0.0.1:18080"
+		opts.Addr = defaultWebUIAddr
 	}
 	cfg, _, err := a.ensureAll()
 	if err != nil {
@@ -60,16 +62,11 @@ func (a *App) WebUI(opts WebUIOptions) error {
 	if token == "" {
 		return errors.New("webui token is empty")
 	}
-	if !webUIAddrIsLoopback(opts.Addr) {
-		if !opts.AllowLAN {
-			return errors.New("refusing to bind webui to LAN without --allow-lan")
-		}
-		if !webUITokenStrong(token) {
-			return errors.New("refusing to expose webui on LAN with weak token")
-		}
+	if err := validateWebUIExposure(opts.Addr, token); err != nil {
+		return err
 	}
 
-	listener, err := net.Listen("tcp", opts.Addr)
+	listener, err := net.Listen(webUIListenNetwork(opts.Addr), opts.Addr)
 	if err != nil {
 		return err
 	}
@@ -79,6 +76,8 @@ func (a *App) WebUI(opts WebUIOptions) error {
 	fmt.Fprintf(a.Stdout, "token: %s\n", token)
 	if webUIAddrIsLoopback(opts.Addr) {
 		fmt.Fprintln(a.Stdout, "远程访问: ssh -L 18080:127.0.0.1:18080 user@nas-host")
+	} else {
+		fmt.Fprintln(a.Stdout, "LAN 访问已开放；请从 NAS 的 LAN IP 访问，并妥善保管 token")
 	}
 	server := &http.Server{Handler: newWebUIHandler(a, token)}
 	if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -739,4 +738,30 @@ func webUIAddrIsLoopback(addr string) bool {
 func webUITokenStrong(token string) bool {
 	token = strings.TrimSpace(token)
 	return len(token) >= 16 && token != "minimalist-secret"
+}
+
+func validateWebUIExposure(addr, token string) error {
+	if webUIAddrIsLoopback(addr) {
+		return nil
+	}
+	if !webUITokenStrong(token) {
+		return errors.New("refusing to expose webui on LAN with weak token")
+	}
+	return nil
+}
+
+func webUIListenNetwork(addr string) string {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+	}
+	host = strings.Trim(host, "[]")
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return "tcp"
+	}
+	if ip.To4() != nil {
+		return "tcp4"
+	}
+	return "tcp6"
 }

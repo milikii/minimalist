@@ -24,7 +24,7 @@
 - 业务命令、菜单与 CLI 分发：`internal/app`、`internal/cli`
 - 外部命令封装：`internal/system`
 - `menu` 当前已按高频任务重排为 5 类：节点管理、配置管理、规则管理、日志与诊断、控制启停；节点管理已改成常驻列表 + 输入节点 ID 进入单节点操作
-- `webui` 当前提供内置本机 Web 控制面：总览、节点管理、配置管理、规则管理、日志诊断、控制启停和核心升级入口；默认仅监听 `127.0.0.1:18080`
+- `webui` 当前提供内置 Web 控制面：总览、节点管理、配置管理、规则管理、日志诊断、控制启停和核心升级入口；默认监听 `0.0.0.0:18080` 供 LAN 内访问，并要求强 token
 
 当前保留命令：
 
@@ -32,7 +32,7 @@
 - 内核维护：`core-upgrade-alpha`（官方 alpha release 单次升级，成功替换后自动重启 `minimalist.service`）
 - 运维查看：`status`、`show-secret`、`healthcheck`、`runtime-audit`、`verify-runtime-assets`、`cutover-preflight`、`cutover-plan`、`host-proxy status|enable|disable`、`log`
 - 交互与资源入口：`menu`、`router-wizard`、`import-links`
-- Web 控制面：`webui [--addr host:port] [--token token] [--allow-lan]`
+- Web 控制面：`webui [--addr host:port] [--token token]`
 - 节点与规则：`nodes`、`rules`、`acl`、`rules-repo`
 - 增强项：`subscriptions`
 
@@ -89,7 +89,8 @@
 - 2026-05-01 菜单重设计 v2 已落地第一批可执行项：cheap `statusSnapshot` header、独立“状态与诊断”入口、独立 `Cutover` 菜单、事务性 `host-proxy` CLI、snapshot `log` CLI。
 - 2026-05-08 菜单重构继续收口：顶层改成节点/配置/规则/日志诊断/控制启停 5 类；节点管理支持常驻列表、按节点 ID 进入操作面板、单节点启停/改名/测速/确认删除；配置管理纳入 `host-proxy` 和订阅增强项，规则管理合并自定义规则、ACL 与规则仓库。
 - 2026-05-09 修复节点管理状态与运行时漂移：手动节点启停、改名、删除在服务运行时会保存状态后自动渲染 runtime 并重启服务；本机 GXP 三个节点由原先 runtime 缺失导致的 404，重启同步后均已测速通过。
-- 2026-05-16 新增内置 WebUI 首版：`minimalist webui` 默认本机监听并要求 token，页面覆盖总览、节点、配置、规则、服务、日志和核心升级；已通过 API focused tests、全量 `go test ./...`、`go vet ./...`、`gofmt -l cmd internal`、JS 语法检查和 Chromium headless 首页 smoke。
+- 2026-05-16 新增内置 WebUI 首版：`minimalist webui` 默认 LAN 监听并要求强 token，页面覆盖总览、节点、配置、规则、服务、日志和核心升级；已通过 API focused tests、全量 `go test ./...`、`go vet ./...`、`gofmt -l cmd internal`、JS 语法检查和 Chromium headless 首页 smoke。
+- 2026-05-16 WebUI 默认监听策略已按用户要求切到 LAN：`minimalist webui` 默认输出 `http://0.0.0.0:18080/`，`ss -lntp sport = :18080` 确认为 IPv4 `0.0.0.0:18080`，弱 token 仍会拒绝 LAN 暴露。
 
 ## 当前风险与限制
 

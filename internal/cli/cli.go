@@ -233,16 +233,17 @@ func parseWebUIOptions(args []string) (app.WebUIOptions, error) {
 		case "--addr":
 			i++
 			if i >= len(args) {
-				return opts, errors.New("usage: minimalist webui [--addr host:port] [--token token] [--allow-lan]")
+				return opts, errors.New("usage: minimalist webui [--addr host:port] [--token token]")
 			}
 			opts.Addr = args[i]
 		case "--token":
 			i++
 			if i >= len(args) {
-				return opts, errors.New("usage: minimalist webui [--addr host:port] [--token token] [--allow-lan]")
+				return opts, errors.New("usage: minimalist webui [--addr host:port] [--token token]")
 			}
 			opts.Token = args[i]
 		case "--allow-lan":
+			// Kept for compatibility with the first WebUI release. LAN is now the default.
 			opts.AllowLAN = true
 		default:
 			return opts, fmt.Errorf("unknown webui argument: %q", args[i])
@@ -342,7 +343,7 @@ func printUsage() {
   minimalist router-wizard
   minimalist apply-rules|clear-rules
   minimalist host-proxy status|enable|disable
-  minimalist webui [--addr host:port] [--token token] [--allow-lan]
+  minimalist webui [--addr host:port] [--token token]
   minimalist log [mihomo] [--errors] [-n|--lines <count>] [--since <window>]
   minimalist nodes list|test|rename|enable|disable|remove
   minimalist rules list|add|remove

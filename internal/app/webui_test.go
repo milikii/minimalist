@@ -101,7 +101,16 @@ func TestWebUIConfigUpdateSavesSafeFields(t *testing.T) {
 	}
 }
 
-func TestWebUILANGuardRequiresExplicitAllowAndStrongToken(t *testing.T) {
+func TestWebUIDefaultsToLANAndRequiresStrongToken(t *testing.T) {
+	if defaultWebUIAddr != "0.0.0.0:18080" {
+		t.Fatalf("unexpected default webui addr: %q", defaultWebUIAddr)
+	}
+	if webUIListenNetwork(defaultWebUIAddr) != "tcp4" {
+		t.Fatalf("default webui addr must use tcp4, got %q", webUIListenNetwork(defaultWebUIAddr))
+	}
+	if webUIAddrIsLoopback(defaultWebUIAddr) {
+		t.Fatalf("default webui addr must be LAN reachable")
+	}
 	if webUIAddrIsLoopback("0.0.0.0:18080") {
 		t.Fatalf("0.0.0.0 must not be considered loopback")
 	}
@@ -113,6 +122,15 @@ func TestWebUILANGuardRequiresExplicitAllowAndStrongToken(t *testing.T) {
 	}
 	if !webUITokenStrong("0123456789abcdef") {
 		t.Fatalf("expected long token to be strong")
+	}
+	if err := validateWebUIExposure(defaultWebUIAddr, "minimalist-secret"); err == nil || !strings.Contains(err.Error(), "weak token") {
+		t.Fatalf("expected weak token LAN guard, got %v", err)
+	}
+	if err := validateWebUIExposure(defaultWebUIAddr, "0123456789abcdef"); err != nil {
+		t.Fatalf("expected strong token LAN exposure to pass: %v", err)
+	}
+	if err := validateWebUIExposure("127.0.0.1:18080", "weak"); err != nil {
+		t.Fatalf("loopback exposure should allow short development tokens: %v", err)
 	}
 }
 

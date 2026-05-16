@@ -88,16 +88,18 @@ sudo minimalist core-upgrade-alpha
 minimalist webui
 ```
 
-默认监听 `127.0.0.1:18080`，使用 `controller.secret` 作为 token。远程访问推荐 SSH 隧道：
+默认监听 `0.0.0.0:18080`，LAN 内设备可通过 NAS 的 LAN IP 访问；默认使用 `controller.secret` 作为 token。LAN 开放要求 token 不少于 16 字符，且不能是 `minimalist-secret` 兜底值。
+
+如果只想本机访问，可以显式绑定 loopback：
 
 ```bash
-ssh -L 18080:127.0.0.1:18080 user@nas-host
+minimalist webui --addr 127.0.0.1:18080
 ```
 
-如果确实要暴露到 LAN，必须显式传入 `--allow-lan`，并使用不少于 16 字符且不是默认兜底值的 token：
+也可以临时指定一次性 token：
 
 ```bash
-minimalist webui --addr 0.0.0.0:18080 --token '<strong-token>' --allow-lan
+minimalist webui --token '<strong-token>'
 ```
 
 补充当前行为：

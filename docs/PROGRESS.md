@@ -275,3 +275,20 @@
 
 ### 下轮目标
 - 安装新二进制后执行 live WebUI smoke，先验证只读总览、节点列表、配置页和日志页，再决定是否测试会修改 live 状态的按钮。
+
+## Round 15 — 2026-05-16 22:00
+
+### 完成
+- 按用户要求把 `minimalist webui` 默认监听从本机改为 LAN：默认地址为 `0.0.0.0:18080`。
+- 保留强 token LAN 保护：默认 LAN 暴露仍拒绝 `minimalist-secret` 和少于 16 字符的 token。
+- 让 IPv4 地址显式使用 `tcp4` 监听，避免默认启动输出 `[::]:18080` 干扰判断。
+- 更新 README、TASKS、STATUS、NEXT_STEP 与 DECISIONS 中的 WebUI 默认访问说明。
+
+### 测试状态
+- 通过: `go test ./internal/app`、`go test ./internal/cli`、`go test ./...`、`go vet ./...`、`gofmt -l cmd internal`、`node --check internal/app/webui_static/app.js`、临时 WebUI 默认 LAN smoke / 总计: 7 组
+
+### 遗留 / 下轮继续
+- 当前只验证了临时路径下的 WebUI 默认 LAN 监听与首页访问；尚未把新二进制安装到 live `/usr/local/bin/minimalist`。
+
+### 下轮目标
+- 安装新二进制后，用 `minimalist webui` 在真实 NAS 配置上做一次 LAN 只读 smoke。
